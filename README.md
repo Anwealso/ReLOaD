@@ -1,4 +1,4 @@
-# Engineering Thesis Project
+# ReLOaD: Reinforcement Learning for Object Detection
 
 The University of Queensland
 
@@ -10,17 +10,21 @@ Alex Nicholson
 
 ## TODO
 
-- a
-- b
-- c
+- ...
 
 ---
 
 ## Installation / Setup
 
+- ...
+
 ## Usage
 
+- ...
+
 ## Extra Resources
+
+- ...
 
 
 ---
