@@ -10,7 +10,8 @@ Alex Nicholson
 
 ## TODO
 
-- ...
+- [WIP] Setup iGibson docker envirnoment on winedows
+- Link tf agents up to docker igibson env
 
 ---
 
