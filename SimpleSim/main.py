@@ -20,7 +20,7 @@ sw = 800
 sh = 800
 
 bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (800, 800))
-playerRocket = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (100, 100))
+player_rocket = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (100, 100))
 asteroid50 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (50, 50))
 asteroid100 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (100, 100))
 asteroid150 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (150, 150))
@@ -62,23 +62,23 @@ class Target(object):
 
         # Set the orientation
         self.angle = 90 # unit circle format
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
         self.xdir = int(math.cos(math.radians(self.angle)))
         self.ydir = int(math.sin(math.radians(self.angle)))
         # print(f"angle:{self.angle}, xdir:{self.xdir}, ydir:{self.ydir}")
 
     def draw(self, win):
-        win.blit(self.rotatedSurf, self.rotatedRect)
+        win.blit(self.rotated_surf, self.rotated_rect)
 
 class Robot(object):
     """
     The mobile robot that the RL algorith will control
     """
     def __init__(self, fov):
-        self.image = playerRocket
+        self.image = player_rocket
         self.w = self.image.get_width()
         self.h = self.image.get_height()
         # Set position
@@ -88,9 +88,9 @@ class Robot(object):
         # Set orientation
         self.angle = 90 # unit circle angles
         # Draw sprite at starting position
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
         self.fov = fov
 
@@ -105,45 +105,45 @@ class Robot(object):
         # Reset orientation
         self.angle = 90 # unit circle angles
         # Draw sprite at starting position
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
     def draw(self, win):
-        win.blit(self.rotatedSurf, self.rotatedRect)
+        win.blit(self.rotated_surf, self.rotated_rect)
 
-    def turnLeft(self):
+    def turn_left(self):
         self.angle += 5
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
-    def turnRight(self):
+    def turn_right(self):
         self.angle -= 5
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
 
-    def moveForward(self):
+    def move_forward(self):
         self.x += math.cos(math.radians(self.angle)) * 6
         self.y -= math.sin(math.radians(self.angle)) * 6
         self.trail.append((self.x, self.y))
-        self.updateLocation()
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.update_location()
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
-    def moveBackward(self):
+    def move_backward(self):
         self.x -= math.cos(math.radians(self.angle)) * 6
         self.y += math.sin(math.radians(self.angle)) * 6
         self.trail.append((self.x, self.y))
-        self.updateLocation()
-        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotatedRect = self.rotatedSurf.get_rect()
-        self.rotatedRect.center = (self.x, self.y)
+        self.update_location()
+        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_rect = self.rotated_surf.get_rect()
+        self.rotated_rect.center = (self.x, self.y)
 
-    def updateLocation(self):
+    def update_location(self):
         """
         Stops player from going off screen
         """
@@ -250,14 +250,14 @@ class Game(object):
         self.paused = False
         self.budget = self.starting_budget
         self.score = 0
-        self.highScore = 0        
+        self.high_score = 0        
         self.count = 0
         self.run = True
 
         self.robot = Robot(player_fov)
         self.targets = []
         # 1D array of confidences on each object at current timestep
-        self.currentConfidences = []
+        self.current_confidences = []
         # 2D array of confidences on each object at each timestep
         self.confidences = []
 
@@ -270,22 +270,42 @@ class Game(object):
         self.spawn_targets(self.num_targets)
         self.robot.reset()
 
-        self.currentConfidences = []
+        self.current_confidences = []
         self.confidences = []
 
-        if self.score > self.highScore:
-            self.highScore = self.score
+        if self.score > self.high_score:
+            self.high_score = self.score
         self.score = 0
 
-    def spawn_targets(self, numToSpawn):
+    def get_state(self):
+        state_dict = {}
+
+        state_dict["current_confidences"] = self.current_confidences
+        state_dict["confidences"] = self.confidences
+        self.gameover = False
+        self.budget = self.starting_budget
+        self.targets.clear()
+        self.spawn_targets(self.num_targets)
+        self.robot.reset()
+
+        self.current_confidences = []
+        self.confidences = []
+
+        if self.score > self.high_score:
+            self.high_score = self.score
+        self.score = 0
+
+        return state_dict
+
+    def spawn_targets(self, num_to_spawn):
         """
         Spawn objects to identify
         """
-        for _ in range(0, numToSpawn):
+        for _ in range(0, num_to_spawn):
             ran = random.choice([1,1,1,2,2,3])
             self.targets.append(Target(ran))
 
-    def redrawGameWindow(self):
+    def redraw_game_window(self):
         """
         Main render function
         """
@@ -302,20 +322,20 @@ class Game(object):
 
         # Draw the onscreen menu text
         font = pygame.font.SysFont('arial',30)
-        budgetText = font.render('Budget: ' + str(self.budget), 1, (0, 255, 0))
-        playAgainText = font.render('Press Tab to Play Again', 1, (0, 255, 0))
-        pauseText = font.render('Press P to Unpause', 1, (0, 255, 0))
-        scoreText = font.render('Current Confidence: ' + str(round(np.sum(self.currentConfidences), 2)), 1, (0, 255, 0))
-        highScoreText = font.render('High Score: ' + str(self.highScore), 1, (0, 255, 0))    
-        # highScoreText = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))   
+        budget_text = font.render('Budget: ' + str(self.budget), 1, (0, 255, 0))
+        play_again_text = font.render('Press Tab to Play Again', 1, (0, 255, 0))
+        pause_text = font.render('Press P to Unpause', 1, (0, 255, 0))
+        score_text = font.render('Current Confidence: ' + str(round(np.sum(self.current_confidences), 2)), 1, (0, 255, 0))
+        high_score_text = font.render('High Score: ' + str(self.high_score), 1, (0, 255, 0))    
+        # high_score_text = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))   
 
         if self.paused:
-            win.blit(pauseText, (sw//2-pauseText.get_width()//2, sh//2 - pauseText.get_height()//2))
+            win.blit(pause_text, (sw//2-pause_text.get_width()//2, sh//2 - pause_text.get_height()//2))
         if self.gameover:
-            win.blit(playAgainText, (sw//2-playAgainText.get_width()//2, sh//2 - playAgainText.get_height()//2))
-        win.blit(scoreText, (sw - scoreText.get_width() - 25, 25))
-        win.blit(budgetText, (25, 25))
-        win.blit(highScoreText, (sw - highScoreText.get_width() -25, 35 + scoreText.get_height()))
+            win.blit(play_again_text, (sw//2-play_again_text.get_width()//2, sh//2 - play_again_text.get_height()//2))
+        win.blit(score_text, (sw - score_text.get_width() - 25, 25))
+        win.blit(budget_text, (25, 25))
+        win.blit(high_score_text, (sw - high_score_text.get_width() -25, 35 + score_text.get_height()))
         pygame.display.update()
 
     def detect_targets(self):
@@ -323,7 +343,7 @@ class Game(object):
         Looks for objects in the view of the player and detects them
         """
         numSeen = 0
-        self.currentConfidences = []
+        self.current_confidences = []
 
         # Get which of the objects are in the FOV
         for i in range(0, len(self.targets)):
@@ -339,11 +359,11 @@ class Game(object):
                 confidence = 0            
             # print(f"Target {i}: {confidence}")
             
-            self.currentConfidences.append(confidence)
+            self.current_confidences.append(confidence)
         
         # print(f"numSeen: {numSeen}\n")
         
-        self.confidences.append(self.currentConfidences)
+        self.confidences.append(self.current_confidences)
 
     def get_reward(self):
         """
@@ -365,7 +385,7 @@ class Game(object):
                 self.budget -= 1
 
                 # Update the player potisions
-                self.robot.updateLocation()
+                self.robot.update_location()
 
                 # Get the detection confidences on the environment
                 # print("Detecting...")
@@ -378,13 +398,13 @@ class Game(object):
                 # Handle player controls and movement
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_LEFT]:
-                    self.robot.turnLeft()
+                    self.robot.turn_left()
                 if keys[pygame.K_RIGHT]:
-                    self.robot.turnRight()
+                    self.robot.turn_right()
                 if keys[pygame.K_UP]:
-                    self.robot.moveForward()
+                    self.robot.move_forward()
                 if keys[pygame.K_DOWN]:
-                    self.robot.moveBackward()
+                    self.robot.move_backward()
 
             # Handle menu keyboard events
             for event in pygame.event.get():
@@ -399,7 +419,7 @@ class Game(object):
                         self.paused = not self.paused
 
             # Re-render the scene
-            self.redrawGameWindow()
+            self.redraw_game_window()
 
 
 # ---------------------------------------------------------------------------- #
