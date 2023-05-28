@@ -30,7 +30,7 @@ win = pygame.display.set_mode((sw, sh))
 clock = pygame.time.Clock()
 
 STARTING_BUDGET = 2000
-NUM_TARGETS = 1
+NUM_TARGETS = 8
 PLAYER_FOV = 90
 
 
@@ -39,6 +39,9 @@ PLAYER_FOV = 90
 # ---------------------------------------------------------------------------- #
 
 class Target(object):
+    """
+    The targets that the RL agent must attempt to classify using the mobile robot
+    """
     def __init__(self, rank):
         self.rank = rank
 
@@ -58,88 +61,87 @@ class Target(object):
         self.x, self.y = self.ranPoint
 
         # Set the orientation
-        if self.x < sw//2:
-            self.xdir = 1
-        else:
-            self.xdir = -1
-        if self.y < sh//2:
-            self.ydir = 1
-        else:
-            self.ydir = -1
-
-        # TODO: Finish target angle implementations
-        self.angle = 0
-        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.angle = 90 # unit circle format
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
+
+        self.xdir = int(math.cos(math.radians(self.angle)))
+        self.ydir = int(math.sin(math.radians(self.angle)))
+        # print(f"angle:{self.angle}, xdir:{self.xdir}, ydir:{self.ydir}")
 
     def draw(self, win):
-        win.blit(self.image, (self.x - (self.w/2), self.y - (self.h/2)))
-
+        win.blit(self.rotatedSurf, self.rotatedRect)
 
 class Robot(object):
+    """
+    The mobile robot that the RL algorith will control
+    """
     def __init__(self, fov):
-        self.img = playerRocket
-        self.w = self.img.get_width()
-        self.h = self.img.get_height()
+        self.image = playerRocket
+        self.w = self.image.get_width()
+        self.h = self.image.get_height()
+        # Set position
         self.x = sw//2
         self.y = sh//2
-
-        self.angle = 0
-        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.trail = [] # a trail of all past x,y coords
+        # Set orientation
+        self.angle = 90 # unit circle angles
+        # Draw sprite at starting position
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
 
-        self.cosine = math.cos(math.radians(self.angle + 90))
-        self.sine = math.sin(math.radians(self.angle + 90))
-        self.head = (self.x + self.cosine * self.w//2, self.y - self.sine * self.h//2)
         self.fov = fov
 
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
+
+    def reset(self):
+        # Reset position
+        self.x = sw//2
+        self.y = sh//2
+        self.trail.clear() # a trail of all past x,y coords
+        # Reset orientation
+        self.angle = 90 # unit circle angles
+        # Draw sprite at starting position
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotatedRect = self.rotatedSurf.get_rect()
+        self.rotatedRect.center = (self.x, self.y)
 
     def draw(self, win):
         win.blit(self.rotatedSurf, self.rotatedRect)
 
     def turnLeft(self):
         self.angle += 5
-        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
-        self.cosine = math.cos(math.radians(self.angle + 90))
-        self.sine = math.sin(math.radians(self.angle + 90))
-        self.head = (self.x + self.cosine * self.w//2, self.y - self.sine * self.h//2)
 
     def turnRight(self):
         self.angle -= 5
-        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
-        self.cosine = math.cos(math.radians(self.angle + 90))
-        self.sine = math.sin(math.radians(self.angle + 90))
-        self.head = (self.x + self.cosine * self.w//2, self.y - self.sine * self.h//2)
+
 
     def moveForward(self):
-        self.x += self.cosine * 6
-        self.y -= self.sine * 6
+        self.x += math.cos(math.radians(self.angle)) * 6
+        self.y -= math.sin(math.radians(self.angle)) * 6
+        self.trail.append((self.x, self.y))
         self.updateLocation()
-        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
-        self.cosine = math.cos(math.radians(self.angle + 90))
-        self.sine = math.sin(math.radians(self.angle + 90))
-        self.head = (self.x + self.cosine * self.w // 2, self.y - self.sine * self.h // 2)
 
     def moveBackward(self):
-        self.x -= self.cosine * 6
-        self.y += self.sine * 6
+        self.x -= math.cos(math.radians(self.angle)) * 6
+        self.y += math.sin(math.radians(self.angle)) * 6
+        self.trail.append((self.x, self.y))
         self.updateLocation()
-        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.rotatedSurf = pygame.transform.rotate(self.image, self.angle-90)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
-        self.cosine = math.cos(math.radians(self.angle + 90))
-        self.sine = math.sin(math.radians(self.angle + 90))
-        self.head = (self.x + self.cosine * self.w // 2, self.y - self.sine * self.h // 2)
 
     def updateLocation(self):
         """
@@ -170,8 +172,8 @@ class Robot(object):
         target_y_cart = sh - target.y
         # print(f"robot_x_cart:{robot_x_cart}, robot_y_cart:{robot_y_cart} //// target_x_cart:{target_x_cart}, target_y_cart:{target_y_cart}")
 
-        left_angle = (self.angle + 90 + (self.fov/2)) % 360
-        right_angle = (self.angle + 90 - (self.fov/2)) % 360
+        left_angle = (self.angle + (self.fov/2)) % 360
+        right_angle = (self.angle - (self.fov/2)) % 360
         target_dy = target_y_cart - robot_y_cart
         target_dx = target_x_cart - robot_x_cart
         # print(f"target_dy:{target_dy}, target_dx:{target_dx}")
@@ -225,7 +227,7 @@ class Robot(object):
 
         # Decide the weightings between how much the distance and orientation 
         # factors affect the confidence
-        distance_weighting = 0
+        distance_weighting = 4
         orientation_weighting = 1
         weighting_sum = distance_weighting + orientation_weighting
         distance_weighting = distance_weighting / weighting_sum
@@ -248,7 +250,9 @@ class Game(object):
         self.paused = False
         self.budget = self.starting_budget
         self.score = 0
-        self.highScore = 0
+        self.highScore = 0        
+        self.count = 0
+        self.run = True
 
         self.robot = Robot(player_fov)
         self.targets = []
@@ -256,10 +260,22 @@ class Game(object):
         self.currentConfidences = []
         # 2D array of confidences on each object at each timestep
         self.confidences = []
-        self.count = 0
-        self.run = True
 
         self.spawn_targets(self.num_targets)
+
+    def reset(self):
+        self.gameover = False
+        self.budget = self.starting_budget
+        self.targets.clear()
+        self.spawn_targets(self.num_targets)
+        self.robot.reset()
+
+        self.currentConfidences = []
+        self.confidences = []
+
+        if self.score > self.highScore:
+            self.highScore = self.score
+        self.score = 0
 
     def spawn_targets(self, numToSpawn):
         """
@@ -274,19 +290,25 @@ class Game(object):
         Main render function
         """
         win.blit(bg, (0,0))
+
+        # Draw the robot
+        self.robot.draw(win)
+        # Draw the targets
+        for target in self.targets:
+            target.draw(win)
+        # Draw the robot's trail
+        for point in self.robot.trail:
+            pygame.draw.circle(win, (255, 0, 0), point, 2)
+
+        # Draw the onscreen menu text
         font = pygame.font.SysFont('arial',30)
         budgetText = font.render('Budget: ' + str(self.budget), 1, (0, 255, 0))
         playAgainText = font.render('Press Tab to Play Again', 1, (0, 255, 0))
         pauseText = font.render('Press P to Unpause', 1, (0, 255, 0))
-        # scoreText = font.render('Score: ' + str(self.score), 1, (255,255,255))
         scoreText = font.render('Current Confidence: ' + str(round(np.sum(self.currentConfidences), 2)), 1, (0, 255, 0))
         highScoreText = font.render('High Score: ' + str(self.highScore), 1, (0, 255, 0))    
         # highScoreText = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))   
 
-        self.robot.draw(win)
-        for target in self.targets:
-            target.draw(win)
-        
         if self.paused:
             win.blit(pauseText, (sw//2-pauseText.get_width()//2, sh//2 - pauseText.get_height()//2))
         if self.gameover:
@@ -315,11 +337,11 @@ class Game(object):
             else:
                 # Assign confidence of 0 for those out of view
                 confidence = 0            
-            print(f"Target {i}: {confidence}")
+            # print(f"Target {i}: {confidence}")
             
             self.currentConfidences.append(confidence)
         
-        print(f"numSeen: {numSeen}\n")
+        # print(f"numSeen: {numSeen}\n")
         
         self.confidences.append(self.currentConfidences)
 
@@ -371,13 +393,7 @@ class Game(object):
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_TAB:
                         if self.gameover:
-                            self.gameover = False
-                            self.budget = self.starting_budget
-                            self.targets.clear()
-                            self.spawn_targets(self.num_targets)
-                            if self.score > self.highScore:
-                                self.highScore = self.score
-                            self.score = 0
+                            self.reset()
 
                     if event.key == pygame.K_p:
                         self.paused = not self.paused
