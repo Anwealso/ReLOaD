@@ -23,7 +23,6 @@ Basic model
 - Add trails showing path of robot
 - Save screenshots of the completed environment every couple of episodes 
 
-
 Factors to include in detection function
 - Distance
 - Angle off frontal
