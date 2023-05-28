@@ -9,6 +9,7 @@ import pygame
 import math
 import random
 import numpy as np
+import time
 
 
 # ---------------------------------------------------------------------------- #
@@ -367,8 +368,8 @@ class Game(object):
         budget_text = font.render('Budget: ' + str(self.budget), 1, (0, 255, 0))
         play_again_text = font.render('Press Tab to Play Again', 1, (0, 255, 0))
         pause_text = font.render('Press P to Unpause', 1, (0, 255, 0))
-        score_text = font.render('Current Confidences: ' + str(round(np.sum(self.current_confidences), 2)), 1, (0, 255, 0))
-        high_score_text = font.render('Avg Confidences: ' + str(round(np.sum(self.avg_confidences), 2)), 1, (0, 255, 0))    
+        score_text = font.render('Current Confidences: ' + str(format(np.sum(self.current_confidences), ".2f")), 1, (0, 255, 0))
+        high_score_text = font.render('Avg Confidences: ' + str(format(np.sum(self.avg_confidences), ".2f")), 1, (0, 255, 0))    
         # high_score_text = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))   
 
         if self.paused:
@@ -522,6 +523,7 @@ if __name__ == "__main__":
             action = (None, None)
 
         # Perform the action
+        time.sleep(0.1)
         game.perform_action(action)
 
         # Get the reward
