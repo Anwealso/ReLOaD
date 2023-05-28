@@ -243,71 +243,113 @@ class Game(object):
     A class to handle all of the data structures and logic of the game
     """
     def __init__(self, starting_budget, num_targets, player_fov):
+        """
+        Initialises a Game instance
+
+        Args:
+            starting_budget (int): The budget the agent will start each episode
+                of the game with.
+            num_targets (int): The number of targets in the game for the agent
+                to identify.
+            player_fov (int): The FOV of the robot (in degrees)
+        Returns:
+            None
+        """
         self.starting_budget = starting_budget
         self.num_targets = num_targets
 
         self.gameover = False
         self.paused = False
         self.budget = self.starting_budget
-        self.score = 0
-        self.high_score = 0        
+        # self.score = 0
+        # self.high_score = 0        
         self.count = 0
         self.run = True
 
         self.robot = Robot(player_fov)
         self.targets = []
         # 1D array of confidences on each object at current timestep
-        self.current_confidences = []
+        self.current_confidences = np.zeros((self.num_targets, 1))
         # 2D array of confidences on each object at each timestep
-        self.confidences = []
+        self.confidences = np.zeros((self.num_targets, 1))
+        # 1D array of confidences on each object avg over all past timesteps
+        self.avg_confidences = np.zeros((self.num_targets, 1)) 
+        # Note: Using avg might cause agent to simply find the best spot with 
+        # the most objects in view and camp there to farm for max score
 
         self.spawn_targets(self.num_targets)
 
     def reset(self):
+        """
+        Resets the game to its initial state
+
+        Args:
+            None
+        Returns:
+            None
+        """
         self.gameover = False
         self.budget = self.starting_budget
         self.targets.clear()
         self.spawn_targets(self.num_targets)
         self.robot.reset()
 
-        self.current_confidences = []
-        self.confidences = []
+        self.current_confidences = np.zeros((self.num_targets, 1))
+        self.confidences = np.zeros((self.num_targets, 1))
+        self.count = 0
 
-        if self.score > self.high_score:
-            self.high_score = self.score
-        self.score = 0
-
-    def get_state(self):
-        state_dict = {}
-
-        state_dict["current_confidences"] = self.current_confidences
-        state_dict["confidences"] = self.confidences
-        self.gameover = False
-        self.budget = self.starting_budget
-        self.targets.clear()
-        self.spawn_targets(self.num_targets)
-        self.robot.reset()
-
-        self.current_confidences = []
-        self.confidences = []
-
-        if self.score > self.high_score:
-            self.high_score = self.score
-        self.score = 0
-
-        return state_dict
+        # if self.score > self.high_score:
+        #     self.high_score = self.score
 
     def spawn_targets(self, num_to_spawn):
         """
         Spawn objects to identify
+
+        Args:
+            num_to_spawn (int): Number of targets to spawn in the game
+        Returns:
+            None
         """
         for _ in range(0, num_to_spawn):
             ran = random.choice([1,1,1,2,2,3])
             self.targets.append(Target(ran))
 
+    def detect_targets(self):
+        """
+        Looks for objects in the view of the player and detects them
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        numSeen = 0
+
+        # Get which of the objects are in the FOV
+        for i in range(0, len(self.targets)):
+            target = self.targets[i]
+
+            if self.robot.can_see(target):
+                numSeen+=1
+                # Assign a non-zero confidence for those in view 
+                confidence = self.robot.get_confidence(target)
+
+            else:
+                # Assign confidence of 0 for those out of view
+                confidence = 0            
+            self.current_confidences[i] = confidence
+
+        self.avg_confidences = (np.add(self.avg_confidences.dot(self.count), self.current_confidences)) / (self.count + 1)
+        np.append(self.confidences, self.current_confidences, axis=1)
+
     def redraw_game_window(self):
         """
         Main render function
+
+        Args:
+            None
+        Returns:
+            None
         """
         win.blit(bg, (0,0))
 
@@ -325,8 +367,8 @@ class Game(object):
         budget_text = font.render('Budget: ' + str(self.budget), 1, (0, 255, 0))
         play_again_text = font.render('Press Tab to Play Again', 1, (0, 255, 0))
         pause_text = font.render('Press P to Unpause', 1, (0, 255, 0))
-        score_text = font.render('Current Confidence: ' + str(round(np.sum(self.current_confidences), 2)), 1, (0, 255, 0))
-        high_score_text = font.render('High Score: ' + str(self.high_score), 1, (0, 255, 0))    
+        score_text = font.render('Current Confidences: ' + str(round(np.sum(self.current_confidences), 2)), 1, (0, 255, 0))
+        high_score_text = font.render('Avg Confidences: ' + str(round(np.sum(self.avg_confidences), 2)), 1, (0, 255, 0))    
         # high_score_text = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))   
 
         if self.paused:
@@ -338,94 +380,157 @@ class Game(object):
         win.blit(high_score_text, (sw - high_score_text.get_width() -25, 35 + score_text.get_height()))
         pygame.display.update()
 
-    def detect_targets(self):
+    def get_state(self):
         """
-        Looks for objects in the view of the player and detects them
+        Gets the current state of the game
+
+        Args:
+            None
+        Returns:
+            (dict) a dictionary containing all the state variables
         """
-        numSeen = 0
-        self.current_confidences = []
-
-        # Get which of the objects are in the FOV
-        for i in range(0, len(self.targets)):
-            target = self.targets[i]
-
-            if self.robot.can_see(target):
-                numSeen+=1
-                # Assign a non-zero confidence for those in view 
-                confidence = self.robot.get_confidence(target)
-
-            else:
-                # Assign confidence of 0 for those out of view
-                confidence = 0            
-            # print(f"Target {i}: {confidence}")
-            
-            self.current_confidences.append(confidence)
         
-        # print(f"numSeen: {numSeen}\n")
-        
-        self.confidences.append(self.current_confidences)
+        state_dict = {}
+
+        state_dict["count"] = self.count
+        # state_dict["avg_confidences"] = self.avg_confidences
+        state_dict["budget"] = self.budget
+        # state_dict["object_positions"] = self.get_object_positions() 
+        # object_positions is a tuple containing posiiton and orientation
+        # (x, y, angle) (angle in unit circle format)
+        state_dict["current_confidences"] = self.current_confidences
+
+        return state_dict
 
     def get_reward(self):
         """
-        Get the rewaard for this step, based on the time-weighted confidences
-        """
-        reward = np.mean(self.confidences)
-        return reward
+        Get the reward for this step, based on the time-weighted confidences
 
-    def run_game(self):
+        Args:
+            None
+        Returns:
+            (np.ndarray) the avg_confidences vector
+        """
+        return self.avg_confidences
+
+    def perform_action(self, action):
+        """
+        Given an action tuple, execute the action in the environment.
+        Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
+        """
+        movement, rotation = action
+
+        if (not self.paused) and (not self.gameover):
+            # Handle agent controls and movement
+            if rotation == "L":
+                self.robot.turn_left()
+            elif rotation == "R":
+                self.robot.turn_right()
+            
+            if movement == "F":
+                self.robot.move_forward()
+            elif movement == "B":
+                self.robot.move_backward()
+
+    def perform_action_interactive(self):
+        """
+        Get player commands from keyboard and execute the action in the 
+        environment.
+        """
+        if (not self.paused) and (not self.gameover):
+            # Handle player controls and movement
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                self.robot.turn_left()
+            if keys[pygame.K_RIGHT]:
+                self.robot.turn_right()
+            if keys[pygame.K_UP]:
+                self.robot.move_forward()
+            if keys[pygame.K_DOWN]:
+                self.robot.move_backward()
+
+    def step(self):
         """
         Runs the game logic (controller)
         """
-        while self.run:
-            if (not self.paused) and (not self.gameover):
-                clock.tick(60)
-                self.count += 1
+        if (not self.paused) and (not self.gameover):
+            clock.tick(60)
+            self.count += 1
 
-                # Decrement the budget over time
-                self.budget -= 1
+            # Decrement the budget over time
+            self.budget -= 1
 
-                # Update the player potisions
-                self.robot.update_location()
+            # Update the player potisions
+            self.robot.update_location()
 
-                # Get the detection confidences on the environment
-                # print("Detecting...")
-                self.detect_targets()
+            # Get the detection confidences on the environment
+            # print("Detecting...")
+            self.detect_targets()
 
-                # Check gameover
-                if self.budget <= 0:
-                    self.gameover = True
+            # Check gameover
+            if self.budget <= 0:
+                self.gameover = True
 
-                # Handle player controls and movement
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_LEFT]:
-                    self.robot.turn_left()
-                if keys[pygame.K_RIGHT]:
-                    self.robot.turn_right()
-                if keys[pygame.K_UP]:
-                    self.robot.move_forward()
-                if keys[pygame.K_DOWN]:
-                    self.robot.move_backward()
+            # Handle player controls and movement
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                self.robot.turn_left()
+            if keys[pygame.K_RIGHT]:
+                self.robot.turn_right()
+            if keys[pygame.K_UP]:
+                self.robot.move_forward()
+            if keys[pygame.K_DOWN]:
+                self.robot.move_backward()
 
-            # Handle menu keyboard events
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.run = False
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_TAB:
-                        if self.gameover:
-                            self.reset()
+        # Handle menu keyboard events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.run = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB:
+                    if self.gameover:
+                        self.reset()
 
-                    if event.key == pygame.K_p:
-                        self.paused = not self.paused
+                if event.key == pygame.K_p:
+                    self.paused = not self.paused
 
-            # Re-render the scene
-            self.redraw_game_window()
-
+        # Re-render the scene
+        self.redraw_game_window()
 
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
     game = Game(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    game.run_game()
+    
+    state = {}
+    action = (None, None)
+    last_reward = []
+
+    while game.run:
+        # Get the games state
+        state = game.get_state()
+
+        # Get the agent's action
+        last_conf_sum = np.sum(last_reward)
+        current_conf_sum = np.sum(state["current_confidences"])
+        if (current_conf_sum > last_conf_sum):
+            action = ("F", "None")
+        elif (current_conf_sum < last_conf_sum):
+            action = ("B", "None")
+        else:
+            action = (None, None)
+
+        # Perform the action
+        game.perform_action(action)
+
+        # Get the reward
+        last_reward = game.get_reward()
+        
+        # Get optional additional user action
+        game.perform_action_interactive()
+        
+        # Step the game engine
+        game.step()
+
     pygame.quit()
