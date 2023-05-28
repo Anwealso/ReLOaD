@@ -19,7 +19,7 @@ pygame.init()
 sw = 800
 sh = 800
 
-bg = pygame.transform.scale(pygame.image.load('sprites/roombg.png'), (800, 800))
+bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (800, 800))
 playerRocket = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (100, 100))
 asteroid50 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (50, 50))
 asteroid100 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (100, 100))
@@ -67,6 +67,12 @@ class Target(object):
         else:
             self.ydir = -1
 
+        # TODO: Finish target angle implementations
+        self.angle = 0
+        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.rotatedRect = self.rotatedSurf.get_rect()
+        self.rotatedRect.center = (self.x, self.y)
+
     def draw(self, win):
         win.blit(self.image, (self.x - (self.w/2), self.y - (self.h/2)))
 
@@ -78,10 +84,12 @@ class Robot(object):
         self.h = self.img.get_height()
         self.x = sw//2
         self.y = sh//2
+
         self.angle = 0
         self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
         self.rotatedRect = self.rotatedSurf.get_rect()
         self.rotatedRect.center = (self.x, self.y)
+
         self.cosine = math.cos(math.radians(self.angle + 90))
         self.sine = math.sin(math.radians(self.angle + 90))
         self.head = (self.x + self.cosine * self.w//2, self.y - self.sine * self.h//2)
@@ -114,6 +122,17 @@ class Robot(object):
     def moveForward(self):
         self.x += self.cosine * 6
         self.y -= self.sine * 6
+        self.updateLocation()
+        self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
+        self.rotatedRect = self.rotatedSurf.get_rect()
+        self.rotatedRect.center = (self.x, self.y)
+        self.cosine = math.cos(math.radians(self.angle + 90))
+        self.sine = math.sin(math.radians(self.angle + 90))
+        self.head = (self.x + self.cosine * self.w // 2, self.y - self.sine * self.h // 2)
+
+    def moveBackward(self):
+        self.x -= self.cosine * 6
+        self.y += self.sine * 6
         self.updateLocation()
         self.rotatedSurf = pygame.transform.rotate(self.img, self.angle)
         self.rotatedRect = self.rotatedSurf.get_rect()
@@ -201,7 +220,6 @@ class Robot(object):
         distance_factor = 1 - (target_dist / max_dist)
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
-        # TODO: Fix this orientation factor which fr some reason seems ot be max at 45deg from robot to target
         angle_between = np.degrees(np.arccos(target_to_robot_vect.dot(target_orientation_vect) / (np.linalg.norm(target_to_robot_vect) * np.linalg.norm(target_orientation_vect))))
         orientation_factor = 1 - (angle_between / 180)
 
@@ -214,7 +232,7 @@ class Robot(object):
         orientation_weighting = orientation_weighting / weighting_sum
 
         # Compute the final confidence
-        confidence = (orientation_factor * orientation_weighting)
+        confidence = (distance_factor * distance_weighting) + (orientation_factor * orientation_weighting)
 
         return confidence;
 
@@ -343,6 +361,8 @@ class Game(object):
                     self.robot.turnRight()
                 if keys[pygame.K_UP]:
                     self.robot.moveForward()
+                if keys[pygame.K_DOWN]:
+                    self.robot.moveBackward()
 
             # Handle menu keyboard events
             for event in pygame.event.get():
