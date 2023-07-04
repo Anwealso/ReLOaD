@@ -1,6 +1,12 @@
 # ReLOaD Simple Simulator
 # 
-# main.py
+# simplesim.py
+# 
+# A simple simulator environment for feasibility testing the object detection RL
+#
+# When run from the command line, execute a simple custom policy that moves the 
+# robot forwards if the current prediction score is higher than the average 
+# and backwards otherwise.
 # 
 # Alex Nichoson
 # 27/05/2023
@@ -17,10 +23,10 @@ import time
 # ---------------------------------------------------------------------------- #
 pygame.init()
 
-sw = 800
-sh = 800
+sw = 3000
+sh = 3000
 
-bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (800, 800))
+bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (sw, sh))
 player_rocket = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (100, 100))
 asteroid50 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (50, 50))
 asteroid100 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (100, 100))
@@ -29,11 +35,6 @@ asteroid150 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (15
 pygame.display.set_caption('ReLOaD Simulator')
 win = pygame.display.set_mode((sw, sh))
 clock = pygame.time.Clock()
-
-STARTING_BUDGET = 2000
-NUM_TARGETS = 8
-PLAYER_FOV = 90
-
 
 # ---------------------------------------------------------------------------- #
 #                                    CLASSES                                   #
@@ -412,48 +413,47 @@ class Game(object):
         Returns:
             (np.ndarray) the avg_confidences vector
         """
-        return self.avg_confidences
+        return np.sum(self.avg_confidences)
 
     def perform_action(self, action):
         """
         Given an action tuple, execute the action in the environment.
         Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
         """
-        movement, rotation = action
 
-        if (not self.paused) and (not self.gameover):
-            # Handle agent controls and movement
-            if rotation == "L":
-                self.robot.turn_left()
-            elif rotation == "R":
-                self.robot.turn_right()
-            
-            if movement == "F":
-                self.robot.move_forward()
-            elif movement == "B":
-                self.robot.move_backward()
+        # Handle agent controls and movement
+        if action == 0:
+            self.robot.turn_right()
+        elif action == 1:
+            self.robot.move_forward()
+        
+        if action == 2:
+            self.robot.turn_left()
+        elif action == 3:
+            self.robot.move_backward()
+        
 
     def perform_action_interactive(self):
         """
         Get player commands from keyboard and execute the action in the 
         environment.
         """
-        if (not self.paused) and (not self.gameover):
-            # Handle player controls and movement
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                self.robot.turn_left()
-            if keys[pygame.K_RIGHT]:
-                self.robot.turn_right()
-            if keys[pygame.K_UP]:
-                self.robot.move_forward()
-            if keys[pygame.K_DOWN]:
-                self.robot.move_backward()
+        # Handle player controls and movement
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            self.robot.turn_left()
+        if keys[pygame.K_RIGHT]:
+            self.robot.turn_right()
+        if keys[pygame.K_UP]:
+            self.robot.move_forward()
+        if keys[pygame.K_DOWN]:
+            self.robot.move_backward()
 
-    def step(self):
+    def step(self, action):
         """
         Runs the game logic (controller)
         """
+
         if (not self.paused) and (not self.gameover):
             clock.tick(60)
             self.count += 1
@@ -472,16 +472,10 @@ class Game(object):
             if self.budget <= 0:
                 self.gameover = True
 
-            # Handle player controls and movement
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                self.robot.turn_left()
-            if keys[pygame.K_RIGHT]:
-                self.robot.turn_right()
-            if keys[pygame.K_UP]:
-                self.robot.move_forward()
-            if keys[pygame.K_DOWN]:
-                self.robot.move_backward()
+            # Perform the action
+            self.perform_action(action)
+            # Get optional additional user action
+            self.perform_action_interactive()
 
         # Handle menu keyboard events
         for event in pygame.event.get():
@@ -498,10 +492,16 @@ class Game(object):
         # Re-render the scene
         self.redraw_game_window()
 
+
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
+    # Hyperparameters
+    STARTING_BUDGET = 2000
+    NUM_TARGETS = 8
+    PLAYER_FOV = 90
+
     game = Game(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
     
     state = {}
@@ -516,15 +516,18 @@ if __name__ == "__main__":
         last_conf_sum = np.sum(last_reward)
         current_conf_sum = np.sum(state["current_confidences"])
         if (current_conf_sum > last_conf_sum):
-            action = ("F", "None")
+            action = 1
         elif (current_conf_sum < last_conf_sum):
-            action = ("B", "None")
+            action = 3
         else:
-            action = (None, None)
+            action = None
 
-        # Perform the action
-        time.sleep(0.1)
-        game.perform_action(action)
+        # # Perform the action
+        # game.perform_action(action)
+
+        # Step the game engine (and perform action)
+        time.sleep(0.05)
+        game.step(action)        
 
         # Get the reward
         last_reward = game.get_reward()
@@ -532,7 +535,5 @@ if __name__ == "__main__":
         # Get optional additional user action
         game.perform_action_interactive()
         
-        # Step the game engine
-        game.step()
 
     pygame.quit()

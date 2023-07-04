@@ -35,7 +35,11 @@ Factors to include in detection function
 
 ## Installation / Setup
 
-- ...
+### Installing iGibson
+
+- Follow installation guide at: https://stanfordvl.github.io/iGibson/installation.html
+- Test the installation by running `python -m igibson.examples.environments.env_nonint_example`
+
 
 ## Usage
 

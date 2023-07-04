@@ -5,7 +5,7 @@ Whole Episodes
 import numpy as np
 import tensorflow as tf
 from tf_agents.environments import tf_py_environment
-from env import GameEnv
+from simplesim.env_gym import GameEnv
 
 
 env = GameEnv()
