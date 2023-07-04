@@ -32,11 +32,14 @@ pygame.init()
 sw = 800
 sh = 800
 
-bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (800, 800))
-player_rocket = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (100, 100))
-asteroid50 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (50, 50))
-asteroid100 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (100, 100))
-asteroid150 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (150, 150))
+print("file:")
+print(__file__)
+
+bg = pygame.transform.scale(pygame.image.load('./sprites/roombg.jpg'), (800, 800))
+player_rocket = pygame.transform.scale(pygame.image.load('./sprites/robot.png'), (100, 100))
+asteroid50 = pygame.transform.scale(pygame.image.load('./sprites/apple.png'), (50, 50))
+asteroid100 = pygame.transform.scale(pygame.image.load('./sprites/apple.png'), (100, 100))
+asteroid150 = pygame.transform.scale(pygame.image.load('./sprites/apple.png'), (150, 150))
 
 pygame.display.set_caption('ReLOaD Simulator')
 win = pygame.display.set_mode((sw, sh))
