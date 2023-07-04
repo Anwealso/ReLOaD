@@ -39,7 +39,7 @@ Factors to include in detection function
 
 ## Extra Resources
 
-- ...
+- https://docs.python-guide.org/writing/structure/
 
 
 ---

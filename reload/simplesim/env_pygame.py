@@ -4,7 +4,7 @@
 # 
 # A simple simulator environment for feasibility testing the object detection RL
 #
-# When run from the command line, execute a simple custom policy that moves the 
+# When run standalone, executes a simple custom policy that moves the 
 # robot forwards if the current prediction score is higher than the average 
 # and backwards otherwise.
 # 
@@ -16,7 +16,7 @@ import math
 import random
 import numpy as np
 import time
-
+import os
 
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
@@ -29,11 +29,13 @@ sh = 2000
 player_width = 100
 player_height = 100
 
-bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (sw, sh))
-player_robot = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (player_width, player_height))
-target50 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (50, 50))
-target100 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (100, 100))
-target150 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (150, 150))
+sprites_dir = os.path.dirname(__file__) + '/sprites/'
+
+bg = pygame.transform.scale(pygame.image.load(sprites_dir + 'roombg.jpg'), (sw, sh))
+player_robot = pygame.transform.scale(pygame.image.load(sprites_dir + 'robot.png'), (player_width, player_height))
+target50 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (50, 50))
+target100 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (100, 100))
+target150 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (150, 150))
 fov_color = (0, 0, 255, 70)
 fov_line_length = 500
 fov_line_thickness = 10

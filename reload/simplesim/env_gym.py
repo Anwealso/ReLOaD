@@ -4,6 +4,9 @@
 # 
 # A gym wrapped version of the pygame SimpleSim environment
 # 
+# When run standalone, executes a simple random policy on the gym-wrapped 
+# tf PyEnvironment env.
+# 
 # Alex Nichoson
 # 27/05/2023
 
@@ -13,7 +16,7 @@ import random
 import numpy as np
 import time
 import abc
-from env_pygame import Game
+from reload.simplesim.env_pygame import Game
 import tensorflow as tf
 from tf_agents.environments import py_environment
 from tf_agents.environments import tf_environment
@@ -23,29 +26,6 @@ from tf_agents.specs import array_spec
 from tf_agents.environments import wrappers
 from tf_agents.environments import suite_gym
 from tf_agents.trajectories import time_step as ts
-
-# ---------------------------------------------------------------------------- #
-#                                  GLOBAL VARS                                 #
-# ---------------------------------------------------------------------------- #
-pygame.init()
-
-sw = 800
-sh = 800
-
-print("file:")
-print(__file__)
-
-bg = pygame.transform.scale(pygame.image.load('./sprites/roombg.jpg'), (800, 800))
-player_rocket = pygame.transform.scale(pygame.image.load('./sprites/robot.png'), (100, 100))
-asteroid50 = pygame.transform.scale(pygame.image.load('./sprites/apple.png'), (50, 50))
-asteroid100 = pygame.transform.scale(pygame.image.load('./sprites/apple.png'), (100, 100))
-asteroid150 = pygame.transform.scale(pygame.image.load('./sprites/apple.png'), (150, 150))
-
-pygame.display.set_caption('ReLOaD Simulator')
-win = pygame.display.set_mode((sw, sh))
-clock = pygame.time.Clock()
-
-
 
 
 # ---------------------------------------------------------------------------- #
@@ -118,57 +98,6 @@ class GameEnv(py_environment.PyEnvironment):
 
 
 # ---------------------------------------------------------------------------- #
-#                                   FUNCTIONS                                  #
-# ---------------------------------------------------------------------------- #
-
-def run_policy_pygame(starting_budget, num_targets, player_fov):
-    game = Game(starting_budget, num_targets, player_fov)
-    state = {}
-    action = (None, None)
-    last_reward = []
-
-    while game.run:
-        # Get the games state
-        state = game.get_state()
-
-        # Get the agent's action
-        last_conf_sum = np.sum(last_reward)
-        current_conf_sum = np.sum(state["current_confidences"])
-        if (current_conf_sum > last_conf_sum):
-            action = ("F", "None")
-        elif (current_conf_sum < last_conf_sum):
-            action = ("B", "None")
-        else:
-            action = (None, None)
-
-        # Get the reward
-        last_reward = game.get_reward()
-        
-        # Step the game engine
-        time.sleep(0.1)
-        game.step(action)
-
-    pygame.quit()
-
-def run_policy_gym():
-    get_new_card_action = np.array(0, dtype=np.int32)
-
-    environment = GameEnv()
-    time_step = environment.reset()
-    print(f"time_step:{time_step}")
-    cumulative_reward = time_step.reward
-
-    for _ in range(100):
-        time_step = environment.step(get_new_card_action)
-        print(f"time_step:{time_step}, time_step_reward:{time_step.reward}")
-        cumulative_reward += time_step.reward
-
-    print(f"time_step:{time_step}")
-    cumulative_reward += time_step.reward
-    print('Final Reward = ', cumulative_reward)
-
-
-# ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
@@ -178,15 +107,15 @@ if __name__ == "__main__":
     NUM_TARGETS = 8
     PLAYER_FOV = 90
 
-    get_new_card_action = np.array(0, dtype=np.int32)
+    get_new_action = np.array(0, dtype=np.int32)
 
-    environment = GameEnv(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    time_step = environment.reset()
+    env = GameEnv(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    time_step = env.reset()
     print(f"time_step:{time_step}")
     cumulative_reward = time_step.reward
 
     for _ in range(100):
-        time_step = environment.step(get_new_card_action)
+        time_step = env.step(get_new_action)
         print(f"time_step:{time_step}, time_step_reward:{time_step.reward}")
         cumulative_reward += time_step.reward
 
