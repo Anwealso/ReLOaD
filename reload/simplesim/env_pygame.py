@@ -143,10 +143,12 @@ class Robot(object):
 
     def turn_left(self):
         self.angle += 5
+        self.handle_boundary_collisions()
         self.update_surfs()
 
     def turn_right(self):
         self.angle -= 5
+        self.handle_boundary_collisions()
         self.update_surfs()
 
     def move_forward(self):
@@ -492,8 +494,8 @@ class Game(object):
             # Decrement the budget over time
             self.budget -= 1
 
-            # # Update the player potisions
-            # self.robot.handle_boundary_collisions()
+            # Update the player potisions
+            self.robot.handle_boundary_collisions()
 
             # Get the detection confidences on the environment
             # print("Detecting...")
@@ -519,6 +521,11 @@ class Game(object):
 
                 if event.key == pygame.K_p:
                     self.paused = not self.paused
+
+                # if event.key == pygame.K_m:
+                    # pygame.display.set_mode(flags=pygame.HIDDEN)
+                    # screen = pygame.display.set_mode((800, 600), flags=pygame.SHOWN)
+
 
         # Re-render the scene
         self.redraw_game_window()
@@ -554,7 +561,6 @@ if __name__ == "__main__":
             action = None
 
         # Step the game engine (and perform action)
-        time.sleep(0.05)
         game.step(action)        
 
         # Get the reward

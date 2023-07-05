@@ -138,18 +138,24 @@ def get_ppo_agent(env):
     return agent
 
 
+def show_env_summary(env):
+    print("Observation spec: {} \n".format(env.observation_spec()))
+    print("Action spec: {} \n".format(env.action_spec()))
+    print("Time step spec: {} \n".format(env.time_step_spec()))
+
+
 if __name__ == "__main__":
     # ------------------------------ HYPERPARAMETERS ----------------------------- #
 
     MAX_TIMESTEPS = 100
-    STARTING_BUDGET = 2000
+    STARTING_BUDGET = 20
     NUM_TARGETS = 8
     PLAYER_FOV = 90
     NUM_EPISODES = 5
 
     num_iterations = 20000 # @param {type:"integer"}
 
-    initial_collect_steps = 100  # @param {type:"integer"}
+    initial_collect_steps = 20  # @param {type:"integer"}
     collect_steps_per_iteration =   1# @param {type:"integer"}
     replay_buffer_max_length = 100000  # @param {type:"integer"}
 
@@ -165,36 +171,14 @@ if __name__ == "__main__":
 
     # Setup the environment
     env = GameEnv(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    # print()
-    # print("Observation spec BEFORE: {} \n".format(env.observation_spec()))
-    # print()
+
     env = tf_py_environment.TFPyEnvironment(env)
-
+    
+    # Reset the env
     time_step = env.reset()
-    # rewards = []
-    # steps = []
 
-    # Display environment specs
-    print("Observation spec: {} \n".format(env.observation_spec()))
-    print("Action spec: {} \n".format(env.action_spec()))
-    print("Time step spec: {} \n".format(env.time_step_spec()))
+    show_env_summary(env) # Display environment specs
 
-    # a = np.zeros(shape=env.observation_spec()[0].shape)
-    # print("a: {} \n".format(a))
-    # b = np.ones(shape=env.observation_spec()[1].shape)
-    # print("b: {} \n".format(b))
-    # c = np.zeros(shape=env.observation_spec()[2].shape)
-    # print("c: {} \n".format(c))
-    # d = np.ones(shape=env.observation_spec()[3].shape)
-    # print("d: {} \n".format(d))
-
-    # x = np.ones(shape=(1, 8, 1))
-    # print(x)
-    # y = np.zeros(shape=(1, 1, 1))
-    # print(y)
-    # out = tf.keras.layers.Concatenate(axis=1)([x, y])
-    # print(out)
-    # quit()
 
     # ----------------------------------- AGENT ---------------------------------- #
 
@@ -253,7 +237,7 @@ if __name__ == "__main__":
 
     # ---------------------- TODO: Figure out what this does --------------------- #
 
-    # Evaluate the agent's policy once before training.
+    # # Evaluate the agent's policy once before training.
     avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
     returns = [avg_return]
 
@@ -264,53 +248,29 @@ if __name__ == "__main__":
     # ------------------------------- TRAINING LOOP ------------------------------ #
 
     for _ in range(num_iterations):
-
+        # print("0")
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
+        # print("1")
 
-        # Sample a batch of data from the buffer and update the agent's network.
-        experience, unused_info = next(iterator)
-        train_loss = agent.train(experience).loss
+        # # Sample a batch of data from the buffer and update the agent's network.
+        print(iterator)
+        # experience, unused_info = next(iterator)
+        # print("2")
+        # train_loss = agent.train(experience).loss
+        train_loss = 8
+        # print("3")
 
         step = agent.train_step_counter.numpy()
+        # print("4")
 
-        if step % log_interval == 0:
-            print('step = {0}: loss = {1}'.format(step, train_loss))
+        # if step % log_interval == 0:
+        #     print(f'step = {step}: loss = {train_loss}')
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
-            print('step = {0}: Average Return = {1}'.format(step, avg_return))
+            print(f'step = {step}: Average Return = {avg_return}')
             returns.append(avg_return)
 
+    print("birdabo")
 
-
-
-
-
-
-
-
-
-
-    # # Run the episodes
-    # for _ in range(NUM_EPISODES):
-    #     episode_reward = 0
-    #     episode_steps = 0
-    #     while not time_step.is_last():
-    #         # Pick random action from 0,1,2,3
-    #         action = agent.action(time_step)
-    #         # action = tf.random.uniform([1], 0, 4, dtype=tf.int32)
-    #         print(action)
-    #         time_step = tf_env.step(action)
-    #         episode_steps += 1
-    #         episode_reward += time_step.reward.numpy()
-    #     rewards.append(episode_reward)
-    #     steps.append(episode_steps)
-    #     time_step = tf_env.reset()
-
-    # num_steps = np.sum(steps)
-    # avg_length = np.mean(steps)
-    # avg_reward = np.mean(rewards)
-
-    # print('NUM_EPISODES:', NUM_EPISODES, 'num_steps:', num_steps)
-    # print('avg_length', avg_length, 'avg_reward:', avg_reward)

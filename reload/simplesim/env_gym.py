@@ -80,6 +80,9 @@ class GameEnv(py_environment.PyEnvironment):
             raise ValueError('`action` should be 0, 1, 2, or 3.')
 
         observation = (np.array([[self.game.count]], dtype=np.float32), np.array([[self.game.budget]], dtype=np.float32), np.float32(self.game.avg_confidences), np.float32(self.game.confidences))
+
+        # End the episode at max_timesteps (currently not implemented)
+
         if self.game.gameover:
             # Reward only given at the end of the episode
             reward = self.game.get_reward()
