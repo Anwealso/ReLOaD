@@ -63,6 +63,79 @@ def plot_returns(iterations, returns):
     plt.ylim(top=250)
 
 
+def get_dqn_agent(env):
+    # --------------------------------- DQN AGENT -------------------------------- #
+    fc_layer_params = (100, 50)
+    action_tensor_spec = tensor_spec.from_spec(env.action_spec())
+    num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
+
+    # Define a helper function to create Dense layers configured with the right
+    # activation and kernel initializer.
+    def dense_layer(num_units):
+        return tf.keras.layers.Dense(
+            num_units,
+            activation=tf.keras.activations.relu,
+            kernel_initializer=tf.keras.initializers.VarianceScaling(
+                scale=2.0, mode='fan_in', distribution='truncated_normal'))
+
+    # QNetwork consists of a sequence of Dense layers followed by a dense layer
+    # with `num_actions` units to generate one q_value per available action as
+    # its output.
+    dense_layers = [dense_layer(num_units) for num_units in fc_layer_params]
+    q_values_layer = tf.keras.layers.Dense(
+        num_actions,
+        activation=None,
+        kernel_initializer=tf.keras.initializers.RandomUniform(
+            minval=-0.03, maxval=0.03),
+        bias_initializer=tf.keras.initializers.Constant(-0.2))
+    q_net = sequential.Sequential(dense_layers + [q_values_layer])
+
+    """Now use `tf_agents.agents.dqn.dqn_agent` to instantiate a `DqnAgent`. In addition to the `time_step_spec`, `action_spec` and the QNetwork, the agent constructor also requires an optimizer (in this case, `AdamOptimizer`), a loss function, and an integer step counter."""
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+    train_step_counter = tf.Variable(0)
+
+    agent = dqn_agent.DqnAgent(
+        env.time_step_spec(),
+        env.action_spec(),
+        q_network=q_net,
+        optimizer=optimizer,
+        td_errors_loss_fn=common.element_wise_squared_loss,
+        train_step_counter=train_step_counter)
+
+    agent.initialize()
+
+
+def get_ppo_agent(env):
+    # --------------------------------- PPO AGENT -------------------------------- #
+    print(env.observation_spec())
+    actor_net = actor_distribution_network.ActorDistributionNetwork(
+            env.observation_spec(),
+            env.action_spec(),
+            preprocessing_combiner=tf.keras.layers.Concatenate(axis=0))
+    
+    value_net = value_network.ValueNetwork(
+            env.observation_spec(),
+            preprocessing_combiner=tf.keras.layers.Concatenate(axis=0))
+
+
+    # Setup the agent / policy
+    agent = PPOAgent(
+            time_step_spec=env.time_step_spec(),
+            action_spec=env.action_spec(),
+            actor_net=actor_net,
+            value_net=value_net)
+    agent.initialize()
+
+    # (Optional) Optimize by wrapping some of the code in a graph using TF function.
+    agent.train = common.function(agent.train)
+
+    # Reset the train step.
+    agent.train_step_counter.assign(0)
+
+    return agent
+
 
 if __name__ == "__main__":
     # ------------------------------ HYPERPARAMETERS ----------------------------- #
@@ -119,72 +192,9 @@ if __name__ == "__main__":
     # print(out)
     
     # ----------------------------------- AGENT ---------------------------------- #
-    # print(env.observation_spec())
-    actor_net = actor_distribution_network.ActorDistributionNetwork(
-            env.observation_spec(),
-            env.action_spec(),
-            preprocessing_combiner=tf.keras.layers.Concatenate(axis=0))
-    
-    value_net = value_network.ValueNetwork(
-            env.observation_spec(),
-            preprocessing_combiner=tf.keras.layers.Concatenate(axis=0))
 
+    agent = get_ppo_agent(env)
 
-    # Setup the agent / policy
-    agent = PPOAgent(
-            time_step_spec=env.time_step_spec(),
-            action_spec=env.action_spec(),
-            actor_net=actor_net,
-            value_net=value_net)
-    agent.initialize()
-
-    # (Optional) Optimize by wrapping some of the code in a graph using TF function.
-    agent.train = common.function(agent.train)
-
-    # Reset the train step.
-    agent.train_step_counter.assign(0)
-
-    # # --------------------------------- DQN AGENT -------------------------------- #
-    # fc_layer_params = (100, 50)
-    # action_tensor_spec = tensor_spec.from_spec(env.action_spec())
-    # num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
-
-    # # Define a helper function to create Dense layers configured with the right
-    # # activation and kernel initializer.
-    # def dense_layer(num_units):
-    #     return tf.keras.layers.Dense(
-    #         num_units,
-    #         activation=tf.keras.activations.relu,
-    #         kernel_initializer=tf.keras.initializers.VarianceScaling(
-    #             scale=2.0, mode='fan_in', distribution='truncated_normal'))
-
-    # # QNetwork consists of a sequence of Dense layers followed by a dense layer
-    # # with `num_actions` units to generate one q_value per available action as
-    # # its output.
-    # dense_layers = [dense_layer(num_units) for num_units in fc_layer_params]
-    # q_values_layer = tf.keras.layers.Dense(
-    #     num_actions,
-    #     activation=None,
-    #     kernel_initializer=tf.keras.initializers.RandomUniform(
-    #         minval=-0.03, maxval=0.03),
-    #     bias_initializer=tf.keras.initializers.Constant(-0.2))
-    # q_net = sequential.Sequential(dense_layers + [q_values_layer])
-
-    # """Now use `tf_agents.agents.dqn.dqn_agent` to instantiate a `DqnAgent`. In addition to the `time_step_spec`, `action_spec` and the QNetwork, the agent constructor also requires an optimizer (in this case, `AdamOptimizer`), a loss function, and an integer step counter."""
-
-    # optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-
-    # train_step_counter = tf.Variable(0)
-
-    # agent = dqn_agent.DqnAgent(
-    #     env.time_step_spec(),
-    #     env.action_spec(),
-    #     q_network=q_net,
-    #     optimizer=optimizer,
-    #     td_errors_loss_fn=common.element_wise_squared_loss,
-    #     train_step_counter=train_step_counter)
-
-    # agent.initialize()
 
     # ------------------------------- REPLAY BUFFER ------------------------------ #
 
