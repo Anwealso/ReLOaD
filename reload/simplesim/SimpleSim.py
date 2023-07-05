@@ -1,8 +1,18 @@
 # ReLOaD Simple Simulator
 # 
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
 # SimpleSim.py
 # 
 # Interactive pygame implementation of the ReLOaD SimpleSim environment
+========
+# simplesim.py
+# 
+# A simple simulator environment for feasibility testing the object detection RL
+#
+# When run standalone, executes a simple custom policy that moves the 
+# robot forwards if the current prediction score is higher than the average 
+# and backwards otherwise.
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 # 
 # Alex Nichoson
 # 27/05/2023
@@ -12,30 +22,33 @@ import math
 import random
 import numpy as np
 import time
-
+import os
 
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
 # ---------------------------------------------------------------------------- #
 pygame.init()
 
-sw = 800
-sh = 800
+sw = 1000
+sh = 1000
 
-bg = pygame.transform.scale(pygame.image.load('sprites/roombg.jpg'), (800, 800))
-player_rocket = pygame.transform.scale(pygame.image.load('sprites/robot.png'), (100, 100))
-asteroid50 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (50, 50))
-asteroid100 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (100, 100))
-asteroid150 = pygame.transform.scale(pygame.image.load('sprites/apple.png'), (150, 150))
+player_width = 100
+player_height = 100
+
+sprites_dir = os.path.dirname(__file__) + '/sprites/'
+
+bg = pygame.transform.scale(pygame.image.load(sprites_dir + 'roombg.jpg'), (sw, sh))
+player_robot = pygame.transform.scale(pygame.image.load(sprites_dir + 'robot.png'), (player_width, player_height))
+target50 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (50, 50))
+target100 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (100, 100))
+target150 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (150, 150))
+fov_color = (0, 0, 255, 70)
+fov_line_length = 500
+fov_line_thickness = 10
 
 pygame.display.set_caption('ReLOaD Simulator')
 win = pygame.display.set_mode((sw, sh))
 clock = pygame.time.Clock()
-
-STARTING_BUDGET = 2000
-NUM_TARGETS = 8
-PLAYER_FOV = 90
-
 
 # ---------------------------------------------------------------------------- #
 #                                    CLASSES                                   #
@@ -50,11 +63,11 @@ class Target(object):
 
         # Set the sprite and hitboxcsize
         if self.rank == 1:
-            self.image = asteroid50
+            self.image = target50
         elif self.rank == 2:
-            self.image = asteroid100
+            self.image = target100
         else:
-            self.image = asteroid150
+            self.image = target150
         self.w = 50 * rank
         self.h = 50 * rank
 
@@ -65,23 +78,23 @@ class Target(object):
 
         # Set the orientation
         self.angle = 90 # unit circle format
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_player_rect = self.rotated_player_surf.get_rect()
+        self.rotated_player_rect.center = (self.x, self.y)
 
         self.xdir = int(math.cos(math.radians(self.angle)))
         self.ydir = int(math.sin(math.radians(self.angle)))
         # print(f"angle:{self.angle}, xdir:{self.xdir}, ydir:{self.ydir}")
 
     def draw(self, win):
-        win.blit(self.rotated_surf, self.rotated_rect)
+        win.blit(self.rotated_player_surf, self.rotated_player_rect)
 
 class Robot(object):
     """
     The mobile robot that the RL algorith will control
     """
     def __init__(self, fov):
-        self.image = player_rocket
+        self.image = player_robot
         self.w = self.image.get_width()
         self.h = self.image.get_height()
         # Set position
@@ -90,12 +103,28 @@ class Robot(object):
         self.trail = [] # a trail of all past x,y coords
         # Set orientation
         self.angle = 90 # unit circle angles
+        
         # Draw sprite at starting position
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
+        
+        # 90deg rotated version of the sprite surf image
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        # The rectangle bounding box of the surf
+        self.rotated_player_rect = self.rotated_player_surf.get_rect()
+        # Set the centre position of the surf to the player position vars
+        self.rotated_player_rect.center = (self.x, self.y)
 
+        # Draw player fov indicator
         self.fov = fov
+        # Make a surface with a line on it
+        self.fov_surf = pygame.Surface((sw,sw), pygame.SRCALPHA)
+        self.fov_surf.set_colorkey((0,0,0,0))
+        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle)
+        pygame.draw.line(self.fov_surf, fov_color, (self.rotated_fov_surf.get_rect().w/2, self.rotated_fov_surf.get_rect().h/2), ((self.rotated_fov_surf.get_rect().w/2)-(fov_line_length*math.sin(math.radians(self.fov/2))), (self.rotated_fov_surf.get_rect().h/2)-(fov_line_length*math.cos(math.radians(self.fov/2)))), fov_line_thickness)
+        pygame.draw.line(self.fov_surf, fov_color, (self.rotated_fov_surf.get_rect().w/2, self.rotated_fov_surf.get_rect().h/2), ((self.rotated_fov_surf.get_rect().w/2)+(fov_line_length*math.sin(math.radians(self.fov/2))), (self.rotated_fov_surf.get_rect().h/2)-(fov_line_length*math.cos(math.radians(self.fov/2)))), fov_line_thickness)
+        # Set the position and rotation of the surface
+        self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
+        self.rotated_fov_rect.center = (self.x, self.y)
+        win.blit(self.rotated_fov_surf, self.rotated_fov_rect)
 
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
@@ -108,45 +137,41 @@ class Robot(object):
         # Reset orientation
         self.angle = 90 # unit circle angles
         # Draw sprite at starting position
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_player_rect = self.rotated_player_surf.get_rect()
+        self.rotated_player_rect.center = (self.x, self.y)
 
     def draw(self, win):
-        win.blit(self.rotated_surf, self.rotated_rect)
+        # Redraw the player surfs
+        win.blit(self.rotated_player_surf, self.rotated_player_rect)
+        # Redraw the fov indicator surfs
+        win.blit(self.rotated_fov_surf, self.rotated_fov_rect)
 
     def turn_left(self):
         self.angle += 5
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
+        self.handle_boundary_collisions()
+        self.update_surfs()
 
     def turn_right(self):
         self.angle -= 5
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
-
+        self.handle_boundary_collisions()
+        self.update_surfs()
 
     def move_forward(self):
         self.x += math.cos(math.radians(self.angle)) * 6
         self.y -= math.sin(math.radians(self.angle)) * 6
         self.trail.append((self.x, self.y))
-        self.update_location()
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
+        self.handle_boundary_collisions()
+        self.update_surfs()
 
     def move_backward(self):
         self.x -= math.cos(math.radians(self.angle)) * 6
         self.y += math.sin(math.radians(self.angle)) * 6
         self.trail.append((self.x, self.y))
-        self.update_location()
-        self.rotated_surf = pygame.transform.rotate(self.image, self.angle-90)
-        self.rotated_rect = self.rotated_surf.get_rect()
-        self.rotated_rect.center = (self.x, self.y)
+        self.handle_boundary_collisions()
+        self.update_surfs()
 
-    def update_location(self):
+    def handle_boundary_collisions(self):
         """
         Stops player from going off screen
         """
@@ -158,6 +183,19 @@ class Robot(object):
             self.y = sh - (self.h / 2)
         elif self.y < 0 + (self.h / 2):
             self.y = 0 + (self.h / 2)
+
+    def update_surfs(self):
+        """
+        Updates the surf / sprite positions and orientations for the player anf the fov indicator lines
+        """
+        # Update player sprite position
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_player_rect = self.rotated_player_surf.get_rect()
+        self.rotated_player_rect.center = (self.x, self.y)
+        # Update fov indicator lines position
+        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle-90)
+        self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
+        self.rotated_fov_rect.center = (self.x, self.y)
 
     def can_see(self, target: Target):
         """
@@ -414,13 +452,14 @@ class SimpleSim(object):
         Returns:
             (np.ndarray) the avg_confidences vector
         """
-        return self.avg_confidences
+        return np.sum(self.avg_confidences)
 
     def perform_action(self, action):
         """
         Given an action tuple, execute the action in the environment.
         Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
         """
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
 
         # Check action format
         if action not in [0, 1, 2, 3]:
@@ -437,12 +476,27 @@ class SimpleSim(object):
                 self.robot.move_forward()
             elif action == 3:
                 self.robot.move_backward()
+========
+
+        # Handle agent controls and movement
+        if action == 0:
+            self.robot.turn_right()
+        elif action == 1:
+            self.robot.move_forward()
+        
+        if action == 2:
+            self.robot.turn_left()
+        elif action == 3:
+            self.robot.move_backward()
+        
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 
     def get_action_interactive(self):
         """
         Get player commands from keyboard and execute the action in the 
         environment.
         """
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
         action = None
 
         if (not self.paused) and (not self.gameover):
@@ -458,12 +512,27 @@ class SimpleSim(object):
                 action = 3
         
         return action
+========
+        # Handle player controls and movement
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            self.robot.turn_left()
+        if keys[pygame.K_RIGHT]:
+            self.robot.turn_right()
+        if keys[pygame.K_UP]:
+            self.robot.move_forward()
+        if keys[pygame.K_DOWN]:
+            self.robot.move_backward()
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 
     def step(self, action):
         """
         Runs the game logic (controller)
         """
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
         self.perform_action(action)
+========
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 
         if (not self.paused) and (not self.gameover):
             clock.tick(60)
@@ -473,7 +542,7 @@ class SimpleSim(object):
             self.budget -= 1
 
             # Update the player potisions
-            self.robot.update_location()
+            self.robot.handle_boundary_collisions()
 
             # Get the detection confidences on the environment
             # print("Detecting...")
@@ -483,16 +552,10 @@ class SimpleSim(object):
             if self.budget <= 0:
                 self.gameover = True
 
-            # Handle player controls and movement
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                self.robot.turn_left()
-            if keys[pygame.K_RIGHT]:
-                self.robot.turn_right()
-            if keys[pygame.K_UP]:
-                self.robot.move_forward()
-            if keys[pygame.K_DOWN]:
-                self.robot.move_backward()
+            # Perform the action
+            self.perform_action(action)
+            # Get optional additional user action
+            self.perform_action_interactive()
 
         # Handle menu keyboard events
         for event in pygame.event.get():
@@ -506,15 +569,34 @@ class SimpleSim(object):
                 if event.key == pygame.K_p:
                     self.paused = not self.paused
 
+                # if event.key == pygame.K_m:
+                    # pygame.display.set_mode(flags=pygame.HIDDEN)
+                    # screen = pygame.display.set_mode((800, 600), flags=pygame.SHOWN)
+
+
         # Re-render the scene
         self.redraw_game_window()
 
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
 def run_game():
     """
     Runs an interactive version of the simulator. User controlled only, no 
     agent.
     """
     game = SimpleSim(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+========
+
+# ---------------------------------------------------------------------------- #
+#                                     MAIN                                     #
+# ---------------------------------------------------------------------------- #
+if __name__ == "__main__":
+    # Hyperparameters
+    STARTING_BUDGET = 2000
+    NUM_TARGETS = 8
+    PLAYER_FOV = 90
+
+    game = Game(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
     
     state = {}
     action = (None, None)
@@ -524,14 +606,33 @@ def run_game():
         # Get the games state
         state = game.get_state()
 
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
+========
+        # Get the agent's action
+        last_conf_sum = np.sum(last_reward)
+        current_conf_sum = np.sum(state["current_confidences"])
+        if (current_conf_sum > last_conf_sum):
+            action = 1
+        elif (current_conf_sum < last_conf_sum):
+            action = 3
+        else:
+            action = None
+
+        # Step the game engine (and perform action)
+        game.step(action)        
+
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
         # Get the reward
         last_reward = game.get_reward()
         
         # Get optional additional user action
         action = game.get_action_interactive()
         
+<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
         # Step the game engine
         game.step(action)
+========
+>>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 
     pygame.quit()
 

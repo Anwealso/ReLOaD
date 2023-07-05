@@ -1,27 +1,19 @@
 # ReLOaD: Reinforcement Learning for Object Detection
 
-The University of Queensland
-
-Alex Nicholson
-
-2023
+Alex Nicholson, The University of Queensland, 2023
 
 ---
 
 ## TODO
 
-New Approach
-- Build an environment class and function that can replicate the internal state and progression of the igibson env
-- Plot this in matplotlib or pygame to visualise how it works
-- Hook up the TF-Agents rl agent up to this and let it train for a bites
-- (STRETCH) Wrap it into a gym environment to allow for quicker porting of the agent code to igibson later
+- [DONE] Build an environment class and function that can replicate the internal state and progression of the igibson env
+- [DONE] Plot this in matplotlib or pygame to visualise how it works
+- [DONE] Wrap it into a gym environment to allow for quicker porting of the agent code to igibson later
 
-Basic model
-- Want basically a 2D grid world simulation built in pygame
+- [DONE] FOV indicator lines for the robot
+- [WIP] Hook up the TF-Agents rl agent up to this and let it train for a bit
+- Save screenshots of the completed environment every couple of episodes
 - Add some walls as obstructions
-- Put in moving robot and static objects
-- Add trails showing path of robot
-- Save screenshots of the completed environment every couple of episodes 
 
 Factors to include in detection function
 - Distance
@@ -35,7 +27,11 @@ Factors to include in detection function
 
 ## Installation / Setup
 
-- ...
+### Installing iGibson
+
+- Follow installation guide at: https://stanfordvl.github.io/iGibson/installation.html
+- Test the installation by running `python -m igibson.examples.environments.env_nonint_example`
+
 
 ## Usage
 
@@ -43,7 +39,7 @@ Factors to include in detection function
 
 ## Extra Resources
 
-- ...
+- https://docs.python-guide.org/writing/structure/
 
 
 ---
