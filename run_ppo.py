@@ -153,7 +153,8 @@ if __name__ == "__main__":
     PLAYER_FOV = 90
     NUM_EPISODES = 5
 
-    num_iterations = 20000 # @param {type:"integer"}
+    # num_iterations = 20000 # @param {type:"integer"}
+    num_iterations = 20 # @param {type:"integer"}
 
     initial_collect_steps = 20  # @param {type:"integer"}
     collect_steps_per_iteration =   1# @param {type:"integer"}
@@ -247,19 +248,18 @@ if __name__ == "__main__":
 
     # ------------------------------- TRAINING LOOP ------------------------------ #
 
-    for _ in range(num_iterations):
-        # print("0")
+    for i in range(num_iterations):
+        print("#0")
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
-        # print("1")
+        print("#1")
 
         # # Sample a batch of data from the buffer and update the agent's network.
-        print(iterator)
-        # experience, unused_info = next(iterator)
-        # print("2")
-        # train_loss = agent.train(experience).loss
-        train_loss = 8
-        # print("3")
+        experience, unused_info = dataset
+        print("#2")
+        train_loss = agent.train(experience).loss
+        # train_loss = 8
+        print("#3")
 
         step = agent.train_step_counter.numpy()
         # print("4")
@@ -269,7 +269,7 @@ if __name__ == "__main__":
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
-            print(f'step = {step}: Average Return = {avg_return}')
+            print(f'step = {i}: Average Return = {avg_return}')
             returns.append(avg_return)
 
     print("birdabo")
