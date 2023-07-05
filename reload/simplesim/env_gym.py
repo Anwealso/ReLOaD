@@ -41,23 +41,18 @@ class GameEnv(py_environment.PyEnvironment):
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
         
-        # State: 
+        # State:
         # Num previous samples
-        timestep_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=max_timesteps, name='timestep')
+        timestep_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, maximum=max_timesteps, name='timestep')
         # Remaining budget
-        budget_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=max_timesteps, name='budget')
+        budget_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, maximum=max_timesteps, name='budget')
         # Avg of previous confidences
-        avg_conf_spec = array_spec.BoundedArraySpec(shape=(8, 1), dtype=np.float32, minimum=0, name='avg_conf')
+        avg_conf_spec = array_spec.BoundedArraySpec(shape=(num_targets, 1), dtype=np.float32, minimum=0, name='avg_conf')
         # Current object confidences
-        curr_conf_spec = array_spec.BoundedArraySpec(shape=(8, 1), dtype=np.float32, minimum=0, name='curr_conf')
+        curr_conf_spec = array_spec.BoundedArraySpec(shape=(num_targets, 1), dtype=np.float32, minimum=0, name='curr_conf')
         self._observation_spec = (timestep_spec, budget_spec, avg_conf_spec, curr_conf_spec)
-        # self._observation_spec = array_spec.BoundedArraySpec(
-        #     shape=(1,), dtype=np.int32, minimum=0, name='observation')
 
         self.game = Game(starting_budget, num_targets, player_fov)
-
-        # self._state = 0
-        # self._episode_ended = False
 
     def action_spec(self):
         return self._action_spec
@@ -66,12 +61,9 @@ class GameEnv(py_environment.PyEnvironment):
         return self._observation_spec
 
     def _reset(self):
-        # self._state = 0
-        # self._episode_ended = False
         self.game.reset()
-
-        observation = (self.game.count, self.game.budget, self.game.avg_confidences, self.game.confidences)
-
+        # observation = (self.game.count, self.game.budget, self.game.avg_confidences, self.game.confidences)
+        observation = (np.array([[self.game.count]], dtype=np.float32), np.array([[self.game.budget]], dtype=np.float32), np.float32(self.game.avg_confidences), np.float32(self.game.confidences))
         return ts.restart(observation)
 
     def _step(self, action):
@@ -87,7 +79,7 @@ class GameEnv(py_environment.PyEnvironment):
         else:
             raise ValueError('`action` should be 0, 1, 2, or 3.')
 
-        observation = (self.game.count, self.game.budget, self.game.avg_confidences, self.game.confidences)
+        observation = (np.array([[self.game.count]], dtype=np.float32), np.array([[self.game.budget]], dtype=np.float32), np.float32(self.game.avg_confidences), np.float32(self.game.confidences))
         if self.game.gameover:
             # Reward only given at the end of the episode
             reward = self.game.get_reward()

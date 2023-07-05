@@ -47,6 +47,7 @@ def compute_avg_return(environment, policy, num_episodes=10):
         episode_return = 0.0
 
         while not time_step.is_last():
+            # print(f"time_step: {time_step}")
             action_step = policy.action(time_step)
             time_step = environment.step(action_step.action)
             episode_return += time_step.reward
@@ -113,11 +114,11 @@ def get_ppo_agent(env):
     actor_net = actor_distribution_network.ActorDistributionNetwork(
             env.observation_spec(),
             env.action_spec(),
-            preprocessing_combiner=tf.keras.layers.Concatenate(axis=0))
+            preprocessing_combiner=tf.keras.layers.Concatenate(axis=1))
     
     value_net = value_network.ValueNetwork(
             env.observation_spec(),
-            preprocessing_combiner=tf.keras.layers.Concatenate(axis=0))
+            preprocessing_combiner=tf.keras.layers.Concatenate(axis=1))
 
 
     # Setup the agent / policy
@@ -164,6 +165,9 @@ if __name__ == "__main__":
 
     # Setup the environment
     env = GameEnv(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    # print()
+    # print("Observation spec BEFORE: {} \n".format(env.observation_spec()))
+    # print()
     env = tf_py_environment.TFPyEnvironment(env)
 
     time_step = env.reset()
@@ -184,13 +188,14 @@ if __name__ == "__main__":
     # d = np.ones(shape=env.observation_spec()[3].shape)
     # print("d: {} \n".format(d))
 
-    # # x = np.ones(shape=(1,8))
-    # # print(x)
-    # # y = np.zeros(shape=(1,1))
-    # # print(y)
-    # out = tf.keras.layers.Concatenate(axis=0)([a, b, c, d])
+    # x = np.ones(shape=(1, 8, 1))
+    # print(x)
+    # y = np.zeros(shape=(1, 1, 1))
+    # print(y)
+    # out = tf.keras.layers.Concatenate(axis=1)([x, y])
     # print(out)
-    
+    # quit()
+
     # ----------------------------------- AGENT ---------------------------------- #
 
     agent = get_ppo_agent(env)
