@@ -453,17 +453,19 @@ class SimpleSim(object):
         Given an action tuple, execute the action in the environment.
         Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
         """
-
-        # Handle agent controls and movement
-        if action == 0:
-            self.robot.turn_right()
-        elif action == 1:
-            self.robot.move_forward()
-        
-        if action == 2:
-            self.robot.turn_left()
-        elif action == 3:
-            self.robot.move_backward()
+        # Check action format
+        if action not in [None, 0, 1, 2, 3]:
+            raise ValueError('`action` should be Nnoe, 0, 1, 2, or 3.')
+            # Handle agent controls and movement
+            if action == 0:
+                self.robot.turn_right()
+            elif action == 1:
+                self.robot.move_forward()
+            
+            if action == 2:
+                self.robot.turn_left()
+            elif action == 3:
+                self.robot.move_backward()
         
 
     def perform_action_interactive(self):
@@ -561,9 +563,3 @@ if __name__ == "__main__":
         game.step(None)
 
     pygame.quit()
-
-# ---------------------------------------------------------------------------- #
-#                                     MAIN                                     #
-# ---------------------------------------------------------------------------- #
-if __name__ == "__main__":
-    run_game()
