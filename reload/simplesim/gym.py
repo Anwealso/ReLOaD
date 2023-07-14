@@ -34,21 +34,22 @@ class SimpleSimGym(py_environment.PyEnvironment):
         # Actions: 0, 1, 2, 3 for F, B, L, R
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
+
+        MAX_TIMESTEPS = 100
         
         # Observations (visible state): 
-        obs_spec = {}
-        MAX_TIMESTEPS = 100
-        # Num previous samples
-        obs_spec["count"] = array_spec.BoundedArraySpec(shape=(1,), dtype=np.float32, minimum=0, maximum=MAX_TIMESTEPS, name='count')
-        # Remaining budget
-        obs_spec["budget"] = array_spec.BoundedArraySpec(shape=(1,), dtype=np.float32, minimum=0, maximum=MAX_TIMESTEPS, name='budget')
-        # Avg of previous confidences
-        obs_spec["avg_conf"] = array_spec.BoundedArraySpec(shape=(1, 8, 1), dtype=np.float32, minimum=0, name='avg_conf')
-        # Current object confidences
-        obs_spec["curr_conf"] = array_spec.BoundedArraySpec(shape=(1, 8, 1), dtype=np.float32, minimum=0, name='curr_conf')
+        obs_spec = (
+            # Num previous samples
+            array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, maximum=MAX_TIMESTEPS, name='count'),
+            # Remaining budget
+            array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, maximum=MAX_TIMESTEPS, name='budget'),
+            # Avg of previous confidences
+            array_spec.BoundedArraySpec(shape=(8, 1), dtype=np.float32, minimum=0, name='avg_conf'),
+            # Current object confidences
+            array_spec.BoundedArraySpec(shape=(8, 1), dtype=np.float32, minimum=0, name='curr_conf'),
+        )
+
         self._observation_spec = obs_spec
-        # self._observation_spec = array_spec.BoundedArraySpec(
-        #     shape=(1,), dtype=np.int32, minimum=0, name='observation')
 
         # Internal State:
         self.game = SimpleSim(starting_budget, num_targets, player_fov)
@@ -75,11 +76,12 @@ class SimpleSimGym(py_environment.PyEnvironment):
     #     return self._time_step_spec
     
     def get_observation(self):
-        observation = {}
-        observation["count"] = self.game.count
-        observation["budget"] = self.game.budget
-        observation["avg_conf"] = self.game.avg_confidences
-        observation["curr_conf"] = self.game.confidences
+        observation = (
+            self.game.count,
+            self.game.budget,
+            self.game.avg_confidences,
+            self.game.confidences,
+        )
 
         return observation
 

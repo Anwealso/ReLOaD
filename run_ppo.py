@@ -32,7 +32,7 @@ from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
 
 
-from reload.simplesim.env import SimpleSim
+from reload.simplesim.gym import SimpleSimGym
 
 
 def compute_avg_return(environment, policy, num_episodes=10):
@@ -115,7 +115,6 @@ def get_dqn_agent(env):
 
 def get_ppo_agent(env):
     # --------------------------------- PPO AGENT -------------------------------- #
-    print(env.observation_spec())
     actor_net = actor_distribution_network.ActorDistributionNetwork(
         env.observation_spec(),
         env.action_spec(),
@@ -154,7 +153,7 @@ def show_env_summary(env):
 if __name__ == "__main__":
     # ------------------------------ HYPERPARAMETERS ----------------------------- #
 
-    MAX_TIMESTEPS = 100
+    # MAX_TIMESTEPS = 100
     STARTING_BUDGET = 20
     NUM_TARGETS = 8
     PLAYER_FOV = 90
@@ -177,7 +176,7 @@ if __name__ == "__main__":
     # -------------------------------- ENVIRONMENT ------------------------------- #
 
     # Setup the environment
-    env = SimpleSim(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 
     env = tf_py_environment.TFPyEnvironment(env)
 
@@ -189,7 +188,6 @@ if __name__ == "__main__":
     # ----------------------------------- AGENT ---------------------------------- #
 
     agent = get_ppo_agent(env)
-
     # ------------------------------- REPLAY BUFFER ------------------------------ #
 
     # Setup replay buffer for training data collection
