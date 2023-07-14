@@ -1,6 +1,6 @@
 # ReLOaD Simple Simulator
 # 
-# SimpleSimGym.py
+# simplesim/gym.py
 # 
 # Gym wrapped version of ReLOad SimpleSim environment
 # 

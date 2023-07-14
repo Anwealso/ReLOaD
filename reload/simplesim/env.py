@@ -1,6 +1,6 @@
 # ReLOaD Simple Simulator
 # 
-# simplesim.py
+# simplesim/env.py
 # 
 # A simple simulator environment for feasibility testing the object detection RL
 #

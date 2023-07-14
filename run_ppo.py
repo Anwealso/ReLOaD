@@ -1,6 +1,6 @@
 # ReLOaD Simple Simulator
 # 
-# env.py
+# run_ppo.py
 # 
 # Runs a PPOAgent over multiple episodes of the simplesim env
 # 
