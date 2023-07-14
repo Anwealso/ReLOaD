@@ -55,8 +55,8 @@ class SimpleSimGym(py_environment.PyEnvironment):
         self.game = SimpleSim(starting_budget, num_targets, player_fov)
 
         # Timestep Fields: 
-        self._discount_spec = array_spec.BoundedArraySpec(shape=(1,), dtype=np.float32, minimum=0, name='discount')
-        self._reward_spec = array_spec.BoundedArraySpec(shape=(1,), dtype=np.float32, minimum=0, name='reward')
+        self._discount_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, name='discount')
+        self._reward_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, name='reward')
 
         # self._time_step_spec = ts.time_step_spec(self._observation_spec, self._reward_spec)
 
@@ -77,10 +77,12 @@ class SimpleSimGym(py_environment.PyEnvironment):
     
     def get_observation(self):
         observation = (
-            self.game.count,
-            self.game.budget,
-            self.game.avg_confidences,
-            self.game.confidences,
+            np.array([[self.game.count]], dtype=np.float32),
+            np.array([[self.game.budget]], dtype=np.float32),
+            # np.float32(self.game.count),
+            # np.float32(self.game.budget),
+            np.float32(self.game.avg_confidences),
+            np.float32(self.game.confidences),
         )
 
         return observation

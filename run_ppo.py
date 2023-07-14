@@ -150,6 +150,17 @@ def show_env_summary(env):
     print("Time step spec: {} \n".format(env.time_step_spec()))
 
 
+
+def collect_step(environment, policy):
+  time_step = environment.current_time_step()
+  action_step = policy.action(time_step)
+  next_time_step = environment.step(action_step.action)
+  traj = trajectory.from_transition(time_step, action_step, next_time_step)
+
+  # Add trajectory to the replay buffer
+  replay_buffer.add_batch(traj)
+
+
 if __name__ == "__main__":
     # ------------------------------ HYPERPARAMETERS ----------------------------- #
 
@@ -163,7 +174,8 @@ if __name__ == "__main__":
     num_iterations = 20  # @param {type:"integer"}
 
     initial_collect_steps = 20  # @param {type:"integer"}
-    collect_steps_per_iteration = 1  # @param {type:"integer"}
+    # collect_steps_per_iteration = 1  # @param {type:"integer"}
+    collect_episodes_per_iteration = 2 # @param {type:"integer"}
     replay_buffer_max_length = 100000  # @param {type:"integer"}
 
     batch_size = 64  # @param {type:"integer"}
@@ -182,12 +194,15 @@ if __name__ == "__main__":
 
     # Reset the env
     time_step = env.reset()
+    # print("### time_step")
+    # print(time_step)
 
     show_env_summary(env)  # Display environment specs
 
     # ----------------------------------- AGENT ---------------------------------- #
 
     agent = get_ppo_agent(env)
+
     # ------------------------------- REPLAY BUFFER ------------------------------ #
 
     # Setup replay buffer for training data collection
@@ -218,56 +233,52 @@ if __name__ == "__main__":
     )
 
     # Create a driver to collect experience during the the training loop
-    collect_driver = py_driver.PyDriver(
-        env,
-        py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
-        [rb_observer],
-        max_steps=collect_steps_per_iteration,
-    )
+    def collect_episode(environment, policy, num_episodes):
+        driver = py_driver.PyDriver(
+            environment,
+            py_tf_eager_policy.PyTFEagerPolicy(
+            policy, use_tf_function=True),
+            [rb_observer],
+            max_episodes=num_episodes)
+        initial_time_step = environment.reset()
+        driver.run(initial_time_step)
 
-    # ------------------------------ DATA COLLECTION ----------------------------- #
 
-    # Wrap the replay buffer in a TFDataset so the agent can access it
-    # Dataset generates trajectories with shape [Bx2x...]
-    # This dataset is also optimized by running parallel calls and prefetching data.
-    dataset = replay_buffer.as_dataset(
-        num_parallel_calls=3, sample_batch_size=batch_size, num_steps=2
-    ).prefetch(3)
-    iterator = iter(dataset)
+    # ----------------------------- PREP FOR TRAINING ---------------------------- #
 
-    # ---------------------- TODO: Figure out what this does --------------------- #
+    # (Optional) Optimize by wrapping some of the code in a graph using TF function.
+    agent.train = common.function(agent.train)
 
-    # # Evaluate the agent's policy once before training.
+    # Reset the train step
+    agent.train_step_counter.assign(0)
+
+    # Evaluate the agent's policy once before training.
     avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
     returns = [avg_return]
 
-    # Reset the env
-    time_step = env.reset()
 
     # ------------------------------- TRAINING LOOP ------------------------------ #
 
-    for i in range(num_iterations):
-        print("#0")
-        # Collect a few steps and save to the replay buffer.
-        time_step, _ = collect_driver.run(time_step)
-        print("#1")
+    for episode_index in range(num_iterations):
 
-        # # Sample a batch of data from the buffer and update the agent's network.
-        experience, unused_info = dataset
-        print("#2")
-        train_loss = agent.train(experience).loss
-        # train_loss = 8
-        print("#3")
+        # Collect a few episodes using collect_policy and save to the replay buffer.
+        collect_episode(env, agent.collect_policy, collect_episodes_per_iteration)
+        print(f"episode_index: {episode_index}")
 
-        step = agent.train_step_counter.numpy()
-        # print("4")
+        # Use data from the buffer and update the agent's network.
+        iterator = iter(replay_buffer.as_dataset(sample_batch_size=1))
+        # trajectories, _ = next(iterator)
+        # train_loss = agent.train(experience=trajectories)  
+
+        # replay_buffer.clear()
+
+        # step = agent.train_step_counter.numpy()
 
         # if step % log_interval == 0:
-        #     print(f'step = {step}: loss = {train_loss}')
+        #     print('step = {0}: loss = {1}'.format(step, train_loss.loss))
 
-        if step % eval_interval == 0:
-            avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
-            print(f"step = {i}: Average Return = {avg_return}")
-            returns.append(avg_return)
+        # if step % eval_interval == 0:
+        #     avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
+        #     print('step = {0}: Average Return = {1}'.format(step, avg_return))
+        #     returns.append(avg_return)
 
-    print("birdabo")

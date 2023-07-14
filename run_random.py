@@ -40,6 +40,7 @@ if __name__ == "__main__":
     for _ in range(NUM_EPISODES):
         episode_reward = 0
         episode_steps = 0
+        
         while not time_step.is_last():
             # Pick random action from 0,1,2,3
             action = policy.action(time_step)
@@ -47,6 +48,7 @@ if __name__ == "__main__":
             time_step = tf_env.step(action)
             episode_steps += 1
             episode_reward += time_step.reward.numpy()
+
         rewards.append(episode_reward)
         steps.append(episode_steps)
         time_step = tf_env.reset()
