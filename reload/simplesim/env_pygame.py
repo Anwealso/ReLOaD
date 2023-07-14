@@ -1,10 +1,5 @@
 # ReLOaD Simple Simulator
 # 
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
-# SimpleSim.py
-# 
-# Interactive pygame implementation of the ReLOaD SimpleSim environment
-========
 # simplesim.py
 # 
 # A simple simulator environment for feasibility testing the object detection RL
@@ -12,7 +7,6 @@
 # When run standalone, executes a simple custom policy that moves the 
 # robot forwards if the current prediction score is higher than the average 
 # and backwards otherwise.
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 # 
 # Alex Nichoson
 # 27/05/2023
@@ -459,24 +453,6 @@ class SimpleSim(object):
         Given an action tuple, execute the action in the environment.
         Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
         """
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
-
-        # Check action format
-        if action not in [0, 1, 2, 3]:
-            raise ValueError('`action` should be 0, 1, 2, or 3.')
-
-
-        if (not self.paused) and (not self.gameover):
-            # Handle agent controls and movement
-            if action == 0:
-                self.robot.turn_left()
-            elif action == 1:
-                self.robot.turn_right()
-            if action == 2:
-                self.robot.move_forward()
-            elif action == 3:
-                self.robot.move_backward()
-========
 
         # Handle agent controls and movement
         if action == 0:
@@ -489,50 +465,30 @@ class SimpleSim(object):
         elif action == 3:
             self.robot.move_backward()
         
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 
-    def get_action_interactive(self):
+    def perform_action_interactive(self):
         """
         Get player commands from keyboard and execute the action in the 
         environment.
         """
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
-        action = None
 
+        # Handle player controls and movement
         if (not self.paused) and (not self.gameover):
-            # Handle player controls and movement
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT]:
-                action = 0
+                self.robot.turn_left()
             if keys[pygame.K_RIGHT]:
-                action = 1
+                self.robot.turn_right()
             if keys[pygame.K_UP]:
-                action = 2
+                self.robot.move_forward()
             if keys[pygame.K_DOWN]:
-                action = 3
-        
-        return action
-========
-        # Handle player controls and movement
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            self.robot.turn_left()
-        if keys[pygame.K_RIGHT]:
-            self.robot.turn_right()
-        if keys[pygame.K_UP]:
-            self.robot.move_forward()
-        if keys[pygame.K_DOWN]:
-            self.robot.move_backward()
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
+                self.robot.move_backward()
 
     def step(self, action):
         """
         Runs the game logic (controller)
         """
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
         self.perform_action(action)
-========
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
 
         if (not self.paused) and (not self.gameover):
             clock.tick(60)
@@ -554,8 +510,6 @@ class SimpleSim(object):
 
             # Perform the action
             self.perform_action(action)
-            # Get optional additional user action
-            self.perform_action_interactive()
 
         # Handle menu keyboard events
         for event in pygame.event.get():
@@ -577,14 +531,6 @@ class SimpleSim(object):
         # Re-render the scene
         self.redraw_game_window()
 
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
-def run_game():
-    """
-    Runs an interactive version of the simulator. User controlled only, no 
-    agent.
-    """
-    game = SimpleSim(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-========
 
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
@@ -595,8 +541,7 @@ if __name__ == "__main__":
     NUM_TARGETS = 8
     PLAYER_FOV = 90
 
-    game = Game(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
+    game = SimpleSim(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
     
     state = {}
     action = (None, None)
@@ -604,35 +549,16 @@ if __name__ == "__main__":
 
     while game.run:
         # Get the games state
-        state = game.get_state()
+        state = game.get_state()     
 
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
-========
-        # Get the agent's action
-        last_conf_sum = np.sum(last_reward)
-        current_conf_sum = np.sum(state["current_confidences"])
-        if (current_conf_sum > last_conf_sum):
-            action = 1
-        elif (current_conf_sum < last_conf_sum):
-            action = 3
-        else:
-            action = None
-
-        # Step the game engine (and perform action)
-        game.step(action)        
-
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
         # Get the reward
         last_reward = game.get_reward()
         
         # Get optional additional user action
-        action = game.get_action_interactive()
+        game.perform_action_interactive()
         
-<<<<<<<< HEAD:reload/simplesim/SimpleSim.py
         # Step the game engine
-        game.step(action)
-========
->>>>>>>> ubuntu:reload/simplesim/env_pygame.py
+        game.step(None)
 
     pygame.quit()
 
@@ -641,4 +567,3 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
     run_game()
-    
