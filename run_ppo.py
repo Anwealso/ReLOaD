@@ -150,32 +150,31 @@ def show_env_summary(env):
     print("Time step spec: {} \n".format(env.time_step_spec()))
 
 
-
 def collect_step(environment, policy):
-  time_step = environment.current_time_step()
-  action_step = policy.action(time_step)
-  next_time_step = environment.step(action_step.action)
-  traj = trajectory.from_transition(time_step, action_step, next_time_step)
+    time_step = environment.current_time_step()
+    action_step = policy.action(time_step)
+    next_time_step = environment.step(action_step.action)
+    traj = trajectory.from_transition(time_step, action_step, next_time_step)
 
-  # Add trajectory to the replay buffer
-  replay_buffer.add_batch(traj)
+    # Add trajectory to the replay buffer
+    replay_buffer.add_batch(traj)
 
 
 if __name__ == "__main__":
     # ------------------------------ HYPERPARAMETERS ----------------------------- #
 
     # MAX_TIMESTEPS = 100
-    STARTING_BUDGET = 20
+    STARTING_BUDGET = 50
     NUM_TARGETS = 8
     PLAYER_FOV = 90
     NUM_EPISODES = 5
 
     # num_iterations = 20000 # @param {type:"integer"}
-    num_iterations = 20  # @param {type:"integer"}
+    num_iterations = 40  # @param {type:"integer"}
 
-    initial_collect_steps = 20  # @param {type:"integer"}
+    initial_collect_steps = 10  # @param {type:"integer"}
     # collect_steps_per_iteration = 1  # @param {type:"integer"}
-    collect_episodes_per_iteration = 2 # @param {type:"integer"}
+    collect_episodes_per_iteration = 1  # @param {type:"integer"}
     replay_buffer_max_length = 100000  # @param {type:"integer"}
 
     batch_size = 64  # @param {type:"integer"}
@@ -236,13 +235,12 @@ if __name__ == "__main__":
     def collect_episode(environment, policy, num_episodes):
         driver = py_driver.PyDriver(
             environment,
-            py_tf_eager_policy.PyTFEagerPolicy(
-            policy, use_tf_function=True),
+            py_tf_eager_policy.PyTFEagerPolicy(policy, use_tf_function=True),
             [rb_observer],
-            max_episodes=num_episodes)
+            max_episodes=num_episodes,
+        )
         initial_time_step = environment.reset()
         driver.run(initial_time_step)
-
 
     # ----------------------------- PREP FOR TRAINING ---------------------------- #
 
@@ -252,33 +250,39 @@ if __name__ == "__main__":
     # Reset the train step
     agent.train_step_counter.assign(0)
 
-    # Evaluate the agent's policy once before training.
-    avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
-    returns = [avg_return]
-
+    # # Evaluate the agent's policy once before training.
+    # avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
+    # returns = [avg_return]
+    # print(f'Pre-train Evaluation: Average Return = {avg_return}')
 
     # ------------------------------- TRAINING LOOP ------------------------------ #
 
-    for episode_index in range(num_iterations):
-
+    returns = []
+    for iteration_index in range(num_iterations):
         # Collect a few episodes using collect_policy and save to the replay buffer.
         collect_episode(env, agent.collect_policy, collect_episodes_per_iteration)
-        print(f"episode_index: {episode_index}")
+        print(f"iteration_index: {iteration_index}")
 
         # Use data from the buffer and update the agent's network.
         iterator = iter(replay_buffer.as_dataset(sample_batch_size=1))
+
+        # TODO: Fix error being thrown when calling next on the iterator
+        print()
+        print()
+        print(replay_buffer.as_dataset(sample_batch_size=1))
+        print()
+        print(next(iterator))
         # trajectories, _ = next(iterator)
-        # train_loss = agent.train(experience=trajectories)  
+        # train_loss = agent.train(experience=trajectories)
 
         # replay_buffer.clear()
 
-        # step = agent.train_step_counter.numpy()
+        step = agent.train_step_counter.numpy()
 
         # if step % log_interval == 0:
         #     print('step = {0}: loss = {1}'.format(step, train_loss.loss))
 
-        # if step % eval_interval == 0:
-        #     avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
-        #     print('step = {0}: Average Return = {1}'.format(step, avg_return))
-        #     returns.append(avg_return)
-
+        if step % eval_interval == 0:
+            avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
+            print("step = {0}: Average Return = {1}".format(step, avg_return))
+            returns.append(avg_return)
