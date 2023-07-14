@@ -6,12 +6,7 @@ Alex Nicholson, The University of Queensland, 2023
 
 ## TODO
 
-- [DONE] Build an environment class and function that can replicate the internal state and progression of the igibson env
-- [DONE] Plot this in matplotlib or pygame to visualise how it works
-- [DONE] Wrap it into a gym environment to allow for quicker porting of the agent code to igibson later
-
-- [DONE] FOV indicator lines for the robot
-- [WIP] Hook up the TF-Agents rl agent up to this and let it train for a bit
+- [WIP] Train a basic TF-Agents PPO agent (or any agent really) on the simplesim env
 - Save screenshots of the completed environment every couple of episodes
 - Add some walls as obstructions
 

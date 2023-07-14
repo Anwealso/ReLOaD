@@ -1,9 +1,9 @@
 # ReLOaD Simple Simulator
-# 
+#
 # run_random.py
-# 
+#
 # Runs a RandomTFPolicy over multiple episodes of the simplesim env
-# 
+#
 # Alex Nichoson
 # 19/06/2023
 
@@ -32,8 +32,9 @@ if __name__ == "__main__":
     steps = []
 
     # Setup the agent / policy
-    policy = RandomTFPolicy(action_spec=tf_env.action_spec(), 
-                            time_step_spec=tf_env.time_step_spec())
+    policy = RandomTFPolicy(
+        action_spec=tf_env.action_spec(), time_step_spec=tf_env.time_step_spec()
+    )
 
     # Run the episodes
     for _ in range(NUM_EPISODES):
@@ -54,5 +55,5 @@ if __name__ == "__main__":
     avg_length = np.mean(steps)
     avg_reward = np.mean(rewards)
 
-    print('NUM_EPISODES:', NUM_EPISODES, 'num_steps:', num_steps)
-    print('avg_length', avg_length, 'avg_reward:', avg_reward)
+    print("NUM_EPISODES:", NUM_EPISODES, "num_steps:", num_steps)
+    print("avg_length", avg_length, "avg_reward:", avg_reward)

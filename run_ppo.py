@@ -1,9 +1,9 @@
 # ReLOaD Simple Simulator
-# 
+#
 # run_ppo.py
-# 
+#
 # Runs a PPOAgent over multiple episodes of the simplesim env
-# 
+#
 # Alex Nichoson
 # 19/06/2023
 
@@ -42,7 +42,6 @@ def compute_avg_return(environment, policy, num_episodes=10):
 
     total_return = 0.0
     for _ in range(num_episodes):
-
         time_step = environment.reset()
         episode_return = 0.0
 
@@ -56,11 +55,12 @@ def compute_avg_return(environment, policy, num_episodes=10):
     avg_return = total_return / num_episodes
     return avg_return.numpy()[0]
 
+
 def plot_returns(iterations, returns):
     iterations = range(0, num_iterations + 1, eval_interval)
     plt.plot(iterations, returns)
-    plt.ylabel('Average Return')
-    plt.xlabel('Iterations')
+    plt.ylabel("Average Return")
+    plt.xlabel("Iterations")
     plt.ylim(top=250)
 
 
@@ -77,7 +77,9 @@ def get_dqn_agent(env):
             num_units,
             activation=tf.keras.activations.relu,
             kernel_initializer=tf.keras.initializers.VarianceScaling(
-                scale=2.0, mode='fan_in', distribution='truncated_normal'))
+                scale=2.0, mode="fan_in", distribution="truncated_normal"
+            ),
+        )
 
     # QNetwork consists of a sequence of Dense layers followed by a dense layer
     # with `num_actions` units to generate one q_value per available action as
@@ -87,8 +89,10 @@ def get_dqn_agent(env):
         num_actions,
         activation=None,
         kernel_initializer=tf.keras.initializers.RandomUniform(
-            minval=-0.03, maxval=0.03),
-        bias_initializer=tf.keras.initializers.Constant(-0.2))
+            minval=-0.03, maxval=0.03
+        ),
+        bias_initializer=tf.keras.initializers.Constant(-0.2),
+    )
     q_net = sequential.Sequential(dense_layers + [q_values_layer])
 
     """Now use `tf_agents.agents.dqn.dqn_agent` to instantiate a `DqnAgent`. In addition to the `time_step_spec`, `action_spec` and the QNetwork, the agent constructor also requires an optimizer (in this case, `AdamOptimizer`), a loss function, and an integer step counter."""
@@ -103,7 +107,8 @@ def get_dqn_agent(env):
         q_network=q_net,
         optimizer=optimizer,
         td_errors_loss_fn=common.element_wise_squared_loss,
-        train_step_counter=train_step_counter)
+        train_step_counter=train_step_counter,
+    )
 
     agent.initialize()
 
@@ -112,21 +117,23 @@ def get_ppo_agent(env):
     # --------------------------------- PPO AGENT -------------------------------- #
     print(env.observation_spec())
     actor_net = actor_distribution_network.ActorDistributionNetwork(
-            env.observation_spec(),
-            env.action_spec(),
-            preprocessing_combiner=tf.keras.layers.Concatenate(axis=1))
-    
-    value_net = value_network.ValueNetwork(
-            env.observation_spec(),
-            preprocessing_combiner=tf.keras.layers.Concatenate(axis=1))
+        env.observation_spec(),
+        env.action_spec(),
+        preprocessing_combiner=tf.keras.layers.Concatenate(axis=1),
+    )
 
+    value_net = value_network.ValueNetwork(
+        env.observation_spec(),
+        preprocessing_combiner=tf.keras.layers.Concatenate(axis=1),
+    )
 
     # Setup the agent / policy
     agent = PPOAgent(
-            time_step_spec=env.time_step_spec(),
-            action_spec=env.action_spec(),
-            actor_net=actor_net,
-            value_net=value_net)
+        time_step_spec=env.time_step_spec(),
+        action_spec=env.action_spec(),
+        actor_net=actor_net,
+        value_net=value_net,
+    )
     agent.initialize()
 
     # (Optional) Optimize by wrapping some of the code in a graph using TF function.
@@ -154,10 +161,10 @@ if __name__ == "__main__":
     NUM_EPISODES = 5
 
     # num_iterations = 20000 # @param {type:"integer"}
-    num_iterations = 20 # @param {type:"integer"}
+    num_iterations = 20  # @param {type:"integer"}
 
     initial_collect_steps = 20  # @param {type:"integer"}
-    collect_steps_per_iteration =   1# @param {type:"integer"}
+    collect_steps_per_iteration = 1  # @param {type:"integer"}
     replay_buffer_max_length = 100000  # @param {type:"integer"}
 
     batch_size = 64  # @param {type:"integer"}
@@ -167,33 +174,28 @@ if __name__ == "__main__":
     num_eval_episodes = 10  # @param {type:"integer"}
     eval_interval = 1000  # @param {type:"integer"}
 
-
     # -------------------------------- ENVIRONMENT ------------------------------- #
 
     # Setup the environment
     env = SimpleSim(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 
     env = tf_py_environment.TFPyEnvironment(env)
-    
+
     # Reset the env
     time_step = env.reset()
 
-    show_env_summary(env) # Display environment specs
-
+    show_env_summary(env)  # Display environment specs
 
     # ----------------------------------- AGENT ---------------------------------- #
 
     agent = get_ppo_agent(env)
 
-
     # ------------------------------- REPLAY BUFFER ------------------------------ #
 
     # Setup replay buffer for training data collection
-    table_name = 'uniform_table'
-    replay_buffer_signature = tensor_spec.from_spec(
-        agent.collect_data_spec)
-    replay_buffer_signature = tensor_spec.add_outer_dim(
-        replay_buffer_signature)
+    table_name = "uniform_table"
+    replay_buffer_signature = tensor_spec.from_spec(agent.collect_data_spec)
+    replay_buffer_signature = tensor_spec.add_outer_dim(replay_buffer_signature)
 
     table = reverb.Table(
         table_name,
@@ -201,7 +203,8 @@ if __name__ == "__main__":
         sampler=reverb.selectors.Uniform(),
         remover=reverb.selectors.Fifo(),
         rate_limiter=reverb.rate_limiters.MinSize(1),
-        signature=replay_buffer_signature)
+        signature=replay_buffer_signature,
+    )
 
     reverb_server = reverb.Server([table])
 
@@ -209,20 +212,20 @@ if __name__ == "__main__":
         agent.collect_data_spec,
         table_name=table_name,
         sequence_length=2,
-        local_server=reverb_server)
+        local_server=reverb_server,
+    )
 
     rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
-        replay_buffer.py_client,
-        table_name,
-        sequence_length=2)
+        replay_buffer.py_client, table_name, sequence_length=2
+    )
 
     # Create a driver to collect experience during the the training loop
     collect_driver = py_driver.PyDriver(
         env,
-        py_tf_eager_policy.PyTFEagerPolicy(
-        agent.collect_policy, use_tf_function=True),
+        py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
         [rb_observer],
-        max_steps=collect_steps_per_iteration)
+        max_steps=collect_steps_per_iteration,
+    )
 
     # ------------------------------ DATA COLLECTION ----------------------------- #
 
@@ -230,11 +233,9 @@ if __name__ == "__main__":
     # Dataset generates trajectories with shape [Bx2x...]
     # This dataset is also optimized by running parallel calls and prefetching data.
     dataset = replay_buffer.as_dataset(
-        num_parallel_calls=3,
-        sample_batch_size=batch_size,
-        num_steps=2).prefetch(3)
+        num_parallel_calls=3, sample_batch_size=batch_size, num_steps=2
+    ).prefetch(3)
     iterator = iter(dataset)
-
 
     # ---------------------- TODO: Figure out what this does --------------------- #
 
@@ -244,7 +245,6 @@ if __name__ == "__main__":
 
     # Reset the env
     time_step = env.reset()
-
 
     # ------------------------------- TRAINING LOOP ------------------------------ #
 
@@ -269,8 +269,7 @@ if __name__ == "__main__":
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)
-            print(f'step = {i}: Average Return = {avg_return}')
+            print(f"step = {i}: Average Return = {avg_return}")
             returns.append(avg_return)
 
     print("birdabo")
-

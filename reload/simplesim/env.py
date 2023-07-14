@@ -15,7 +15,6 @@ import pygame
 import math
 import random
 import numpy as np
-import time
 import os
 
 # ---------------------------------------------------------------------------- #

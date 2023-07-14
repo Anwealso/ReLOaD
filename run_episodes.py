@@ -1,9 +1,9 @@
 # ReLOaD Simple Simulator
-# 
+#
 # run_episodes.py
-# 
+#
 # Runs a random policy over multiple episodes of the simplesim env
-# 
+#
 # Alex Nichoson
 # 19/06/2023
 
@@ -16,9 +16,10 @@ from reload.simplesim.gym import SimpleSimGym
 if __name__ == "__main__":
     # Hyperparameters
     # MAX_TIMESTEPS = 100
-    STARTING_BUDGET = 2000
+    STARTING_BUDGET = 500
     NUM_TARGETS = 8
     PLAYER_FOV = 90
+    NUM_EPISODES = 5
 
     env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
     tf_env = tf_py_environment.TFPyEnvironment(env)
@@ -26,9 +27,8 @@ if __name__ == "__main__":
     time_step = tf_env.reset()
     rewards = []
     steps = []
-    num_episodes = 5
 
-    for _ in range(num_episodes):
+    for _ in range(NUM_EPISODES):
         episode_reward = 0
         episode_steps = 0
         while not time_step.is_last():
@@ -46,5 +46,5 @@ if __name__ == "__main__":
     avg_length = np.mean(steps)
     avg_reward = np.mean(rewards)
 
-    print('num_episodes:', num_episodes, 'num_steps:', num_steps)
-    print('avg_length', avg_length, 'avg_reward:', avg_reward)
+    print("num_episodes:", NUM_EPISODES, "num_steps:", num_steps)
+    print("avg_length", avg_length, "avg_reward:", avg_reward)
