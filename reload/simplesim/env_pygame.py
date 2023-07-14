@@ -277,7 +277,7 @@ class Robot(object):
         # Compute the final confidence
         confidence = (distance_factor * distance_weighting) + (orientation_factor * orientation_weighting)
 
-        return confidence;
+        return confidence
 
 class SimpleSim(object):
     """"

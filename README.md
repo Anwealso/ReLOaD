@@ -32,6 +32,15 @@ Factors to include in detection function
 - Follow installation guide at: https://stanfordvl.github.io/iGibson/installation.html
 - Test the installation by running `python -m igibson.examples.environments.env_nonint_example`
 
+### Install My Lib
+`git clone https://github.com/Anwealso/ReLOaD.git`
+
+
+### Install YOLO Lib
+`git clone https://github.com/anushkadhiman/YOLOv3-TensorFlow-2.x.git`
+
+
+
 
 ## Usage
 
