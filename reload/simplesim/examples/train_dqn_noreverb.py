@@ -47,7 +47,7 @@ from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
 from tf_agents.specs import tensor_spec
 import numpy as np
-from SimpleSimGym import SimpleSimGym
+from reload.simplesim.gym import SimpleSimGym
 
 
 # ---------------------------------------------------------------------------- #

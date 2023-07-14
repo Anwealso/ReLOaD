@@ -1,39 +1,47 @@
 # ReLOaD Simple Simulator
 # 
-# env.py
+# run_random.py
 # 
-# Runs a random policy over multiple episodes of the simplesim env
+# Runs a RandomTFPolicy over multiple episodes of the simplesim env
 # 
 # Alex Nichoson
 # 19/06/2023
 
 import numpy as np
 import tensorflow as tf
+import tf_agents
 from tf_agents.environments import tf_py_environment
-from reload.simplesim.env_gym import GameEnv
+from tf_agents.policies.random_tf_policy import RandomTFPolicy
+from reload.simplesim.gym import SimpleSimGym
 
 
 if __name__ == "__main__":
     # Hyperparameters
-    MAX_TIMESTEPS = 100
+    # MAX_TIMESTEPS = 100
     STARTING_BUDGET = 2000
     NUM_TARGETS = 8
     PLAYER_FOV = 90
+    NUM_EPISODES = 5
 
-    env = GameEnv(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    # Setup the environment
+    env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
     tf_env = tf_py_environment.TFPyEnvironment(env)
 
     time_step = tf_env.reset()
     rewards = []
     steps = []
-    num_episodes = 5
 
-    for _ in range(num_episodes):
+    # Setup the agent / policy
+    policy = RandomTFPolicy(action_spec=tf_env.action_spec(), 
+                            time_step_spec=tf_env.time_step_spec())
+
+    # Run the episodes
+    for _ in range(NUM_EPISODES):
         episode_reward = 0
         episode_steps = 0
         while not time_step.is_last():
             # Pick random action from 0,1,2,3
-            action = tf.random.uniform([1], 0, 4, dtype=tf.int32)
+            action = policy.action(time_step)
             print(action)
             time_step = tf_env.step(action)
             episode_steps += 1
@@ -46,5 +54,5 @@ if __name__ == "__main__":
     avg_length = np.mean(steps)
     avg_reward = np.mean(rewards)
 
-    print('num_episodes:', num_episodes, 'num_steps:', num_steps)
+    print('NUM_EPISODES:', NUM_EPISODES, 'num_steps:', num_steps)
     print('avg_length', avg_length, 'avg_reward:', avg_reward)

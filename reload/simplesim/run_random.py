@@ -1,6 +1,6 @@
 # ReLOaD Simple Simulator
 # 
-# run_episodes.py
+# run_random.py
 # 
 # Runs a random agent on multiple episodes of the SimpleSim environment
 # 
@@ -12,7 +12,7 @@ import numpy as np
 import tensorflow as tf
 from tf_agents.environments import tf_py_environment
 from tf_agents.policies import random_tf_policy
-from SimpleSimGym import SimpleSimGym
+from gym import SimpleSimGym
 
 
 # ---------------------------------------------------------------------------- #

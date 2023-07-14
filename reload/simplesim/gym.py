@@ -7,7 +7,7 @@
 # Alex Nichoson
 # 27/05/2023
 
-from SimpleSim import SimpleSim
+from reload.simplesim.env import SimpleSim
 import pygame
 import numpy as np
 import time

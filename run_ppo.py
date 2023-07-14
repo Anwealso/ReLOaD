@@ -32,7 +32,7 @@ from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
 
 
-from reload.simplesim.env_gym import GameEnv
+from reload.simplesim.env import SimpleSim
 
 
 def compute_avg_return(environment, policy, num_episodes=10):
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     # -------------------------------- ENVIRONMENT ------------------------------- #
 
     # Setup the environment
-    env = GameEnv(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    env = SimpleSim(MAX_TIMESTEPS, STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 
     env = tf_py_environment.TFPyEnvironment(env)
     
