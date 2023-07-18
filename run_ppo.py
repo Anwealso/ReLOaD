@@ -19,6 +19,7 @@ from tf_agents.networks import value_network
 
 from tf_agents.drivers import py_driver
 from tf_agents.environments import suite_gym
+from tf_agents.environments import py_environment
 from tf_agents.environments import tf_py_environment
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
@@ -113,7 +114,7 @@ def get_dqn_agent(env):
     agent.initialize()
 
 
-def get_ppo_agent(env):
+def get_ppo_agent(env, time_step):
     # --------------------------------- PPO AGENT -------------------------------- #
     actor_net = actor_distribution_network.ActorDistributionNetwork(
         env.observation_spec(),
@@ -164,13 +165,13 @@ if __name__ == "__main__":
     # ------------------------------ HYPERPARAMETERS ----------------------------- #
 
     # MAX_TIMESTEPS = 100
-    STARTING_BUDGET = 50
+    STARTING_BUDGET = 20
     NUM_TARGETS = 8
     PLAYER_FOV = 90
     NUM_EPISODES = 5
 
     # num_iterations = 20000 # @param {type:"integer"}
-    num_iterations = 40  # @param {type:"integer"}
+    num_iterations = 10  # @param {type:"integer"}
 
     initial_collect_steps = 10  # @param {type:"integer"}
     # collect_steps_per_iteration = 1  # @param {type:"integer"}
@@ -181,14 +182,14 @@ if __name__ == "__main__":
     learning_rate = 1e-3  # @param {type:"number"}
     log_interval = 200  # @param {type:"integer"}
 
-    num_eval_episodes = 10  # @param {type:"integer"}
+    num_eval_episodes = 1  # @param {type:"integer"}
     eval_interval = 1000  # @param {type:"integer"}
+
 
     # -------------------------------- ENVIRONMENT ------------------------------- #
 
     # Setup the environment
     env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-
     env = tf_py_environment.TFPyEnvironment(env)
 
     # Reset the env
@@ -196,11 +197,84 @@ if __name__ == "__main__":
     # print("### time_step")
     # print(time_step)
 
-    show_env_summary(env)  # Display environment specs
+    # ### time_step
+    # TimeStep(
+    # {'discount': <tf.Tensor: shape=(1,), dtype=float32, numpy=array([1.], dtype=float32)>,
+    # 'observation': (<tf.Tensor: shape=(1, 1, 1), dtype=float32, numpy=array([[[0.]]], dtype=float32)>,
+    #                 <tf.Tensor: shape=(1, 1, 1), dtype=float32, numpy=array([[[20.]]], dtype=float32)>,
+    #                 <tf.Tensor: shape=(1, 8, 1), dtype=float32, numpy=
+    # array([[[0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.]]], dtype=float32)>,
+    #                 <tf.Tensor: shape=(1, 8, 1), dtype=float32, numpy=
+    # array([[[0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.],
+    #         [0.]]], dtype=float32)>),
+    # 'reward': <tf.Tensor: shape=(1,), dtype=float32, numpy=array([0.], dtype=float32)>,
+    # 'step_type': <tf.Tensor: shape=(1,), dtype=int32, numpy=array([0], dtype=int32)>})
+
+
+    # show_env_summary(env)  # Display environment specs
+
+    # Observation spec: (BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='count', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)), 
+    #                    BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='budget', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)), 
+    #                    BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='avg_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32)), 
+    #                    BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='curr_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32))) 
+    # 
+    # Action spec: BoundedTensorSpec(shape=(), dtype=tf.int32, name='action', minimum=array(0, dtype=int32), maximum=array(3, dtype=int32)) 
+    # 
+    # Time step spec: TimeStep(
+    # {'discount': BoundedTensorSpec(shape=(), dtype=tf.float32, name='discount', minimum=array(0., dtype=float32), maximum=array(1., dtype=float32)),
+    # 'observation': (BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='count', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)),
+    #                 BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='budget', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)),
+    #                 BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='avg_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32)),
+    #                 BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='curr_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32))),
+    # 'reward': BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='reward', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32)),
+    # 'step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type')}) 
+
 
     # ----------------------------------- AGENT ---------------------------------- #
 
-    agent = get_ppo_agent(env)
+    # agent = get_ppo_agent(env, time_step)
+
+
+    # --------------------------------- PPO AGENT -------------------------------- #
+    actor_net = actor_distribution_network.ActorDistributionNetwork(
+        env.observation_spec(),
+        env.action_spec(),
+        preprocessing_combiner=tf.keras.layers.Concatenate(axis=1),
+    )
+
+    value_net = value_network.ValueNetwork(
+        env.observation_spec(),
+        preprocessing_combiner=tf.keras.layers.Concatenate(axis=1),
+    )
+
+    # Setup the agent / policy
+    agent = PPOAgent(
+        time_step_spec=env.time_step_spec(),
+        action_spec=env.action_spec(),
+        actor_net=actor_net,
+        value_net=value_net,
+    )
+    agent.initialize()
+
+    # (Optional) Optimize by wrapping some of the code in a graph using TF function.
+    agent.train = common.function(agent.train)
+
+    # Reset the train step.
+    agent.train_step_counter.assign(0)
+
 
     # ------------------------------- REPLAY BUFFER ------------------------------ #
 
@@ -215,32 +289,66 @@ if __name__ == "__main__":
         sampler=reverb.selectors.Uniform(),
         remover=reverb.selectors.Fifo(),
         rate_limiter=reverb.rate_limiters.MinSize(1),
-        signature=replay_buffer_signature,
+        # signature=replay_buffer_signature,
     )
 
     reverb_server = reverb.Server([table])
 
+    # NOTE: Must have num_steps <= sequence_length
+    # NUM_STEPS = 1
+    SEQUENCE_LENGTH = 1
+
     replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
-        agent.collect_data_spec,
-        table_name=table_name,
-        sequence_length=2,
+        agent.collect_data_spec,        table_name=table_name,
+        sequence_length=SEQUENCE_LENGTH,
+        # sequence_length=None,
         local_server=reverb_server,
     )
 
     rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
-        replay_buffer.py_client, table_name, sequence_length=2
+        replay_buffer.py_client, 
+        table_name, 
+        sequence_length=SEQUENCE_LENGTH
+        # sequence_length=1
     )
 
+    dataset = replay_buffer.as_dataset(
+        # num_parallel_calls=3,
+        # sample_batch_size=batch_size,
+        num_steps=SEQUENCE_LENGTH
+        )
+        # ).prefetch(3)
+    iterator = iter(dataset)
+
+    print("=======================================================================")
+    print()
+    print(f"agent.collect_data_spec: \n{agent.collect_data_spec}")
+    print()
+    print("=======================================================================")
+    print()
+    print(f"Specification Shape (time_step_spec): \n{env.time_step_spec()}")
+    print()
+    print("=======================================================================")
+    print()
+    print(f"Tensor Shape (dataset): \n{dataset}")
+    print()
+    print("=======================================================================")
+
+
+    
     # Create a driver to collect experience during the the training loop
     def collect_episode(environment, policy, num_episodes):
         driver = py_driver.PyDriver(
             environment,
-            py_tf_eager_policy.PyTFEagerPolicy(policy, use_tf_function=True),
+            py_tf_eager_policy.PyTFEagerPolicy(policy,
+                                            #    batch_time_steps=False,
+                                               use_tf_function=True),
             [rb_observer],
             max_episodes=num_episodes,
         )
         initial_time_step = environment.reset()
         driver.run(initial_time_step)
+
 
     # ----------------------------- PREP FOR TRAINING ---------------------------- #
 
@@ -255,6 +363,7 @@ if __name__ == "__main__":
     # returns = [avg_return]
     # print(f'Pre-train Evaluation: Average Return = {avg_return}')
 
+
     # ------------------------------- TRAINING LOOP ------------------------------ #
 
     returns = []
@@ -263,17 +372,20 @@ if __name__ == "__main__":
         collect_episode(env, agent.collect_policy, collect_episodes_per_iteration)
         print(f"iteration_index: {iteration_index}")
 
-        # Use data from the buffer and update the agent's network.
-        iterator = iter(replay_buffer.as_dataset(sample_batch_size=1))
+        # iterator = iter(replay_buffer.as_dataset(sample_batch_size=batch_size))
 
         # TODO: Fix error being thrown when calling next on the iterator
-        print()
-        print()
-        print(replay_buffer.as_dataset(sample_batch_size=1))
-        print()
+        # print()
+        # print()
         print(next(iterator))
+
+        # Use data from the buffer and update the agent's network.
         # trajectories, _ = next(iterator)
         # train_loss = agent.train(experience=trajectories)
+
+        # Test:
+        # experience, unused_info = next(self.iterator)
+        # train_loss = agent.train(experience).loss
 
         # replay_buffer.clear()
 
@@ -281,6 +393,7 @@ if __name__ == "__main__":
 
         # if step % log_interval == 0:
         #     print('step = {0}: loss = {1}'.format(step, train_loss.loss))
+
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(env, agent.policy, num_eval_episodes)

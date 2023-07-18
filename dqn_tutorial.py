@@ -244,6 +244,9 @@ agent = dqn_agent.DqnAgent(
 
 agent.initialize()
 
+print("### birdabo")
+print(agent._q_network.summary())
+
 """## Policies
 
 A policy defines the way an agent acts in an environment. Typically, the goal of reinforcement learning is to train the underlying model until the policy produces the desired outcome.

@@ -96,6 +96,12 @@ from tf_agents.trajectories import trajectory
 from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
 
+from reload.simplesim.gym2 import SimpleSimGym
+from tf_agents.agents.dqn import dqn_agent
+from tf_agents.agents import PPOAgent
+from tf_agents.networks import actor_distribution_network
+from tf_agents.networks import value_network
+
 # Set up a virtual display for rendering OpenAI gym environments.
 # display = pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
 
@@ -123,14 +129,22 @@ In Reinforcement Learning (RL), an environment represents the task or problem to
 Load the CartPole environment from the OpenAI Gym suite.
 """
 
-env_name = 'CartPole-v0'
-env = suite_gym.load(env_name)
+# env_name = 'CartPole-v0'
+# env = suite_gym.load(env_name)
+
+STARTING_BUDGET = 20
+NUM_TARGETS = 8
+PLAYER_FOV = 90
+NUM_EPISODES = 5
+env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+# env = tf_py_environment.TFPyEnvironment(env)
+
 
 """You can render this environment to see how it looks. A free-swinging pole is attached to a cart.  The goal is to move the cart right or left in order to keep the pole pointing up."""
 
 #@test {"skip": true}
 env.reset()
-PIL.Image.fromarray(env.render())
+# PIL.Image.fromarray(env.render())
 
 """The `environment.step` method takes an `action` in the environment and returns a `TimeStep` tuple containing the next observation of the environment and the reward for the action.
 
@@ -173,8 +187,8 @@ print(next_time_step)
 
 """Usually two environments are instantiated: one for training and one for evaluation."""
 
-train_py_env = suite_gym.load(env_name)
-eval_py_env = suite_gym.load(env_name)
+train_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+eval_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 
 """The Cartpole environment, like most environments, is written in pure Python. This is converted to TensorFlow using the `TFPyEnvironment` wrapper.
 
@@ -206,6 +220,7 @@ We will use `tf_agents.networks.` to create a `QNetwork`. The network will consi
 fc_layer_params = (100, 50)
 action_tensor_spec = tensor_spec.from_spec(env.action_spec())
 num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
+print(f"num_actions: {num_actions}")
 
 # Define a helper function to create Dense layers configured with the right
 # activation and kernel initializer.
@@ -242,7 +257,25 @@ agent = dqn_agent.DqnAgent(
     td_errors_loss_fn=common.element_wise_squared_loss,
     train_step_counter=train_step_counter)
 
+# actor_net = actor_distribution_network.ActorDistributionNetwork(
+#     env.observation_spec(),
+#     env.action_spec(),
+# )
+# value_net = value_network.ValueNetwork(
+#     env.observation_spec(),
+# )
+# # Setup the agent / policy
+# agent = PPOAgent(
+#     time_step_spec=env.time_step_spec(),
+#     action_spec=env.action_spec(),
+#     actor_net=actor_net,
+#     value_net=value_net,
+# )
+
 agent.initialize()
+
+print("### birdabo")
+print(agent._q_network.summary())
 
 """## Policies
 

@@ -30,10 +30,11 @@ class SimpleSimGym(py_environment.PyEnvironment):
     """
     A gym wrapper for our simple simulator environment
     """
-    def __init__(self, starting_budget, num_targets, player_fov):
+    def __init__(self, starting_budget, num_targets, player_fov, batch_size=1):
         # Actions: 0, 1, 2, 3 for F, B, L, R
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
+        # Action spec: BoundedTensorSpec(shape=(), dtype=tf.int32, name='action', minimum=array(0, dtype=int32), maximum=array(3, dtype=int32)) 
 
         MAX_TIMESTEPS = 100
         
@@ -50,27 +51,41 @@ class SimpleSimGym(py_environment.PyEnvironment):
         )
 
         self._observation_spec = obs_spec
+        # Observation spec: (BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='count', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)), 
+        #                 BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='budget', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)), 
+        #                 BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='avg_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32)), 
+        #                 BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='curr_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32))) 
 
         # Internal State:
         self.game = SimpleSim(starting_budget, num_targets, player_fov)
 
         # Timestep Fields: 
-        self._discount_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, name='discount')
-        self._reward_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, name='reward')
+        # self._reward_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, name='reward')
+        # self._discount_spec = array_spec.BoundedArraySpec(shape=(1, 1), dtype=np.float32, minimum=0, name='discount')
 
-        # self._time_step_spec = ts.time_step_spec(self._observation_spec, self._reward_spec)
+        # self._step_type_spec = array_spec.BoundedArraySpec(shape=(1,), dtype=np.float32, minimum=0, name='step_type')
+        # self._time_step_spec = ts.time_step_spec(self._observation_spec, self._step_type_spec)
+
+        # Time step spec: TimeStep(
+        # {'discount': BoundedTensorSpec(shape=(), dtype=tf.float32, name='discount', minimum=array(0., dtype=float32), maximum=array(1., dtype=float32)),
+        # 'observation': (BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='count', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)),
+        #                 BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='budget', minimum=array(0., dtype=float32), maximum=array(100., dtype=float32)),
+        #                 BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='avg_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32)),
+        #                 BoundedTensorSpec(shape=(8, 1), dtype=tf.float32, name='curr_conf', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32))),
+        # 'reward': BoundedTensorSpec(shape=(1, 1), dtype=tf.float32, name='reward', minimum=array(0., dtype=float32), maximum=array(3.4028235e+38, dtype=float32)),
+        # 'step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type')}) 
 
     def action_spec(self):
         return self._action_spec
 
     def observation_spec(self):
         return self._observation_spec
+
+    # def discount_spec(self):
+    #     return self._discount_spec
     
-    def discount_spec(self):
-        return self._discount_spec
-    
-    def reward_spec(self):
-        return self._reward_spec
+    # def reward_spec(self):
+    #     return self._reward_spec
     
     # def time_step_spec(self):
     #     return self._time_step_spec

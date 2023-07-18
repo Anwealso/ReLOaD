@@ -1,0 +1,120 @@
+Observation Spec:
+BoundedArraySpec(shape=(4,), dtype=dtype('float32'), name='observation', minimum=[-4.8000002e+00 -3.4028235e+38 -4.1887903e-01 -3.4028235e+38], maximum=[4.8000002e+00 3.4028235e+38 4.1887903e-01 3.4028235e+38])
+Reward Spec:
+ArraySpec(shape=(), dtype=dtype('float32'), name='reward')
+Action Spec:
+BoundedArraySpec(shape=(), dtype=dtype('int64'), name='action', minimum=0, maximum=1)
+Time step:
+TimeStep(
+{'discount': array(1., dtype=float32),
+ 'observation': array([-0.03224629, -0.00866485, -0.00602747, -0.0108482 ], dtype=float32),
+ 'reward': array(0., dtype=float32),
+ 'step_type': array(0, dtype=int32)})
+Next time step:
+TimeStep(
+{'discount': array(1., dtype=float32),
+ 'observation': array([-0.03241959,  0.18654302, -0.00624444, -0.30542675], dtype=float32),
+ 'reward': array(1., dtype=float32),
+ 'step_type': array(1, dtype=int32)})
+<tensorflow.python.data.ops.iterator_ops.OwnedIterator object at 0x7f7ee607d2b0>
+step = 200: loss = 37.51732635498047
+step = 400: loss = 1.571994662284851
+step = 600: loss = 3.0143959522247314
+step = 800: loss = 8.002262115478516
+step = 1000: loss = 9.19741153717041
+step = 1000: Average Return = 95.30000305175781
+step = 1200: loss = 9.557147979736328
+step = 1400: loss = 52.067359924316406
+step = 1600: loss = 350.7201232910156
+step = 1800: loss = 31.54991912841797
+step = 2000: loss = 158.15879821777344
+step = 2000: Average Return = 185.6999969482422
+step = 2200: loss = 131.15968322753906
+step = 2400: loss = 88.03575897216797
+step = 2600: loss = 100.02056121826172
+step = 2800: loss = 16.77446746826172
+step = 3000: loss = 40.01407241821289
+step = 3000: Average Return = 89.0999984741211
+step = 3200: loss = 14.446762084960938
+step = 3400: loss = 23.454219818115234
+step = 3600: loss = 33.25762939453125
+step = 3800: loss = 72.0853271484375
+step = 4000: loss = 4545.98388671875
+step = 4000: Average Return = 200.0
+step = 4200: loss = 3394.21435546875
+step = 4400: loss = 65636.734375
+step = 4600: loss = 238557.625
+step = 4800: loss = 725985.9375
+step = 5000: loss = 20740.98046875
+step = 5000: Average Return = 200.0
+step = 5200: loss = 8325.9765625
+step = 5400: loss = 16533.669921875
+step = 5600: loss = 11376.65234375
+step = 5800: loss = 1264890.0
+step = 6000: loss = 12986.68359375
+step = 6000: Average Return = 200.0
+step = 6200: loss = 17348.68359375
+step = 6400: loss = 485349.25
+step = 6600: loss = 56497.546875
+step = 6800: loss = 21900.671875
+step = 7000: loss = 17434.48828125
+step = 7000: Average Return = 200.0
+step = 7200: loss = 2057562.875
+step = 7400: loss = 21862.1328125
+step = 7600: loss = 916944.625
+step = 7800: loss = 825211.75
+step = 8000: loss = 15264.421875
+step = 8000: Average Return = 200.0
+step = 8200: loss = 783351.0625
+step = 8400: loss = 15370.271484375
+step = 8600: loss = 87664.625
+step = 8800: loss = 40958.8984375
+step = 9000: loss = 917337.75
+step = 9000: Average Return = 200.0
+step = 9200: loss = 18624.884765625
+step = 9400: loss = 656428.75
+step = 9600: loss = 23668.505859375
+step = 9800: loss = 1214201.25
+step = 10000: loss = 9369.150390625
+step = 10000: Average Return = 200.0
+step = 10200: loss = 742392.9375
+step = 10400: loss = 15830.0224609375
+step = 10600: loss = 17880.40234375
+step = 10800: loss = 433784.53125
+step = 11000: loss = 114560.53125
+step = 11000: Average Return = 200.0
+step = 11200: loss = 8331.7587890625
+step = 11400: loss = 449736.5625
+step = 11600: loss = 645535.75
+step = 11800: loss = 17859.81640625
+step = 12000: loss = 6235.10546875
+step = 12000: Average Return = 200.0
+step = 12200: loss = 23465.31640625
+step = 12400: loss = 13381.4736328125
+step = 12600: loss = 10450.673828125
+step = 12800: loss = 2497871.25
+step = 13000: loss = 6284.0439453125
+step = 13000: Average Return = 200.0
+step = 13200: loss = 715563.0
+step = 13400: loss = 6737.1044921875
+step = 13600: loss = 12493.099609375
+step = 13800: loss = 18196.3671875
+step = 14000: loss = 9520.89453125
+step = 14000: Average Return = 200.0
+step = 14200: loss = 5894.3759765625
+step = 14400: loss = 18880.3046875
+step = 14600: loss = 16742.17578125
+step = 14800: loss = 8374.224609375
+step = 15000: loss = 7333.443359375
+step = 15000: Average Return = 200.0
+step = 15200: loss = 13819.556640625
+step = 15400: loss = 7648.11669921875
+step = 15600: loss = 9306.1015625
+step = 15800: loss = 10809.0009765625
+step = 16000: loss = 73797.0078125
+step = 16000: Average Return = 195.5
+step = 16200: loss = 8971.3779296875
+step = 16400: loss = 11109.1767578125
+step = 16600: loss = 19309.79296875
+step = 16800: loss = 171092.515625
+step = 17000: loss = 7628.35009765625
