@@ -37,6 +37,8 @@ from tf_agents.agents import PPOAgent
 from tf_agents.networks import actor_distribution_network
 from tf_agents.networks import value_network
 
+tf.version.VERSION
+
 
 # ---------------------------------------------------------------------------- #
 #                                   FUNCTIONS                                  #
@@ -44,44 +46,77 @@ from tf_agents.networks import value_network
 def show_training_graph():
     """
     Use `matplotlib.pyplot` to chart how the policy improved during training.
-    One iteration of `Cartpole-v0` consists of 200 time steps. The environment
+    One iteration of `Cartpole-v0` consists of 200 time steps. The environment 
     gives a reward of `+1` for each step the pole stays up, so the maximum return
     for one episode is 200. The charts shows the return increasing towards that
-    maximum each time it is evaluated during training. (It may be a little
+    maximum each time it is evaluated during training. (It may be a little 
     unstable and not increase monotonically each time.)
     """
 
     iterations = range(0, num_iterations + 1, eval_interval)
     plt.plot(iterations, returns)
-    plt.ylabel("Average Return")
-    plt.xlabel("Iterations")
+    plt.ylabel('Average Return')
+    plt.xlabel('Iterations')
     plt.ylim(top=250)
     plt.imsave("training_graph.png")
 
 
-def show_env_summary():
+def show_env_summary(env):
     """
     Prints Env Specs
     """
 
-    print("Observation Spec:")
+    print('Observation Spec:')
     print(env.time_step_spec().observation)
 
-    print("Reward Spec:")
+    print('Reward Spec:')
     print(env.time_step_spec().reward)
 
-    print("Action Spec:")
+    print('Action Spec:')
     print(env.action_spec())
 
     time_step = env.reset()
-    print("Time step:")
+    print('Time step:')
     print(time_step)
 
     action = np.array(1, dtype=np.int32)
 
     next_time_step = env.step(action)
-    print("Next time step:")
+    print('Next time step:')
     print(next_time_step)
+
+
+def compute_avg_return(environment, policy, num_episodes=10):
+    """
+    Computes the average return of a policy, given the policy, environment, and
+    a number of episodes.
+
+    The most common metric used to evaluate a policy is the average return. 
+    The return is the sum of rewards obtained while running a policy in an 
+    environment for an episode. Several episodes are run, creating an average 
+    return.
+
+    See also the metrics module for standard implementations of different metrics.
+    https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
+
+    Running this computation on the `random_policy` shows a baseline performance
+    in an environment.
+    """
+
+    total_return = 0.0
+    for _ in range(num_episodes):
+
+        time_step = environment.reset()
+        episode_return = 0.0
+
+        while not time_step.is_last():
+            action_step = policy.action(time_step)
+            time_step = environment.step(action_step.action)
+            episode_return += time_step.reward
+            total_return += episode_return
+
+    avg_return = total_return / num_episodes
+    return avg_return.numpy()[0]
 
 
 def get_dqn_agent(env, verbose=False):
@@ -90,8 +125,8 @@ def get_dqn_agent(env, verbose=False):
 
     ## Agent
 
-    The algorithm used to solve an RL problem is represented by an `Agent`.
-    TF-Agents provides standard implementations of a variety of `Agents`,
+    The algorithm used to solve an RL problem is represented by an `Agent`. 
+    TF-Agents provides standard implementations of a variety of `Agents`, 
     including:
 
     -   [DQN](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf) (used in this tutorial)
@@ -101,15 +136,15 @@ def get_dqn_agent(env, verbose=False):
     -   [PPO](https://arxiv.org/abs/1707.06347)
     -   [SAC](https://arxiv.org/abs/1801.01290)
 
-    The DQN agent can be used in any environment which has a discrete action
+    The DQN agent can be used in any environment which has a discrete action 
     space.
 
-    At the heart of a DQN Agent is a `QNetwork`, a neural network model that can
-    learn to predict `QValues` (expected returns) for all actions, given an
+    At the heart of a DQN Agent is a `QNetwork`, a neural network model that can 
+    learn to predict `QValues` (expected returns) for all actions, given an 
     observation from the environment.
 
-    We will use `tf_agents.networks.` to create a `QNetwork`. The network will
-    consist of a sequence of `tf.keras.layers.Dense` layers, where the final
+    We will use `tf_agents.networks.` to create a `QNetwork`. The network will 
+    consist of a sequence of `tf.keras.layers.Dense` layers, where the final 
     layer will have 1 output for each possible action.
 
     ## Policies
@@ -120,14 +155,14 @@ def get_dqn_agent(env, verbose=False):
 
     Agents contain two policies:
 
-    -   `agent.policy` — The main policy that is used for evaluation and
+    -   `agent.policy` — The main policy that is used for evaluation and 
             deployment.
-    -   `agent.collect_policy` — A second policy that is used for data
+    -   `agent.collect_policy` — A second policy that is used for data 
             collection.
 
-    Policies can be created independantly of Agents. To get an action from a
-    policy, call the `policy.action(time_step)` method. The `time_step` contains
-    the observation from the environment. This method returns a `PolicyStep`,
+    Policies can be created independantly of Agents. To get an action from a 
+    policy, call the `policy.action(time_step)` method. The `time_step` contains 
+    the observation from the environment. This method returns a `PolicyStep`, 
     which is a named tuple with three components:
 
     -   `action` — the action to be taken (in this case, `0` or `1`)
@@ -140,6 +175,7 @@ def get_dqn_agent(env, verbose=False):
     num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
     print(f"num_actions: {num_actions}")
 
+
     # Define a helper function to create Dense layers configured with the right
     # activation and kernel initializer.
     def dense_layer(num_units):
@@ -151,6 +187,7 @@ def get_dqn_agent(env, verbose=False):
             ),
         )
 
+
     # QNetwork consists of a sequence of Dense layers followed by a dense layer
     # with `num_actions` units to generate one q_value per available action as
     # its output.
@@ -158,17 +195,12 @@ def get_dqn_agent(env, verbose=False):
     q_values_layer = tf.keras.layers.Dense(
         num_actions,
         activation=None,
-        kernel_initializer=tf.keras.initializers.RandomUniform(
-            minval=-0.03, maxval=0.03
-        ),
+        kernel_initializer=tf.keras.initializers.RandomUniform(minval=-0.03, maxval=0.03),
         bias_initializer=tf.keras.initializers.Constant(-0.2),
     )
     q_net = sequential.Sequential(dense_layers + [q_values_layer])
 
-    """Now use `tf_agents.agents.dqn.dqn_agent` to instantiate a `DqnAgent`. 
-  In addition to the `time_step_spec`, `action_spec` and the QNetwork, the 
-  agent constructor also requires an optimizer (in this case, `AdamOptimizer`),
-  a loss function, and an integer step counter."""
+    """Now use `tf_agents.agents.dqn.dqn_agent` to instantiate a `DqnAgent`. In addition to the `time_step_spec`, `action_spec` and the QNetwork, the agent constructor also requires an optimizer (in this case, `AdamOptimizer`), a loss function, and an integer step counter."""
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
@@ -183,6 +215,21 @@ def get_dqn_agent(env, verbose=False):
         train_step_counter=train_step_counter,
     )
 
+    # actor_net = actor_distribution_network.ActorDistributionNetwork(
+    #     env.observation_spec(),
+    #     env.action_spec(),
+    # )
+    # value_net = value_network.ValueNetwork(
+    #     env.observation_spec(),
+    # )
+    # # Setup the agent / policy
+    # agent = PPOAgent(
+    #     time_step_spec=env.time_step_spec(),
+    #     action_spec=env.action_spec(),
+    #     actor_net=actor_net,
+    #     value_net=value_net,
+    # )
+
     agent.initialize()
 
     if verbose == True:
@@ -192,41 +239,9 @@ def get_dqn_agent(env, verbose=False):
     return agent
 
 
-def compute_avg_return(environment, policy, num_episodes=10):
-    """
-    Computes the average return of a policy, given the policy, environment, and
-    a number of episodes.
-
-    The most common metric used to evaluate a policy is the average return.
-    The return is the sum of rewards obtained while running a policy in an
-    environment for an episode. Several episodes are run, creating an average
-    return.
-
-    See also the metrics module for standard implementations of different metrics.
-    https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
-
-    Running this computation on the `random_policy` shows a baseline performance
-    in an environment.
-    """
-
-    total_return = 0.0
-    for _ in range(num_episodes):
-        time_step = environment.reset()
-        episode_return = 0.0
-
-        while not time_step.is_last():
-            action_step = policy.action(time_step)
-            time_step = environment.step(action_step.action)
-            episode_return += time_step.reward
-        total_return += episode_return
-
-    avg_return = total_return / num_episodes
-    return avg_return.numpy()[0]
-
-
 def setup_data_collection(env, agent):
     """
-    Sets up the training data collection pipeline including replay buffer, data
+    Sets up the training data collection pipeline including replay buffer, data 
     collection driver, and dataset access via tf dataset iterator.
     """
 
@@ -262,19 +277,6 @@ def setup_data_collection(env, agent):
         replay_buffer.py_client, table_name, sequence_length=2
     )
 
-    """For most agents, `collect_data_spec` is a named tuple called `Trajectory`, containing the specs for observations, actions, rewards, and other items."""
-
-    agent.collect_data_spec
-
-    agent.collect_data_spec._fields
-
-    """
-  ## Data Collection
-  
-  Now execute the random policy in the environment for a few steps, recording the data in the replay buffer.
-  Here we are using 'PyDriver' to run the experience collecting loop. You can learn more about TF Agents driver in our [drivers tutorial](https://www.tensorflow.org/agents/tutorials/4_drivers_tutorial).
-  """
-
     # Create a driver to collect experience.
     collect_driver = py_driver.PyDriver(
         env,
@@ -282,6 +284,70 @@ def setup_data_collection(env, agent):
         [rb_observer],
         max_steps=collect_steps_per_iteration,
     )
+
+
+    # TODO: See if we can remove this random policy stuff
+    # ---------------------------- RANDOM POLICY STUFF --------------------------- #
+    """Policies can be created independently of agents. For example, use `tf_agents.policies.random_tf_policy` to create a policy which will randomly select an action for each `time_step`."""
+
+    random_policy = random_tf_policy.RandomTFPolicy(
+        tensor_spec.add_outer_dim(train_env.time_step_spec(), 1),
+        tensor_spec.add_outer_dim(train_env.action_spec(), 1),
+    )
+
+    """To get an action from a policy, call the `policy.action(time_step)` method. The `time_step` contains the observation from the environment. This method returns a `PolicyStep`, which is a named tuple with three components:
+
+    -   `action` — the action to be taken (in this case, `0` or `1`)
+    -   `state` — used for stateful (that is, RNN-based) policies
+    -   `info` — auxiliary data, such as log probabilities of actions
+    """
+
+    # example_environment = tf_py_environment.TFPyEnvironment(
+    #     suite_gym.load('CartPole-v0'))
+    example_environment = tf_py_environment.TFPyEnvironment(
+        SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV),
+        check_dims=True,
+    )
+
+    time_step = example_environment.reset()
+
+    # tensor_spec.add_outer_dim()
+    # print(time_step)
+    # time_step = tensor_spec.remove_outer_dims_nest(time_step, 1)
+    # print(time_step)
+    random_policy.action(time_step)
+
+    """## Metrics and Evaluation
+
+    The most common metric used to evaluate a policy is the average return. The return is the sum of rewards obtained while running a policy in an environment for an episode. Several episodes are run, creating an average return.
+
+    The following function computes the average return of a policy, given the policy, environment, and a number of episodes.
+
+    """
+
+    # See also the metrics module for standard implementations of different metrics.
+    # https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
+
+    """Running this computation on the `random_policy` shows a baseline performance in the environment."""
+
+    compute_avg_return(eval_env, random_policy, num_eval_episodes)
+
+    """## Data Collection
+
+    Now execute the random policy in the environment for a few steps, recording the data in the replay buffer.
+
+    Here we are using 'PyDriver' to run the experience collecting loop. You can learn more about TF Agents driver in our [drivers tutorial](https://www.tensorflow.org/agents/tutorials/4_drivers_tutorial).
+    """
+
+    # @test {"skip": true}
+    py_driver.PyDriver(
+        env,
+        py_tf_eager_policy.PyTFEagerPolicy(random_policy, use_tf_function=True),
+        [rb_observer],
+        max_steps=initial_collect_steps,
+    ).run(train_py_env.reset())
+    # -------------------------- END RANDOM POLICY STUFF ------------------------- #
+
 
     """The replay buffer is now a collection of Trajectories."""
 
@@ -291,10 +357,10 @@ def setup_data_collection(env, agent):
 
     """The agent needs access to the replay buffer. This is provided by creating an iterable `tf.data.Dataset` pipeline which will feed data to the agent.
 
-  Each row of the replay buffer only stores a single observation step. But since the DQN Agent needs both the current and next observation to compute the loss, the dataset pipeline will sample two adjacent rows for each item in the batch (`num_steps=2`).
+    Each row of the replay buffer only stores a single observation step. But since the DQN Agent needs both the current and next observation to compute the loss, the dataset pipeline will sample two adjacent rows for each item in the batch (`num_steps=2`).
 
-  This dataset is also optimized by running parallel calls and prefetching data.
-  """
+    This dataset is also optimized by running parallel calls and prefetching data.
+    """
 
     # Dataset generates trajectories with shape [Bx2x...]
     dataset = replay_buffer.as_dataset(
@@ -306,20 +372,10 @@ def setup_data_collection(env, agent):
     iterator = iter(dataset)
     print(iterator)
 
-    return collect_driver, iterator
+    return rb_observer, iterator, collect_driver
 
 
-def train_agent(
-    agent,
-    eval_env,
-    train_py_env,
-    collect_driver,
-    iterator,
-    num_eval_episodes,
-    num_iterations,
-    log_interval,
-    eval_interval,
-):
+def train_agent(agent, eval_env, train_py_env, collect_driver, iterator, num_eval_episodes, num_iterations, log_interval, eval_interval):
     """
     Trains the agent
 
@@ -328,8 +384,9 @@ def train_agent(
     -   collect data from the environment
     -   use that data to train the agent's neural network(s)
 
-    We also periodicially evaluate the policy and prints the current score.
-    """
+    This example also periodicially evaluates the policy and prints the current score.
+
+    """  """  """
 
     # (Optional) Optimize by wrapping some of the code in a graph using TF function
     agent.train = common.function(agent.train)
@@ -345,6 +402,7 @@ def train_agent(
     time_step = train_py_env.reset()
 
     for _ in range(num_iterations):
+
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
 
@@ -355,12 +413,14 @@ def train_agent(
         step = agent.train_step_counter.numpy()
 
         if step % log_interval == 0:
-            print("step = {0}: loss = {1}".format(step, train_loss))
+            print('step = {0}: loss = {1}'.format(step, train_loss))
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
-            print("step = {0}: Average Return = {1}".format(step, avg_return))
+            print('step = {0}: Average Return = {1}'.format(step, avg_return))
             returns.append(avg_return)
+
+    return returns
 
 
 # ---------------------------------------------------------------------------- #
@@ -368,7 +428,6 @@ def train_agent(
 # ---------------------------------------------------------------------------- #
 
 if __name__ == "__main__":
-    tf.version.VERSION
 
     # ------------------------------ Hyperparameters ----------------------------- #
 
@@ -385,19 +444,18 @@ if __name__ == "__main__":
     num_eval_episodes = 10  # @param {type:"integer"}
     eval_interval = 1000  # @param {type:"integer"}
 
-    # -------------------------------- Environment ------------------------------- #
+    # -------------------------------- Environment (BROKEN) ------------------------------- #
 
     STARTING_BUDGET = 20
     NUM_TARGETS = 8
     PLAYER_FOV = 90
     NUM_EPISODES = 5
     env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    # Convert from py_env to tf_py_env
-    env = tf_py_environment.TFPyEnvironment(env)
-    env.reset()
+    # env = tf_py_environment.TFPyEnvironment(env)
 
     # View Env Specs
-    show_env_summary()
+    show_env_summary(env)
+
 
     # Instantiate two environments: one for training and one for evaluation.
     train_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
@@ -411,42 +469,21 @@ if __name__ == "__main__":
         check_dims=True,
     )
 
+
+    
     # ----------------------------------- Agent ---------------------------------- #
-    agent = get_dqn_agent(env)
 
-    """# actor_net = actor_distribution_network.ActorDistributionNetwork(
-    #     env.observation_spec(),
-    #     env.action_spec(),
-    # )
-    # value_net = value_network.ValueNetwork(
-    #     env.observation_spec(),
-    # )
-    # # Setup the agent / policy
-    # agent = PPOAgent(
-    #     time_step_spec=env.time_step_spec(),
-    #     action_spec=env.action_spec(),
-    #     actor_net=actor_net,
-    #     value_net=value_net,
-    # )
-    """
+    agent = get_dqn_agent(env, verbose=True)
 
-    # ------------------------------ Data Collection ----------------------------- #
-    # Setup the training data collection pipeline including replay buffer, data
-    # collection driver, and dataset access via tf dataset iterator
-    collect_driver, iterator = setup_data_collection(env, agent)
 
-    # --------------------------------- Training --------------------------------- #
-    train_agent(
-        agent,
-        eval_env,
-        train_py_env,
-        collect_driver,
-        iterator,
-        num_eval_episodes,
-        num_iterations,
-        log_interval,
-        eval_interval,
-    )
+    # ------------------------------- Replay Buffer ------------------------------ #
+
+    rb_observer, iterator, collect_driver = setup_data_collection(env, agent)
+
+
+    # --------------------------------- TRAINING --------------------------------- #
+    
+    returns = train_agent(agent, eval_env, train_py_env, collect_driver, iterator, num_eval_episodes, num_iterations, log_interval, eval_interval)
 
     # Visualize the training progress
-    show_training_graph()
+    show_training_graph(returns, num_iterations, eval_interval)
