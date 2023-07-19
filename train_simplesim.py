@@ -37,7 +37,7 @@ from tf_agents.networks import value_network
 # ---------------------------------------------------------------------------- #
 #                                   FUNCTIONS                                  #
 # ---------------------------------------------------------------------------- #
-def show_training_graph():
+def show_training_graph(returns, num_iterations, eval_interval):
     """
     Use `matplotlib.pyplot` to chart how the policy improved during training.
     One iteration of `Cartpole-v0` consists of 200 time steps. The environment
@@ -51,8 +51,8 @@ def show_training_graph():
     plt.plot(iterations, returns)
     plt.ylabel("Average Return")
     plt.xlabel("Iterations")
-    plt.ylim(top=250)
-    plt.imsave("training_graph.png")
+    # plt.ylim(top=250)
+    plt.savefig("training_graph.png")
 
 
 def show_env_summary(env):
@@ -220,22 +220,22 @@ def get_dqn_agent(env, train_env, verbose=False):
     return agent
 
 
-def get_ppo_agent(env, verbose=False):
+def get_ppo_agent(train_env, verbose=False):
     """
-    Creates a PPO agent for the give env and returns it.
+    Creates a PPO agent for the given env and returns it.
     """
 
     actor_net = actor_distribution_network.ActorDistributionNetwork(
-        env.observation_spec(),
-        env.action_spec(),
+        train_env.observation_spec(),
+        train_env.action_spec(),
     )
     value_net = value_network.ValueNetwork(
-        env.observation_spec(),
+        train_env.observation_spec(),
     )
     # Setup the agent / policy
     agent = PPOAgent(
-        time_step_spec=env.time_step_spec(),
-        action_spec=env.action_spec(),
+        time_step_spec=train_env.time_step_spec(),
+        action_spec=train_env.action_spec(),
         actor_net=actor_net,
         value_net=value_net,
     )
@@ -418,19 +418,19 @@ if __name__ == "__main__":
     eval_interval = 1000  # @param {type:"integer"}
 
     STARTING_BUDGET = 400
-    NUM_TARGETS = 2
+    NUM_TARGETS = 1
     PLAYER_FOV = 60
 
     # -------------------------------- Environment ------------------------------- #
 
-    env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV, visualize=False)
 
     # View Env Specs
     show_env_summary(env)
 
     # Instantiate two environments: one for training and one for evaluation.
-    train_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    eval_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+    train_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV, visualize=False)
+    eval_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV, visualize=False)
     train_env = tf_py_environment.TFPyEnvironment(
         train_py_env,
         check_dims=True,
@@ -443,6 +443,7 @@ if __name__ == "__main__":
     # ----------------------------------- Agent ---------------------------------- #
 
     agent = get_dqn_agent(env, train_env, verbose=True)
+    # agent = get_ppo_agent(train_env, verbose=True)
 
     # ------------------------------- Replay Buffer ------------------------------ #
 

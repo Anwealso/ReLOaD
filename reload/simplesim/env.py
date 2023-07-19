@@ -171,12 +171,23 @@ class Robot(object):
         self.trail.clear()  # a trail of all past x,y coords
         # Reset orientation
         self.angle = 90  # unit circle angles
-        # Draw sprite at starting position
+        
+        # TODO: Remove
+        # # Draw sprite at starting position
+        # self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
+        # self.rotated_player_rect = self.rotated_player_surf.get_rect()
+        # self.rotated_player_rect.center = (self.x, self.y)
+
+    def draw(self, win):
+        # Update player sprite position
         self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
         self.rotated_player_rect = self.rotated_player_surf.get_rect()
         self.rotated_player_rect.center = (self.x, self.y)
+        # Update fov indicator lines position
+        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle - 90)
+        self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
+        self.rotated_fov_rect.center = (self.x, self.y)
 
-    def draw(self, win):
         # Redraw the player surfs
         win.blit(self.rotated_player_surf, self.rotated_player_rect)
         # Redraw the fov indicator surfs
@@ -185,26 +196,22 @@ class Robot(object):
     def turn_left(self):
         self.angle += 5
         self.handle_boundary_collisions()
-        self.update_surfs()
 
     def turn_right(self):
         self.angle -= 5
         self.handle_boundary_collisions()
-        self.update_surfs()
 
     def move_forward(self):
         self.x += math.cos(math.radians(self.angle)) * 6
         self.y -= math.sin(math.radians(self.angle)) * 6
         self.trail.append((self.x, self.y))
         self.handle_boundary_collisions()
-        self.update_surfs()
 
     def move_backward(self):
         self.x -= math.cos(math.radians(self.angle)) * 6
         self.y += math.sin(math.radians(self.angle)) * 6
         self.trail.append((self.x, self.y))
         self.handle_boundary_collisions()
-        self.update_surfs()
 
     def handle_boundary_collisions(self):
         """
@@ -218,19 +225,6 @@ class Robot(object):
             self.y = sh - (self.h / 2)
         elif self.y < 0 + (self.h / 2):
             self.y = 0 + (self.h / 2)
-
-    def update_surfs(self):
-        """
-        Updates the surf / sprite positions and orientations for the player anf the fov indicator lines
-        """
-        # Update player sprite position
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
-        self.rotated_player_rect = self.rotated_player_surf.get_rect()
-        self.rotated_player_rect.center = (self.x, self.y)
-        # Update fov indicator lines position
-        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle - 90)
-        self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
-        self.rotated_fov_rect.center = (self.x, self.y)
 
     def can_see(self, target: Target):
         """
@@ -332,7 +326,7 @@ class SimpleSim(object):
     A class to handle all of the data structures and logic of the game
     """
 
-    def __init__(self, starting_budget, num_targets, player_fov):
+    def __init__(self, starting_budget, num_targets, player_fov, visualize=True):
         """
         Initialises a SimpleSim instance
 
@@ -345,6 +339,8 @@ class SimpleSim(object):
         Returns:
             None
         """
+        self.visualize = visualize
+
         self.starting_budget = starting_budget
         self.num_targets = num_targets
 
@@ -568,7 +564,7 @@ class SimpleSim(object):
         self.perform_action(action)
 
         if (not self.paused) and (not self.gameover):
-            clock.tick(60)
+            clock.tick(600)
             self.count += 1
 
             # Decrement the budget over time
@@ -578,7 +574,6 @@ class SimpleSim(object):
             self.robot.handle_boundary_collisions()
 
             # Get the detection confidences on the environment
-            # print("Detecting...")
             self.detect_targets()
 
             # Check gameover
@@ -604,8 +599,9 @@ class SimpleSim(object):
                 # pygame.display.set_mode(flags=pygame.HIDDEN)
                 # screen = pygame.display.set_mode((800, 600), flags=pygame.SHOWN)
 
-        # Re-render the scene
-        self.redraw_game_window()
+        if self.visualize == True:
+            # Re-render the scene
+            self.redraw_game_window()
 
 
 # ---------------------------------------------------------------------------- #

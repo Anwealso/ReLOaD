@@ -24,7 +24,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
     A gym wrapper for our simple simulator environment
     """
 
-    def __init__(self, starting_budget, num_targets, player_fov):
+    def __init__(self, starting_budget, num_targets, player_fov, visualize=True):
         # batch_size = 1
         # MAX_TIMESTEPS = 100
 
@@ -43,7 +43,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
         self._observation_spec = obs_spec
 
         # Internal State:
-        self.game = SimpleSim(starting_budget, num_targets, player_fov)
+        self.game = SimpleSim(starting_budget, num_targets, player_fov, visualize=visualize)
 
     def action_spec(self):
         return self._action_spec
