@@ -118,7 +118,7 @@ def compute_avg_return(environment, policy, num_episodes=10):
     return avg_return.numpy()[0]
 
 
-def get_dqn_agent(env, verbose=False):
+def get_dqn_agent(env, train_env, verbose=False):
     """
     Creates a DQN agent for the give env and returns it.
 
@@ -251,7 +251,9 @@ def get_ppo_agent(env, verbose=False):
     return agent
 
 
-def setup_data_collection(env, agent, verbose=False):
+def setup_data_collection(
+    env, agent, replay_buffer_max_length, collect_steps_per_iteration, verbose=False
+):
     """
     Sets up the training data collection pipeline including replay buffer, data
     collection driver, and dataset access via tf dataset iterator.
@@ -315,52 +317,19 @@ def setup_data_collection(env, agent, verbose=False):
     if verbose == True:
         print(iterator)
 
+    return rb_observer, iterator, collect_driver
 
-    # TODO: See if we can remove this random policy stuff
-    # MOTE: Reverb server breaks if this code is removed
-    # ---------------------------- RANDOM POLICY STUFF --------------------------- #
-    print("\nRunning random policy evaluation...")
-    """Policies can be created independently of agents. For example, use `tf_agents.policies.random_tf_policy` to create a policy which will randomly select an action for each `time_step`."""
+
+def evaluate_baseline(train_env, eval_env, num_eval_episodes, env, rb_observer, initial_collect_steps, train_py_env):
+    print("\nRunning baseline random policy...")
 
     random_policy = random_tf_policy.RandomTFPolicy(
         tensor_spec.add_outer_dim(train_env.time_step_spec(), 1),
         tensor_spec.add_outer_dim(train_env.action_spec(), 1),
     )
 
-    """To get an action from a policy, call the `policy.action(time_step)` method. The `time_step` contains the observation from the environment. This method returns a `PolicyStep`, which is a named tuple with three components:
-
-    -   `action` — the action to be taken (in this case, `0` or `1`)
-    -   `state` — used for stateful (that is, RNN-based) policies
-    -   `info` — auxiliary data, such as log probabilities of actions
-    """
-
-    # example_environment = tf_py_environment.TFPyEnvironment(
-    #     suite_gym.load('CartPole-v0'))
-    example_environment = tf_py_environment.TFPyEnvironment(
-        SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV),
-        check_dims=True,
-    )
-
-    time_step = example_environment.reset()
-
-    # tensor_spec.add_outer_dim()
-    # print(time_step)
-    # time_step = tensor_spec.remove_outer_dims_nest(time_step, 1)
-    # print(time_step)
-    random_policy.action(time_step)
-
-    """Running metrics computation on the `random_policy` shows a baseline performance in the environment."""
-
     compute_avg_return(eval_env, random_policy, num_eval_episodes)
 
-    """## Data Collection
-
-    Now execute the random policy in the environment for a few steps, recording the data in the replay buffer.
-
-    Here we are using 'PyDriver' to run the experience collecting loop. You can learn more about TF Agents driver in our [drivers tutorial](https://www.tensorflow.org/agents/tutorials/4_drivers_tutorial).
-    """
-
-    # @test {"skip": true}
     py_driver.PyDriver(
         env,
         py_tf_eager_policy.PyTFEagerPolicy(random_policy, use_tf_function=True),
@@ -368,11 +337,7 @@ def setup_data_collection(env, agent, verbose=False):
         max_steps=initial_collect_steps,
     ).run(train_py_env.reset())
 
-    print("Finished evaluating random policy.\n")
-    # -------------------------- END RANDOM POLICY STUFF ------------------------- #
-
-
-    return rb_observer, iterator, collect_driver
+    print("Finished evaluating baseline policy.\n")
 
 
 def train_agent(
@@ -454,11 +419,10 @@ if __name__ == "__main__":
     NUM_TARGETS = 2
     PLAYER_FOV = 60
     NUM_EPISODES = 5
-    
-    # -------------------------------- Environment (BROKEN) ------------------------------- #
+
+    # -------------------------------- Environment ------------------------------- #
 
     env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    # env = tf_py_environment.TFPyEnvironment(env)
 
     # View Env Specs
     show_env_summary(env)
@@ -477,11 +441,16 @@ if __name__ == "__main__":
 
     # ----------------------------------- Agent ---------------------------------- #
 
-    agent = get_dqn_agent(env, verbose=True)
+    agent = get_dqn_agent(env, train_env, verbose=True)
 
     # ------------------------------- Replay Buffer ------------------------------ #
 
-    rb_observer, iterator, collect_driver = setup_data_collection(env, agent)
+    rb_observer, iterator, collect_driver = setup_data_collection(
+        env, agent, replay_buffer_max_length, collect_steps_per_iteration
+    )
+
+    # Evaluate baseline (random policy)
+    evaluate_baseline(train_env, eval_env, num_eval_episodes, env, rb_observer, initial_collect_steps, train_py_env)
 
     # --------------------------------- TRAINING --------------------------------- #
 
