@@ -217,22 +217,6 @@ def get_dqn_agent(env, verbose=False):
         train_step_counter=train_step_counter,
     )
 
-    # # PPO Model Implementation
-    # actor_net = actor_distribution_network.ActorDistributionNetwork(
-    #     env.observation_spec(),
-    #     env.action_spec(),
-    # )
-    # value_net = value_network.ValueNetwork(
-    #     env.observation_spec(),
-    # )
-    # # Setup the agent / policy
-    # agent = PPOAgent(
-    #     time_step_spec=env.time_step_spec(),
-    #     action_spec=env.action_spec(),
-    #     actor_net=actor_net,
-    #     value_net=value_net,
-    # )
-
     agent.initialize()
 
     if verbose == True:
@@ -267,7 +251,7 @@ def get_ppo_agent(env, verbose=False):
     return agent
 
 
-def setup_data_collection(env, agent):
+def setup_data_collection(env, agent, verbose=False):
     """
     Sets up the training data collection pipeline including replay buffer, data
     collection driver, and dataset access via tf dataset iterator.
@@ -326,15 +310,16 @@ def setup_data_collection(env, agent):
         num_parallel_calls=3, sample_batch_size=batch_size, num_steps=2
     ).prefetch(3)
 
-    dataset
-
     iterator = iter(dataset)
-    print(iterator)
+
+    if verbose == True:
+        print(iterator)
 
 
     # TODO: See if we can remove this random policy stuff
     # MOTE: Reverb server breaks if this code is removed
     # ---------------------------- RANDOM POLICY STUFF --------------------------- #
+    print("\nRunning random policy evaluation...")
     """Policies can be created independently of agents. For example, use `tf_agents.policies.random_tf_policy` to create a policy which will randomly select an action for each `time_step`."""
 
     random_policy = random_tf_policy.RandomTFPolicy(
@@ -382,6 +367,8 @@ def setup_data_collection(env, agent):
         [rb_observer],
         max_steps=initial_collect_steps,
     ).run(train_py_env.reset())
+
+    print("\nFinished evaluating random policy.")
     # -------------------------- END RANDOM POLICY STUFF ------------------------- #
 
 
@@ -463,12 +450,13 @@ if __name__ == "__main__":
     num_eval_episodes = 10  # @param {type:"integer"}
     eval_interval = 1000  # @param {type:"integer"}
 
+    STARTING_BUDGET = 200
+    NUM_TARGETS = 2
+    PLAYER_FOV = 60
+    NUM_EPISODES = 5
+    
     # -------------------------------- Environment (BROKEN) ------------------------------- #
 
-    STARTING_BUDGET = 20
-    NUM_TARGETS = 8
-    PLAYER_FOV = 90
-    NUM_EPISODES = 5
     env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
     # env = tf_py_environment.TFPyEnvironment(env)
 

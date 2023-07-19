@@ -38,7 +38,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
 
         # Observations (visible state): 
-        obs_spec = array_spec.BoundedArraySpec(shape=(18,), dtype=np.float32, minimum=0, name='observation')
+        obs_spec = array_spec.BoundedArraySpec(shape=((2*num_targets)+2,), dtype=np.float32, minimum=0, name='observation')
         self._observation_spec = obs_spec
 
         # Internal State:
