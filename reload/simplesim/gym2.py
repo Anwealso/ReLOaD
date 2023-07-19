@@ -38,7 +38,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
 
         # Observations (visible state): 
-        obs_spec = array_spec.BoundedArraySpec(shape=(18, 1), dtype=np.float32, minimum=0, name='observation')
+        obs_spec = array_spec.BoundedArraySpec(shape=(18,), dtype=np.float32, minimum=0, name='observation')
         self._observation_spec = obs_spec
 
         # Internal State:
@@ -60,13 +60,16 @@ class SimpleSimGym(py_environment.PyEnvironment):
     #     return self._time_step_spec
     
     def get_observation(self):
-        observation = np.concatenate([
+        observation = np.squeeze(np.concatenate([
             np.array([[self.game.count]], dtype=np.float32),
             np.array([[self.game.budget]], dtype=np.float32),
             np.float32(self.game.avg_confidences),
             np.float32(self.game.confidences)],
             axis = 0
-        )
+        ), axis=1)
+
+        # print(np.shape(observation))
+        # quit()
 
         return observation
 
@@ -91,7 +94,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
         if self.game.gameover:
             # Reward only given at the end of the episode
             reward = self.game.get_reward()
-            return ts.termination(self.get_observation(), np.sum(reward))
+            return ts.termination(self.get_observation(), reward=np.sum(reward))
         else:
             # Continuous rewards recieved at each timestep
             reward = self.game.get_reward()

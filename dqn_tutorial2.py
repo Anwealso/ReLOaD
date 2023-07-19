@@ -137,6 +137,14 @@ NUM_TARGETS = 8
 PLAYER_FOV = 90
 NUM_EPISODES = 5
 env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
+
+# print(f"env.action_spec(): {env.action_spec()}")
+# print(f"env2.action_spec(): {env2.action_spec()}")
+# print()
+# print(f"env.observation_spec(): {env.observation_spec()}")
+# print(f"env2.observation_spec(): {env2.observation_spec()}")
+# quit()
+
 # env = tf_py_environment.TFPyEnvironment(env)
 
 
@@ -187,6 +195,8 @@ print(next_time_step)
 
 """Usually two environments are instantiated: one for training and one for evaluation."""
 
+# train_py_env = suite_gym.load(env_name)
+# eval_py_env = suite_gym.load(env_name)
 train_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 eval_py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 
@@ -196,8 +206,10 @@ The original environment's API uses Numpy arrays. The `TFPyEnvironment` converts
 
 """
 
-train_env = tf_py_environment.TFPyEnvironment(train_py_env)
-eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+train_env = tf_py_environment.TFPyEnvironment(train_py_env, check_dims = True,)
+eval_env = tf_py_environment.TFPyEnvironment(eval_py_env, check_dims = True,)
+# train_env = train_py_env
+# eval_env = eval_py_env
 
 """## Agent
 
@@ -298,8 +310,8 @@ collect_policy = agent.collect_policy
 
 """Policies can be created independently of agents. For example, use `tf_agents.policies.random_tf_policy` to create a policy which will randomly select an action for each `time_step`."""
 
-random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(),
-                                                train_env.action_spec())
+random_policy = random_tf_policy.RandomTFPolicy(tensor_spec.add_outer_dim(train_env.time_step_spec(), 1),
+                                                tensor_spec.add_outer_dim(train_env.action_spec(), 1))
 
 """To get an action from a policy, call the `policy.action(time_step)` method. The `time_step` contains the observation from the environment. This method returns a `PolicyStep`, which is a named tuple with three components:
 
@@ -308,11 +320,16 @@ random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(),
 -   `info` — auxiliary data, such as log probabilities of actions
 """
 
-example_environment = tf_py_environment.TFPyEnvironment(
-    suite_gym.load('CartPole-v0'))
+# example_environment = tf_py_environment.TFPyEnvironment(
+#     suite_gym.load('CartPole-v0'))
+example_environment = tf_py_environment.TFPyEnvironment(SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV), check_dims = True,)
 
 time_step = example_environment.reset()
 
+# tensor_spec.add_outer_dim()
+# print(time_step)
+# time_step = tensor_spec.remove_outer_dims_nest(time_step, 1)
+# print(time_step)
 random_policy.action(time_step)
 
 """## Metrics and Evaluation
