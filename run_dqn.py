@@ -31,7 +31,7 @@ from tf_agents.trajectories import trajectory
 from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
 
-from reload.simplesim.gym2 import SimpleSimGym
+from reload.simplesim.gym import SimpleSimGym
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents import PPOAgent
 from tf_agents.networks import actor_distribution_network
@@ -368,7 +368,7 @@ def setup_data_collection(env, agent, verbose=False):
         max_steps=initial_collect_steps,
     ).run(train_py_env.reset())
 
-    print("\nFinished evaluating random policy.")
+    print("Finished evaluating random policy.\n")
     # -------------------------- END RANDOM POLICY STUFF ------------------------- #
 
 
@@ -450,7 +450,7 @@ if __name__ == "__main__":
     num_eval_episodes = 10  # @param {type:"integer"}
     eval_interval = 1000  # @param {type:"integer"}
 
-    STARTING_BUDGET = 200
+    STARTING_BUDGET = 80
     NUM_TARGETS = 2
     PLAYER_FOV = 60
     NUM_EPISODES = 5
