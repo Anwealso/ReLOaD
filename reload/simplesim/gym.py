@@ -1,9 +1,9 @@
 # ReLOaD Simple Simulator
-# 
+#
 # simplesim/gym.py
-# 
+#
 # Gym wrapped version of ReLOad SimpleSim environment
-# 
+#
 # Alex Nichoson
 # 27/05/2023
 
@@ -18,19 +18,28 @@ from tf_agents.trajectories import time_step as ts
 #                                    CLASSES                                   #
 # ---------------------------------------------------------------------------- #
 
+
 class SimpleSimGym(py_environment.PyEnvironment):
     """
     A gym wrapper for our simple simulator environment
     """
+
     def __init__(self, starting_budget, num_targets, player_fov):
         # batch_size = 1
         # MAX_TIMESTEPS = 100
 
         # Actions: 0, 1, 2, 3 for F, B, L, R
-        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
+        self._action_spec = array_spec.BoundedArraySpec(
+            shape=(), dtype=np.int32, minimum=0, maximum=3, name="action"
+        )
 
-        # Observations (visible state): 
-        obs_spec = array_spec.BoundedArraySpec(shape=((2*num_targets)+2,), dtype=np.float32, minimum=0, name='observation')
+        # Observations (visible state):
+        obs_spec = array_spec.BoundedArraySpec(
+            shape=((2 * num_targets) + 2,),
+            dtype=np.float32,
+            minimum=0,
+            name="observation",
+        )
         self._observation_spec = obs_spec
 
         # Internal State:
@@ -43,23 +52,27 @@ class SimpleSimGym(py_environment.PyEnvironment):
         return self._observation_spec
 
     def get_observation(self):
-        observation = np.squeeze(np.concatenate([
-            np.array([[self.game.count]], dtype=np.float32),
-            np.array([[self.game.budget]], dtype=np.float32),
-            np.float32(self.game.avg_confidences),
-            np.float32(self.game.confidences)],
-            axis = 0
-        ), axis=1)
+        observation = np.squeeze(
+            np.concatenate(
+                [
+                    np.array([[self.game.count]], dtype=np.float32),
+                    np.array([[self.game.budget]], dtype=np.float32),
+                    np.float32(self.game.avg_confidences),
+                    np.float32(self.game.confidences),
+                ],
+                axis=0,
+            ),
+            axis=1,
+        )
 
         return observation
 
     def _reset(self):
         self.game.reset()
-        
+
         return ts.restart(self.get_observation())
 
     def _step(self, action):
-
         if self.game.gameover:
             # The last action ended the episode. Ignore the current action and start
             # a new episode.
@@ -69,7 +82,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
         if action in [0, 1, 2, 3]:
             self.game.step(action)
         else:
-            raise ValueError('`action` should be 0, 1, 2, or 3.')
+            raise ValueError("`action` should be 0, 1, 2, or 3.")
 
         if self.game.gameover:
             # Reward only given at the end of the episode
@@ -78,4 +91,6 @@ class SimpleSimGym(py_environment.PyEnvironment):
         else:
             # Continuous rewards recieved at each timestep
             reward = self.game.get_reward()
-            return ts.transition(self.get_observation(), reward=np.sum(reward), discount=1.0)
+            return ts.transition(
+                self.get_observation(), reward=np.sum(reward), discount=1.0
+            )

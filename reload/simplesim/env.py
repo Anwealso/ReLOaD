@@ -1,13 +1,13 @@
 # ReLOaD Simple Simulator
-# 
+#
 # simplesim/env.py
-# 
+#
 # A simple simulator environment for feasibility testing the object detection RL
 #
-# When run standalone, executes a simple custom policy that moves the 
-# robot forwards if the current prediction score is higher than the average 
+# When run standalone, executes a simple custom policy that moves the
+# robot forwards if the current prediction score is higher than the average
 # and backwards otherwise.
-# 
+#
 # Alex Nichoson
 # 27/05/2023
 
@@ -28,18 +28,26 @@ sh = 1000
 player_width = 100
 player_height = 100
 
-sprites_dir = os.path.dirname(__file__) + '/sprites/'
+sprites_dir = os.path.dirname(__file__) + "/sprites/"
 
-bg = pygame.transform.scale(pygame.image.load(sprites_dir + 'roombg.jpg'), (sw, sh))
-player_robot = pygame.transform.scale(pygame.image.load(sprites_dir + 'robot.png'), (player_width, player_height))
-target50 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (50, 50))
-target100 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (100, 100))
-target150 = pygame.transform.scale(pygame.image.load(sprites_dir + 'apple.png'), (150, 150))
+bg = pygame.transform.scale(pygame.image.load(sprites_dir + "roombg.jpg"), (sw, sh))
+player_robot = pygame.transform.scale(
+    pygame.image.load(sprites_dir + "robot.png"), (player_width, player_height)
+)
+target50 = pygame.transform.scale(
+    pygame.image.load(sprites_dir + "apple.png"), (50, 50)
+)
+target100 = pygame.transform.scale(
+    pygame.image.load(sprites_dir + "apple.png"), (100, 100)
+)
+target150 = pygame.transform.scale(
+    pygame.image.load(sprites_dir + "apple.png"), (150, 150)
+)
 fov_color = (0, 0, 255, 70)
 fov_line_length = 500
 fov_line_thickness = 10
 
-pygame.display.set_caption('ReLOaD Simulator')
+pygame.display.set_caption("ReLOaD Simulator")
 win = pygame.display.set_mode((sw, sh))
 clock = pygame.time.Clock()
 
@@ -47,10 +55,12 @@ clock = pygame.time.Clock()
 #                                    CLASSES                                   #
 # ---------------------------------------------------------------------------- #
 
+
 class Target(object):
     """
     The targets that the RL agent must attempt to classify using the mobile robot
     """
+
     def __init__(self, rank):
         self.rank = rank
 
@@ -65,13 +75,15 @@ class Target(object):
         self.h = 50 * rank
 
         # Set the initial position
-        self.ranPoint = (random.randrange(0+self.w, sw-self.w), 
-                         random.randrange(0+self.h, sh-self.h))
+        self.ranPoint = (
+            random.randrange(0 + self.w, sw - self.w),
+            random.randrange(0 + self.h, sh - self.h),
+        )
         self.x, self.y = self.ranPoint
 
         # Set the orientation
-        self.angle = 90 # unit circle format
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.angle = 90  # unit circle format
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
         self.rotated_player_rect = self.rotated_player_surf.get_rect()
         self.rotated_player_rect.center = (self.x, self.y)
 
@@ -82,25 +94,27 @@ class Target(object):
     def draw(self, win):
         win.blit(self.rotated_player_surf, self.rotated_player_rect)
 
+
 class Robot(object):
     """
     The mobile robot that the RL algorith will control
     """
+
     def __init__(self, fov):
         self.image = player_robot
         self.w = self.image.get_width()
         self.h = self.image.get_height()
         # Set position
-        self.x = sw//2
-        self.y = sh//2
-        self.trail = [] # a trail of all past x,y coords
+        self.x = sw // 2
+        self.y = sh // 2
+        self.trail = []  # a trail of all past x,y coords
         # Set starting orientation (facing upwards)
-        self.angle = 90 # unit circle angles
-        
+        self.angle = 90  # unit circle angles
+
         # Draw sprite at starting position
-        
+
         # 90deg rotated version of the sprite surf image
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
         # The rectangle bounding box of the surf
         self.rotated_player_rect = self.rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
@@ -109,11 +123,39 @@ class Robot(object):
         # Draw player fov indicator
         self.fov = fov
         # Make a surface with a line on it
-        self.fov_surf = pygame.Surface((sw,sw), pygame.SRCALPHA)
-        self.fov_surf.set_colorkey((0,0,0,0))
+        self.fov_surf = pygame.Surface((sw, sw), pygame.SRCALPHA)
+        self.fov_surf.set_colorkey((0, 0, 0, 0))
         self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle)
-        pygame.draw.line(self.fov_surf, fov_color, (self.rotated_fov_surf.get_rect().w/2, self.rotated_fov_surf.get_rect().h/2), ((self.rotated_fov_surf.get_rect().w/2)-(fov_line_length*math.sin(math.radians(self.fov/2))), (self.rotated_fov_surf.get_rect().h/2)-(fov_line_length*math.cos(math.radians(self.fov/2)))), fov_line_thickness)
-        pygame.draw.line(self.fov_surf, fov_color, (self.rotated_fov_surf.get_rect().w/2, self.rotated_fov_surf.get_rect().h/2), ((self.rotated_fov_surf.get_rect().w/2)+(fov_line_length*math.sin(math.radians(self.fov/2))), (self.rotated_fov_surf.get_rect().h/2)-(fov_line_length*math.cos(math.radians(self.fov/2)))), fov_line_thickness)
+        pygame.draw.line(
+            self.fov_surf,
+            fov_color,
+            (
+                self.rotated_fov_surf.get_rect().w / 2,
+                self.rotated_fov_surf.get_rect().h / 2,
+            ),
+            (
+                (self.rotated_fov_surf.get_rect().w / 2)
+                - (fov_line_length * math.sin(math.radians(self.fov / 2))),
+                (self.rotated_fov_surf.get_rect().h / 2)
+                - (fov_line_length * math.cos(math.radians(self.fov / 2))),
+            ),
+            fov_line_thickness,
+        )
+        pygame.draw.line(
+            self.fov_surf,
+            fov_color,
+            (
+                self.rotated_fov_surf.get_rect().w / 2,
+                self.rotated_fov_surf.get_rect().h / 2,
+            ),
+            (
+                (self.rotated_fov_surf.get_rect().w / 2)
+                + (fov_line_length * math.sin(math.radians(self.fov / 2))),
+                (self.rotated_fov_surf.get_rect().h / 2)
+                - (fov_line_length * math.cos(math.radians(self.fov / 2))),
+            ),
+            fov_line_thickness,
+        )
         # Set the position and rotation of the surface
         self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
         self.rotated_fov_rect.center = (self.x, self.y)
@@ -124,13 +166,13 @@ class Robot(object):
 
     def reset(self):
         # Reset position
-        self.x = sw//2
-        self.y = sh//2
-        self.trail.clear() # a trail of all past x,y coords
+        self.x = sw // 2
+        self.y = sh // 2
+        self.trail.clear()  # a trail of all past x,y coords
         # Reset orientation
-        self.angle = 90 # unit circle angles
+        self.angle = 90  # unit circle angles
         # Draw sprite at starting position
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
         self.rotated_player_rect = self.rotated_player_surf.get_rect()
         self.rotated_player_rect.center = (self.x, self.y)
 
@@ -182,11 +224,11 @@ class Robot(object):
         Updates the surf / sprite positions and orientations for the player anf the fov indicator lines
         """
         # Update player sprite position
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle-90)
+        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
         self.rotated_player_rect = self.rotated_player_surf.get_rect()
         self.rotated_player_rect.center = (self.x, self.y)
         # Update fov indicator lines position
-        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle-90)
+        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle - 90)
         self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
         self.rotated_fov_rect.center = (self.x, self.y)
 
@@ -194,8 +236,8 @@ class Robot(object):
         """
         Checks if the robot can see this target
 
-        Note: Everything in this function is done in cartesian coordinates not 
-        screen pixel coordinates (bottom left = (0,0), angles measuresd 
+        Note: Everything in this function is done in cartesian coordinates not
+        screen pixel coordinates (bottom left = (0,0), angles measuresd
         anti-clockwise from right).
         """
 
@@ -206,25 +248,27 @@ class Robot(object):
         target_y_cart = sh - target.y
         # print(f"robot_x_cart:{robot_x_cart}, robot_y_cart:{robot_y_cart} //// target_x_cart:{target_x_cart}, target_y_cart:{target_y_cart}")
 
-        left_angle = (self.angle + (self.fov/2)) % 360
-        right_angle = (self.angle - (self.fov/2)) % 360
+        left_angle = (self.angle + (self.fov / 2)) % 360
+        right_angle = (self.angle - (self.fov / 2)) % 360
         target_dy = target_y_cart - robot_y_cart
         target_dx = target_x_cart - robot_x_cart
         # print(f"target_dy:{target_dy}, target_dx:{target_dx}")
 
-        target_angle = np.degrees(np.arctan2(target_dy, target_dx)) # angle of ray to target
-        target_angle = target_angle+360 if (target_angle<0) else target_angle
+        target_angle = np.degrees(
+            np.arctan2(target_dy, target_dx)
+        )  # angle of ray to target
+        target_angle = target_angle + 360 if (target_angle < 0) else target_angle
         # print(f"target_angle:{target_angle}, left_angle:{left_angle}, right_angle:{right_angle}")
 
-        if ((target_angle <= left_angle) and (target_angle >= right_angle)):
+        if (target_angle <= left_angle) and (target_angle >= right_angle):
             #  Normal case
             return True
-        elif ((left_angle < self.fov) and (right_angle > 360-self.fov)):
+        elif (left_angle < self.fov) and (right_angle > 360 - self.fov):
             #  Angle-zero-crossing case
-            if ((target_angle <= left_angle) and (target_angle+360 >= right_angle)):
+            if (target_angle <= left_angle) and (target_angle + 360 >= right_angle):
                 # Target angle after 0 crossover and inside
                 return True
-            elif ((target_angle <= left_angle+360) and (target_angle >= right_angle)):
+            elif (target_angle <= left_angle + 360) and (target_angle >= right_angle):
                 # Target angle before 0 crossover and inside
                 return True
             else:
@@ -256,10 +300,18 @@ class Robot(object):
         distance_factor = 1 - (target_dist / max_dist)
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
-        angle_between = np.degrees(np.arccos(target_to_robot_vect.dot(target_orientation_vect) / (np.linalg.norm(target_to_robot_vect) * np.linalg.norm(target_orientation_vect))))
+        angle_between = np.degrees(
+            np.arccos(
+                target_to_robot_vect.dot(target_orientation_vect)
+                / (
+                    np.linalg.norm(target_to_robot_vect)
+                    * np.linalg.norm(target_orientation_vect)
+                )
+            )
+        )
         orientation_factor = 1 - (angle_between / 180)
 
-        # Decide the weightings between how much the distance and orientation 
+        # Decide the weightings between how much the distance and orientation
         # factors affect the confidence
         distance_weighting = 4
         orientation_weighting = 1
@@ -268,14 +320,18 @@ class Robot(object):
         orientation_weighting = orientation_weighting / weighting_sum
 
         # Compute the final confidence
-        confidence = (distance_factor * distance_weighting) + (orientation_factor * orientation_weighting)
+        confidence = (distance_factor * distance_weighting) + (
+            orientation_factor * orientation_weighting
+        )
 
         return confidence
 
+
 class SimpleSim(object):
-    """"
+    """ "
     A class to handle all of the data structures and logic of the game
     """
+
     def __init__(self, starting_budget, num_targets, player_fov):
         """
         Initialises a SimpleSim instance
@@ -295,8 +351,6 @@ class SimpleSim(object):
         self.gameover = False
         self.paused = False
         self.budget = self.starting_budget
-        # self.score = 0
-        # self.high_score = 0        
         self.count = 0
         self.run = True
 
@@ -307,8 +361,8 @@ class SimpleSim(object):
         # 2D array of confidences on each object at each timestep
         self.confidences = np.zeros((self.num_targets, 1))
         # 1D array of confidences on each object avg over all past timesteps
-        self.avg_confidences = np.zeros((self.num_targets, 1)) 
-        # Note: Using avg might cause agent to simply find the best spot with 
+        self.avg_confidences = np.zeros((self.num_targets, 1))
+        # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
         self.spawn_targets(self.num_targets)
@@ -332,9 +386,6 @@ class SimpleSim(object):
         self.confidences = np.zeros((self.num_targets, 1))
         self.count = 0
 
-        # if self.score > self.high_score:
-        #     self.high_score = self.score
-
     def spawn_targets(self, num_to_spawn):
         """
         Spawn objects to identify
@@ -345,7 +396,7 @@ class SimpleSim(object):
             None
         """
         for _ in range(0, num_to_spawn):
-            ran = random.choice([1,1,1,2,2,3])
+            ran = random.choice([1, 1, 1, 2, 2, 3])
             self.targets.append(Target(ran))
 
     def detect_targets(self):
@@ -364,16 +415,18 @@ class SimpleSim(object):
             target = self.targets[i]
 
             if self.robot.can_see(target):
-                numSeen+=1
-                # Assign a non-zero confidence for those in view 
+                numSeen += 1
+                # Assign a non-zero confidence for those in view
                 confidence = self.robot.get_confidence(target)
 
             else:
                 # Assign confidence of 0 for those out of view
-                confidence = 0            
+                confidence = 0
             self.current_confidences[i] = confidence
 
-        self.avg_confidences = (np.add(self.avg_confidences.dot(self.count), self.current_confidences)) / (self.count + 1)
+        self.avg_confidences = (
+            np.add(self.avg_confidences.dot(self.count), self.current_confidences)
+        ) / (self.count + 1)
         np.append(self.confidences, self.current_confidences, axis=1)
 
     def redraw_game_window(self):
@@ -385,7 +438,7 @@ class SimpleSim(object):
         Returns:
             None
         """
-        win.blit(bg, (0,0))
+        win.blit(bg, (0, 0))
 
         # Draw the robot
         self.robot.draw(win)
@@ -397,21 +450,45 @@ class SimpleSim(object):
             pygame.draw.circle(win, (255, 0, 0), point, 2)
 
         # Draw the onscreen menu text
-        font = pygame.font.SysFont('arial',30)
-        budget_text = font.render('Budget: ' + str(self.budget), 1, (0, 255, 0))
-        play_again_text = font.render('Press Tab to Play Again', 1, (0, 255, 0))
-        pause_text = font.render('Press P to Unpause', 1, (0, 255, 0))
-        score_text = font.render('Current Confidences: ' + str(format(np.sum(self.current_confidences), ".2f")), 1, (0, 255, 0))
-        high_score_text = font.render('Avg Confidences: ' + str(format(np.sum(self.avg_confidences), ".2f")), 1, (0, 255, 0))    
-        # high_score_text = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))   
+        font = pygame.font.SysFont("arial", 30)
+        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
+        play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
+        pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
+        score_text = font.render(
+            "Current Confidences: "
+            + str(format(np.sum(self.current_confidences), ".2f")),
+            1,
+            (0, 255, 0),
+        )
+        high_score_text = font.render(
+            "Avg Confidences: " + str(format(np.sum(self.avg_confidences), ".2f")),
+            1,
+            (0, 255, 0),
+        )
+        # high_score_text = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))
 
         if self.paused:
-            win.blit(pause_text, (sw//2-pause_text.get_width()//2, sh//2 - pause_text.get_height()//2))
+            win.blit(
+                pause_text,
+                (
+                    sw // 2 - pause_text.get_width() // 2,
+                    sh // 2 - pause_text.get_height() // 2,
+                ),
+            )
         if self.gameover:
-            win.blit(play_again_text, (sw//2-play_again_text.get_width()//2, sh//2 - play_again_text.get_height()//2))
+            win.blit(
+                play_again_text,
+                (
+                    sw // 2 - play_again_text.get_width() // 2,
+                    sh // 2 - play_again_text.get_height() // 2,
+                ),
+            )
         win.blit(score_text, (sw - score_text.get_width() - 25, 25))
         win.blit(budget_text, (25, 25))
-        win.blit(high_score_text, (sw - high_score_text.get_width() -25, 35 + score_text.get_height()))
+        win.blit(
+            high_score_text,
+            (sw - high_score_text.get_width() - 25, 35 + score_text.get_height()),
+        )
         pygame.display.update()
 
     def get_state(self):
@@ -423,13 +500,12 @@ class SimpleSim(object):
         Returns:
             (dict) a dictionary containing all the state variables
         """
-        
         state_dict = {}
 
         state_dict["count"] = self.count
         # state_dict["avg_confidences"] = self.avg_confidences
         state_dict["budget"] = self.budget
-        # state_dict["object_positions"] = self.get_object_positions() 
+        # state_dict["object_positions"] = self.get_object_positions()
         # object_positions is a tuple containing posiiton and orientation
         # (x, y, angle) (angle in unit circle format)
         state_dict["current_confidences"] = self.current_confidences
@@ -454,23 +530,22 @@ class SimpleSim(object):
         """
         # Check action format
         if action not in [None, 0, 1, 2, 3]:
-            raise ValueError('`action` should be None, 0, 1, 2, or 3.')
-        
+            raise ValueError("`action` should be None, 0, 1, 2, or 3.")
+
         # Handle agent controls and movement
         if action == 0:
             self.robot.turn_right()
         elif action == 1:
             self.robot.move_forward()
-        
+
         if action == 2:
             self.robot.turn_left()
         elif action == 3:
             self.robot.move_backward()
-        
 
     def perform_action_interactive(self):
         """
-        Get player commands from keyboard and execute the action in the 
+        Get player commands from keyboard and execute the action in the
         environment.
         """
 
@@ -526,9 +601,8 @@ class SimpleSim(object):
                     self.paused = not self.paused
 
                 # if event.key == pygame.K_m:
-                    # pygame.display.set_mode(flags=pygame.HIDDEN)
-                    # screen = pygame.display.set_mode((800, 600), flags=pygame.SHOWN)
-
+                # pygame.display.set_mode(flags=pygame.HIDDEN)
+                # screen = pygame.display.set_mode((800, 600), flags=pygame.SHOWN)
 
         # Re-render the scene
         self.redraw_game_window()
@@ -544,21 +618,21 @@ if __name__ == "__main__":
     PLAYER_FOV = 90
 
     game = SimpleSim(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
-    
+
     state = {}
     action = (None, None)
     last_reward = []
 
     while game.run:
         # Get the games state
-        state = game.get_state()     
+        state = game.get_state()
 
         # Get the reward
         last_reward = game.get_reward()
-        
+
         # Get optional additional user action
         game.perform_action_interactive()
-        
+
         # Step the game engine
         game.step(None)
 
