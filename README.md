@@ -11,7 +11,8 @@ Train Script
 
 Extra
 - [DONE] Train a basic TF-Agents DQN agent (or any agent really) on the simplesim env
-- Save screenshots of the completed path every couple of episodes
+- [DONE] Save screenshots of raining progress
+- Add checkpoint and finished model saving with: https://www.tensorflow.org/agents/tutorials/10_checkpointer_policysaver_tutorial
 - Add some walls as obstructions
 
 Factors to include in detection function
