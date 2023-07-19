@@ -6,12 +6,12 @@ Alex Nicholson, The University of Queensland, 2023
 
 ## TODO
 
-DQN Train Script
-- Add verbose tags to all print outs
+Train Script
 - Make train script into a trainer wrapper class
 
-- [WIP] Train a basic TF-Agents PPO agent (or any agent really) on the simplesim env
-- Save screenshots of the completed environment every couple of episodes
+Extra
+- [DONE] Train a basic TF-Agents DQN agent (or any agent really) on the simplesim env
+- Save screenshots of the completed path every couple of episodes
 - Add some walls as obstructions
 
 Factors to include in detection function

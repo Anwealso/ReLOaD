@@ -320,7 +320,15 @@ def setup_data_collection(
     return rb_observer, iterator, collect_driver
 
 
-def evaluate_baseline(train_env, eval_env, num_eval_episodes, env, rb_observer, initial_collect_steps, train_py_env):
+def evaluate_baseline(
+    train_env,
+    eval_env,
+    num_eval_episodes,
+    env,
+    rb_observer,
+    initial_collect_steps,
+    train_py_env,
+):
     print("\nRunning baseline random policy...")
 
     random_policy = random_tf_policy.RandomTFPolicy(
@@ -450,7 +458,15 @@ if __name__ == "__main__":
     )
 
     # Evaluate baseline (random policy)
-    evaluate_baseline(train_env, eval_env, num_eval_episodes, env, rb_observer, initial_collect_steps, train_py_env)
+    evaluate_baseline(
+        train_env,
+        eval_env,
+        num_eval_episodes,
+        env,
+        rb_observer,
+        initial_collect_steps,
+        train_py_env,
+    )
 
     # --------------------------------- TRAINING --------------------------------- #
 
