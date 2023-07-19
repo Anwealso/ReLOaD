@@ -94,7 +94,7 @@ class Robot(object):
         self.x = sw//2
         self.y = sh//2
         self.trail = [] # a trail of all past x,y coords
-        # Set orientation
+        # Set starting orientation (facing upwards)
         self.angle = 90 # unit circle angles
         
         # Draw sprite at starting position
