@@ -478,13 +478,14 @@ plt.plot(iterations, returns)
 plt.ylabel('Average Return')
 plt.xlabel('Iterations')
 plt.ylim(top=250)
+plt.savefig("training_graph.png")
 
-"""### Videos
+# """### Videos
 
-Charts are nice. But more exciting is seeing an agent actually performing a task in an environment.
+# Charts are nice. But more exciting is seeing an agent actually performing a task in an environment.
 
-First, create a function to embed videos in the notebook.
-"""
+# First, create a function to embed videos in the notebook.
+# """
 
 # def embed_mp4(filename):
 #   """Embeds an mp4 file in the notebook."""
@@ -498,7 +499,7 @@ First, create a function to embed videos in the notebook.
 
 #   return IPython.display.HTML(tag)
 
-"""Now iterate through a few episodes of the Cartpole game with the agent. The underlying Python environment (the one "inside" the TensorFlow environment wrapper) provides a `render()` method, which outputs an image of the environment state. These can be collected into a video."""
+# """Now iterate through a few episodes of the Cartpole game with the agent. The underlying Python environment (the one "inside" the TensorFlow environment wrapper) provides a `render()` method, which outputs an image of the environment state. These can be collected into a video."""
 
 # def create_policy_eval_video(policy, filename, num_episodes=5, fps=30):
 #   filename = filename + ".mp4"
@@ -514,6 +515,6 @@ First, create a function to embed videos in the notebook.
 
 # create_policy_eval_video(agent.policy, "trained-agent")
 
-"""For fun, compare the trained agent (above) to an agent moving randomly. (It does not do as well.)"""
+# """For fun, compare the trained agent (above) to an agent moving randomly. (It does not do as well.)"""
 
 # create_policy_eval_video(random_policy, "random-agent")
