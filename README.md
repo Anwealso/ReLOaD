@@ -6,6 +6,39 @@ Alex Nicholson, The University of Queensland, 2023
 
 ## TODO
 
+### Want to implement these methods:
+
+my_trainer = Trainer()
+
+my_trainer.set_envs(py_env, train_tf_env, eval_tf_env)
+    - sets the env for training
+my_trainer.restore_agent_checkpoint()
+    - restores agent from checkpoint
+my_trainer.set_agent(agent)
+    - sets the agent for training
+returns = my_trainer.train()
+    - trains the agent, saving checkpoints and exporting finished policy
+    - also saves a picture of the training_progress graph to file
+    - Returns: the avg returns over training
+
+
+
+
+### Extra:
+train model script - trains a model 
+    - optional --checkpoint argument that allows us to resume the training from a given checkpoint
+    - optional --save_path arg that tells it where to save checkpoints and SavedPolicies (if no value given just save in a default saved_models/ location)
+
+run model script
+    - Loads the saved policy from file and validates its performance with a few episodes.
+
+retrain_script
+make_thing
+
+
+
+
+
 Train Script
 - Make train script into a trainer wrapper class
 
