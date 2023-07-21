@@ -580,8 +580,9 @@ class SimpleSim(object):
         while (self.paused):
             # Do nothing, pause until key pressed again
             for event in pygame.event.get():
-                if (event.type == 769) and (event.key == pygame.K_p):
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                     self.paused = not self.paused
+                    break
 
         if not self.gameover:
             clock.tick(600)
