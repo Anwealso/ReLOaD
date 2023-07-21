@@ -340,6 +340,8 @@ class SimpleSim(object):
             None
         """
         self.visualize = visualize
+        if self.visualize == False:
+            self.render_black_screen()
 
         self.starting_budget = starting_budget
         self.num_targets = num_targets
@@ -487,6 +489,19 @@ class SimpleSim(object):
         )
         pygame.display.update()
 
+    def render_black_screen(self):
+        win.fill((0,0,0))
+        font = pygame.font.SysFont("arial", 30)
+        pause_text = font.render("Visualisation is Currently Off. Press V to Show Visualisation", 1, (0, 255, 0))
+        win.blit(
+            pause_text,
+            (
+                sw // 2 - pause_text.get_width() // 2,
+                sh // 2 - pause_text.get_height() // 2,
+            ),
+        )
+        pygame.display.flip()
+
     def get_state(self):
         """
         Gets the current state of the game
@@ -561,11 +576,19 @@ class SimpleSim(object):
         """
         Runs the game logic (controller)
         """
-        self.perform_action(action)
 
-        if (not self.paused) and (not self.gameover):
+        while (self.paused):
+            # Do nothing, pause until key pressed again
+            for event in pygame.event.get():
+                if (event.type == 769) and (event.key == pygame.K_p):
+                    self.paused = not self.paused
+
+        if not self.gameover:
             clock.tick(600)
             self.count += 1
+
+            # Peform the given action
+            self.perform_action(action)
 
             # Decrement the budget over time
             self.budget -= 1
@@ -595,9 +618,10 @@ class SimpleSim(object):
                 if event.key == pygame.K_p:
                     self.paused = not self.paused
 
-                # if event.key == pygame.K_m:
-                # pygame.display.set_mode(flags=pygame.HIDDEN)
-                # screen = pygame.display.set_mode((800, 600), flags=pygame.SHOWN)
+                if event.key == pygame.K_v:
+                    self.visualize = not self.visualize
+                    # Set the screen to black
+                    self.render_black_screen()
 
         if self.visualize == True:
             # Re-render the scene
