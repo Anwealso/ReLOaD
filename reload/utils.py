@@ -20,7 +20,13 @@ def show_training_graph(returns, num_iterations, eval_interval):
     unstable and not increase monotonically each time.)
     """
 
-    iterations = range(0, num_iterations + 1, eval_interval)
+    print(f"returns: {returns}")
+    print(f"len(returns): {len(returns)}")
+    print(f"num_iterations: {num_iterations}")
+    print(f"eval_interval: {eval_interval}")
+    print(f"eval_interval substitute: {(num_iterations//len(returns)) + 1}")
+
+    iterations = range(0, num_iterations+1, eval_interval)
     plt.plot(iterations, returns)
     plt.ylabel("Average Return")
     plt.xlabel("Iterations")
