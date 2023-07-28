@@ -63,14 +63,6 @@ class Target(object):
 
     def __init__(self, rank):
         self.rank = rank
-
-        # Set the sprite and hitboxcsize
-        if self.rank == 1:
-            self.image = target50
-        elif self.rank == 2:
-            self.image = target100
-        else:
-            self.image = target150
         self.w = 50 * rank
         self.h = 50 * rank
 
@@ -83,16 +75,24 @@ class Target(object):
 
         # Set the orientation
         self.angle = 90  # unit circle format
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
-        self.rotated_player_rect = self.rotated_player_surf.get_rect()
-        self.rotated_player_rect.center = (self.x, self.y)
-
         self.xdir = int(math.cos(math.radians(self.angle)))
         self.ydir = int(math.sin(math.radians(self.angle)))
-        # print(f"angle:{self.angle}, xdir:{self.xdir}, ydir:{self.ydir}")
 
     def draw(self, win):
-        win.blit(self.rotated_player_surf, self.rotated_player_rect)
+        # Set the sprite and hitboxcsize
+        if self.rank == 1:
+            image = target50
+        elif self.rank == 2:
+            image = target100
+        else:
+            image = target150
+
+        # Setup Render Surfs
+        rotated_player_surf = pygame.transform.rotate(image, self.angle - 90)
+        rotated_player_rect = rotated_player_surf.get_rect()
+        rotated_player_rect.center = (self.x, self.y)
+
+        win.blit(rotated_player_surf, rotated_player_rect)
 
 
 class Robot(object):
@@ -101,9 +101,9 @@ class Robot(object):
     """
 
     def __init__(self, fov):
-        self.image = player_robot
-        self.w = self.image.get_width()
-        self.h = self.image.get_height()
+        # self.image = player_robot
+        self.w = player_robot.get_width()
+        self.h = player_robot.get_height()
         # Set position
         self.x = sw // 2
         self.y = sh // 2
@@ -111,55 +111,8 @@ class Robot(object):
         # Set starting orientation (facing upwards)
         self.angle = 90  # unit circle angles
 
-        # Draw sprite at starting position
-
-        # 90deg rotated version of the sprite surf image
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
-        # The rectangle bounding box of the surf
-        self.rotated_player_rect = self.rotated_player_surf.get_rect()
-        # Set the centre position of the surf to the player position vars
-        self.rotated_player_rect.center = (self.x, self.y)
-
         # Draw player fov indicator
         self.fov = fov
-        # Make a surface with a line on it
-        self.fov_surf = pygame.Surface((sw, sw), pygame.SRCALPHA)
-        self.fov_surf.set_colorkey((0, 0, 0, 0))
-        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle)
-        pygame.draw.line(
-            self.fov_surf,
-            fov_color,
-            (
-                self.rotated_fov_surf.get_rect().w / 2,
-                self.rotated_fov_surf.get_rect().h / 2,
-            ),
-            (
-                (self.rotated_fov_surf.get_rect().w / 2)
-                - (fov_line_length * math.sin(math.radians(self.fov / 2))),
-                (self.rotated_fov_surf.get_rect().h / 2)
-                - (fov_line_length * math.cos(math.radians(self.fov / 2))),
-            ),
-            fov_line_thickness,
-        )
-        pygame.draw.line(
-            self.fov_surf,
-            fov_color,
-            (
-                self.rotated_fov_surf.get_rect().w / 2,
-                self.rotated_fov_surf.get_rect().h / 2,
-            ),
-            (
-                (self.rotated_fov_surf.get_rect().w / 2)
-                + (fov_line_length * math.sin(math.radians(self.fov / 2))),
-                (self.rotated_fov_surf.get_rect().h / 2)
-                - (fov_line_length * math.cos(math.radians(self.fov / 2))),
-            ),
-            fov_line_thickness,
-        )
-        # Set the position and rotation of the surface
-        self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
-        self.rotated_fov_rect.center = (self.x, self.y)
-        win.blit(self.rotated_fov_surf, self.rotated_fov_rect)
 
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
@@ -172,26 +125,58 @@ class Robot(object):
         # Reset orientation
         self.angle = 90  # unit circle angles
         
-        # TODO: Remove
-        # # Draw sprite at starting position
-        # self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
-        # self.rotated_player_rect = self.rotated_player_surf.get_rect()
-        # self.rotated_player_rect.center = (self.x, self.y)
-
     def draw(self, win):
+        # Make a surface with a line on it
+        fov_surf = pygame.Surface((sw, sw), pygame.SRCALPHA)
+        fov_surf.set_colorkey((0, 0, 0, 0))
+        rotated_fov_surf = pygame.transform.rotate(fov_surf, self.angle)
+        pygame.draw.line(
+            fov_surf,
+            fov_color,
+            (
+                rotated_fov_surf.get_rect().w / 2,
+                rotated_fov_surf.get_rect().h / 2,
+            ),
+            (
+                (rotated_fov_surf.get_rect().w / 2)
+                - (fov_line_length * math.sin(math.radians(self.fov / 2))),
+                (rotated_fov_surf.get_rect().h / 2)
+                - (fov_line_length * math.cos(math.radians(self.fov / 2))),
+            ),
+            fov_line_thickness,
+        )
+        pygame.draw.line(
+            fov_surf,
+            fov_color,
+            (
+                rotated_fov_surf.get_rect().w / 2,
+                rotated_fov_surf.get_rect().h / 2,
+            ),
+            (
+                (rotated_fov_surf.get_rect().w / 2)
+                + (fov_line_length * math.sin(math.radians(self.fov / 2))),
+                (rotated_fov_surf.get_rect().h / 2)
+                - (fov_line_length * math.cos(math.radians(self.fov / 2))),
+            ),
+            fov_line_thickness,
+        )
+
         # Update player sprite position
-        self.rotated_player_surf = pygame.transform.rotate(self.image, self.angle - 90)
-        self.rotated_player_rect = self.rotated_player_surf.get_rect()
-        self.rotated_player_rect.center = (self.x, self.y)
+        # 90deg rotated version of the sprite surf image
+        rotated_player_surf = pygame.transform.rotate(player_robot, self.angle - 90)
+        # The rectangle bounding box of the surf
+        rotated_player_rect = rotated_player_surf.get_rect()
+        # Set the centre position of the surf to the player position vars
+        rotated_player_rect.center = (self.x, self.y)
         # Update fov indicator lines position
-        self.rotated_fov_surf = pygame.transform.rotate(self.fov_surf, self.angle - 90)
-        self.rotated_fov_rect = self.rotated_fov_surf.get_rect()
-        self.rotated_fov_rect.center = (self.x, self.y)
+        rotated_fov_surf = pygame.transform.rotate(fov_surf, self.angle - 90)
+        rotated_fov_rect = rotated_fov_surf.get_rect()
+        rotated_fov_rect.center = (self.x, self.y)
 
         # Redraw the player surfs
-        win.blit(self.rotated_player_surf, self.rotated_player_rect)
+        win.blit(rotated_player_surf, rotated_player_rect)
         # Redraw the fov indicator surfs
-        win.blit(self.rotated_fov_surf, self.rotated_fov_rect)
+        win.blit(rotated_fov_surf, rotated_fov_rect)
 
     def turn_left(self):
         self.angle += 5
@@ -240,19 +225,16 @@ class Robot(object):
         robot_y_cart = sh - self.y
         target_x_cart = target.x
         target_y_cart = sh - target.y
-        # print(f"robot_x_cart:{robot_x_cart}, robot_y_cart:{robot_y_cart} //// target_x_cart:{target_x_cart}, target_y_cart:{target_y_cart}")
 
         left_angle = (self.angle + (self.fov / 2)) % 360
         right_angle = (self.angle - (self.fov / 2)) % 360
         target_dy = target_y_cart - robot_y_cart
         target_dx = target_x_cart - robot_x_cart
-        # print(f"target_dy:{target_dy}, target_dx:{target_dx}")
 
         target_angle = np.degrees(
             np.arctan2(target_dy, target_dx)
         )  # angle of ray to target
         target_angle = target_angle + 360 if (target_angle < 0) else target_angle
-        # print(f"target_angle:{target_angle}, left_angle:{left_angle}, right_angle:{right_angle}")
 
         if (target_angle <= left_angle) and (target_angle >= right_angle):
             #  Normal case
@@ -512,13 +494,8 @@ class SimpleSim(object):
             (dict) a dictionary containing all the state variables
         """
         state_dict = {}
-
         state_dict["count"] = self.count
-        # state_dict["avg_confidences"] = self.avg_confidences
         state_dict["budget"] = self.budget
-        # state_dict["object_positions"] = self.get_object_positions()
-        # object_positions is a tuple containing posiiton and orientation
-        # (x, y, angle) (angle in unit circle format)
         state_dict["current_confidences"] = self.current_confidences
 
         return state_dict
