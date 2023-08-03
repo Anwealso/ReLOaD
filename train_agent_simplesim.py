@@ -300,8 +300,8 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 500000  # @param {type:"integer"}
-    eval_interval = 5000  # @param {type:"integer"}
+    num_iterations = 300000  # @param {type:"integer"}
+    eval_interval = 50000  # @param {type:"integer"}
 
     # Env
     STARTING_BUDGET = 400

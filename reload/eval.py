@@ -25,6 +25,7 @@ def compute_avg_return(eval_tf_env, policy, num_episodes=10):
     in an environment.
     """
 
+    print("Evaluating Average Return...")
     total_return = 0.0
     for _ in range(num_episodes):
         time_step = eval_tf_env.reset()
