@@ -28,9 +28,11 @@ class SimpleSimGym(py_environment.PyEnvironment):
         # batch_size = 1
         # MAX_TIMESTEPS = 100
 
+        # self.action_cost = action_cost
+
         # Actions: 0, 1, 2, 3 for F, B, L, R
         self._action_spec = array_spec.BoundedArraySpec(
-            shape=(), dtype=np.int32, minimum=0, maximum=3, name="action"
+            shape=(), dtype=np.int32, minimum=0, maximum=4, name="action"
         )
 
         # Observations (visible state):
@@ -43,7 +45,9 @@ class SimpleSimGym(py_environment.PyEnvironment):
         self._observation_spec = obs_spec
 
         # Internal State:
-        self.game = SimpleSim(starting_budget, num_targets, player_fov, visualize=visualize)
+        self.game = SimpleSim(
+            starting_budget, num_targets, player_fov, visualize=visualize
+        )
 
     def action_spec(self):
         return self._action_spec
@@ -79,18 +83,24 @@ class SimpleSimGym(py_environment.PyEnvironment):
             return self.reset()
 
         # Step the game
-        if action in [0, 1, 2, 3]:
+        if action in [0, 1, 2, 3, 4]:
             self.game.step(action)
         else:
-            raise ValueError("`action` should be 0, 1, 2, or 3.")
+            raise ValueError("`action` should be 0, 1, 2, 3, or 4.")
 
         if self.game.gameover:
             # Reward only given at the end of the episode
             reward = self.game.get_reward()
-            return ts.termination(self.get_observation(), reward=np.sum(reward))
+            # if action != 0:
+                # reward -= self.action_cost
+            return ts.termination(self.get_observation(), reward=reward)
         else:
             # Continuous rewards recieved at each timestep
             reward = self.game.get_reward()
+            # if action != 0:
+            #     reward -= self.action_cost
             return ts.transition(
-                self.get_observation(), reward=np.sum(reward), discount=1.0
+                self.get_observation(), 
+                reward=reward, 
+                # discount=1.0
             )

@@ -278,7 +278,7 @@ def train_agent(
             avg_return = reload.eval.compute_avg_return(
                 eval_env, agent.policy, num_eval_episodes
             )
-            print("step = {0:,}: Average Return = {1}".format(step, avg_return))
+            print("step = {0:,}: Average Return = {1}, Average Return / Step = {2}".format(step, avg_return, avg_return/2000))
             returns.append(avg_return)
 
             # Save a checkpoint
@@ -300,11 +300,11 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 300000  # @param {type:"integer"}
-    eval_interval = 50000  # @param {type:"integer"}
+    num_iterations = 30000  # @param {type:"integer"}
+    eval_interval = 5000  # @param {type:"integer"}
 
     # Env
-    STARTING_BUDGET = 400
+    STARTING_BUDGET = 2000
     NUM_TARGETS = 1
     PLAYER_FOV = 60
 
@@ -348,7 +348,7 @@ if __name__ == "__main__":
         save_dir,
         num_iterations=num_iterations,
         eval_interval=eval_interval,
-        resume_checkpoint = True
+        resume_checkpoint = False
     )
     # --------------------------- Visualise Performance -------------------------- #
 

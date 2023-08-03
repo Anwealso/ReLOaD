@@ -387,6 +387,7 @@ class SimpleSim(object):
             None
         Returns:
             None
+        Week 11
         """
         numSeen = 0
 
@@ -404,9 +405,16 @@ class SimpleSim(object):
                 confidence = 0
             self.current_confidences[i] = confidence
 
+        # current_confidences = 1xN array of confidences at current timestep
+        # avg_confidences = 1xN array of confidences averaged over all past timesteps
+        # confidences = MxN array of confidences for all past timesteps
+
+        # Add the current observation to the past average
         self.avg_confidences = (
             np.add(self.avg_confidences.dot(self.count), self.current_confidences)
         ) / (self.count + 1)
+
+        # Add the current timestep confidences to the comprehensive all timesteps list
         np.append(self.confidences, self.current_confidences, axis=1)
 
     def redraw_game_window(self):
@@ -441,7 +449,7 @@ class SimpleSim(object):
             (0, 255, 0),
         )
         high_score_text = font.render(
-            "Avg Confidences: " + str(format(np.sum(self.avg_confidences), ".2f")),
+            "Avg Confidences: " + str(format(self.get_reward(), ".2f")),
             1,
             (0, 255, 0),
         )
@@ -509,7 +517,10 @@ class SimpleSim(object):
         Returns:
             (np.ndarray) the avg_confidences vector
         """
-        return np.sum(self.avg_confidences)
+        # return np.sum(self.avg_confidences)
+
+        # Use the current timestep confidence as the reward
+        return np.sum(self.current_confidences)
 
     def perform_action(self, action):
         """
@@ -517,18 +528,18 @@ class SimpleSim(object):
         Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
         """
         # Check action format
-        if action not in [None, 0, 1, 2, 3]:
-            raise ValueError("`action` should be None, 0, 1, 2, or 3.")
+        if action not in [0, 1, 2, 3, 4]:
+            raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
-        # Handle agent controls and movement
-        if action == 0:
+        # Handle agent controls and movement (note action 0 does nothing)
+        if action == 1:
             self.robot.turn_right()
-        elif action == 1:
+        elif action == 2:
             self.robot.move_forward()
 
-        if action == 2:
+        if action == 3:
             self.robot.turn_left()
-        elif action == 3:
+        elif action == 4:
             self.robot.move_backward()
 
     def perform_action_interactive(self):
@@ -570,6 +581,9 @@ class SimpleSim(object):
 
             # Decrement the budget over time
             self.budget -= 1
+            # Decrement the budget due to movement
+            if action != 0:
+                self.budget -= 4
 
             # Update the player potisions
             self.robot.handle_boundary_collisions()

@@ -10,7 +10,7 @@
 
 def compute_avg_return(eval_tf_env, policy, num_episodes=10):
     """
-    Computes the average return of a policy, given the policy, environment, and
+    Computes the average return of a policy per episode, given the policy, environment, and
     a number of episodes.
 
     The most common metric used to evaluate a policy is the average return.
@@ -25,7 +25,7 @@ def compute_avg_return(eval_tf_env, policy, num_episodes=10):
     in an environment.
     """
 
-    print("Evaluating Average Return...")
+    print("Evaluating average return...")
     total_return = 0.0
     for _ in range(num_episodes):
         time_step = eval_tf_env.reset()
@@ -35,9 +35,14 @@ def compute_avg_return(eval_tf_env, policy, num_episodes=10):
             action_step = policy.action(time_step)
             time_step = eval_tf_env.step(action_step.action)
             episode_return += time_step.reward
-            total_return += episode_return
+
+        total_return += episode_return
+        # print(f"total_return: {total_return}")
 
     avg_return = total_return / num_episodes
+    # print(f"avg_return: {avg_return}")
+    # print(f"avg_return.numpy()[0]: {avg_return.numpy()[0]}")
+    # quit()
     return avg_return.numpy()[0]
 
 
