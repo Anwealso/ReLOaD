@@ -10,7 +10,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def show_training_graph(returns, num_iterations, eval_interval):
+def show_training_graph(returns, num_iterations):
     """
     Use `matplotlib.pyplot` to chart how the policy improved during training.
     One iteration of `Cartpole-v0` consists of 200 time steps. The environment
@@ -20,17 +20,13 @@ def show_training_graph(returns, num_iterations, eval_interval):
     unstable and not increase monotonically each time.)
     """
 
-    print(f"returns: {returns}")
-    print(f"len(returns): {len(returns)}")
-    print(f"num_iterations: {num_iterations}")
-    print(f"eval_interval: {eval_interval}")
-    print(f"eval_interval substitute: {(num_iterations//len(returns)) + 1}")
+    eval_interval = num_iterations//(len(returns)-1)
 
     iterations = range(0, num_iterations+1, eval_interval)
+
     plt.plot(iterations, returns)
     plt.ylabel("Average Return")
     plt.xlabel("Iterations")
-    # plt.ylim(top=250)
     plt.savefig("training_graph.png")
 
 
