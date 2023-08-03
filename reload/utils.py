@@ -27,7 +27,7 @@ def show_training_graph(returns, num_iterations, model_name):
     plt.plot(iterations, returns)
     plt.ylabel("Average Return")
     plt.xlabel("Iterations")
-    plt.savefig("training_graph-{model_name}.png")
+    plt.savefig(f"training_graph-{model_name}.png")
 
 
 def show_env_summary(env):
