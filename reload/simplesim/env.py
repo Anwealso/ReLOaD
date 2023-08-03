@@ -134,13 +134,13 @@ class Robot(object):
             fov_surf,
             fov_color,
             (
-                rotated_fov_surf.get_rect().w / 2,
-                rotated_fov_surf.get_rect().h / 2,
+                fov_surf.get_rect().w / 2,
+                fov_surf.get_rect().h / 2,
             ),
             (
-                (rotated_fov_surf.get_rect().w / 2)
+                (fov_surf.get_rect().w / 2)
                 - (fov_line_length * math.sin(math.radians(self.fov / 2))),
-                (rotated_fov_surf.get_rect().h / 2)
+                (fov_surf.get_rect().h / 2)
                 - (fov_line_length * math.cos(math.radians(self.fov / 2))),
             ),
             fov_line_thickness,
@@ -149,13 +149,13 @@ class Robot(object):
             fov_surf,
             fov_color,
             (
-                rotated_fov_surf.get_rect().w / 2,
-                rotated_fov_surf.get_rect().h / 2,
+                fov_surf.get_rect().w / 2,
+                fov_surf.get_rect().h / 2,
             ),
             (
-                (rotated_fov_surf.get_rect().w / 2)
+                (fov_surf.get_rect().w / 2)
                 + (fov_line_length * math.sin(math.radians(self.fov / 2))),
-                (rotated_fov_surf.get_rect().h / 2)
+                (fov_surf.get_rect().h / 2)
                 - (fov_line_length * math.cos(math.radians(self.fov / 2))),
             ),
             fov_line_thickness,
