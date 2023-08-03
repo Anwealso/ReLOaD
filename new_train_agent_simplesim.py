@@ -116,6 +116,8 @@ def setup_data_collection(
         max_steps=collect_steps_per_iteration,
     )
 
+    collect_driver.run(env.reset())
+
     """The replay buffer is now a collection of Trajectories."""
 
     # For the curious:
@@ -142,7 +144,7 @@ def setup_data_collection(
     return rb_observer, iterator, collect_driver, replay_buffer
 
 
-def evaluate_baseline(
+def evaluate_random_baseline(
     train_py_env,
     train_env,
     eval_env,
@@ -150,6 +152,10 @@ def evaluate_baseline(
     rb_observer,
     initial_collect_steps,
 ):
+    # General starting points
+    # initial_collect_steps=100
+    # num_eval_episodes=10
+
     print("\nRunning baseline random policy...")
 
     random_policy = random_tf_policy.RandomTFPolicy(
@@ -167,7 +173,8 @@ def evaluate_baseline(
         [rb_observer],
         max_steps=initial_collect_steps,
     ).run(train_py_env.reset())
-
+    
+    avg_return = 0
     print(f"Finished evaluating baseline policy. Avg Return: {avg_return}\n")
 
     return avg_return
@@ -210,23 +217,22 @@ def train_agent(
         py_env, agent, replay_buffer_max_length, collect_steps_per_iteration, batch_size
     )
 
-    # Evaluate baseline (random policy)
-    baseline_return = evaluate_baseline(
-        py_env,
-        train_env,
-        eval_env,
-        num_eval_episodes,
-        rb_observer,
-        initial_collect_steps,
-    )
-    returns = [baseline_return]
+    # # Evaluate baseline (random policy)
+    # random_baseline_return = evaluate_random_baseline(
+    #     py_env,
+    #     train_env,
+    #     eval_env,
+    #     num_eval_episodes,
+    #     rb_observer,
+    #     initial_collect_steps,
+    # )
 
     # -------------------------- Setup Checkpoint Saver -------------------------- #
 
     # Checkpointer
     train_checkpointer = common.Checkpointer(
         ckpt_dir=checkpoint_dir,
-        max_to_keep=3,
+        max_to_keep=1,
         agent=agent,
         policy=agent.policy,
         replay_buffer=replay_buffer,
@@ -246,8 +252,8 @@ def train_agent(
     agent.train_step_counter.assign(0)
 
     # Evaluate the agent's policy once before training.
-    # avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
-    # returns = [avg_return]
+    avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    returns = [avg_return]
 
     # Setup PolicySaver
     tf_policy_saver = policy_saver.PolicySaver(agent.policy)
@@ -331,8 +337,9 @@ if __name__ == "__main__":
     # Saving
     env_name = py_env.__class__.__name__
     agent_name = agent.__class__.__name__
-    date_str = datetime.today().strftime("%Y%m%d")
-    save_dir = f"{SAVE_PARENT_DIR}/{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"  # dirs to save checkpoints
+    date_str = datetime.today().strftime("%Y_%m_%dT%H:%M")
+    model_name = f"{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"
+    save_dir = f"{SAVE_PARENT_DIR}/{model_name}"  # dirs to save checkpoints
 
     returns = train_agent(
         agent,
@@ -345,4 +352,4 @@ if __name__ == "__main__":
     # --------------------------- Visualise Performance -------------------------- #
 
     # Visualize the training progress
-    reload.utils.show_training_graph(returns, num_iterations, eval_interval)
+    reload.utils.show_training_graph(returns, num_iterations, model_name)

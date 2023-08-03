@@ -10,7 +10,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def show_training_graph(returns, num_iterations):
+def show_training_graph(returns, num_iterations, model_name):
     """
     Use `matplotlib.pyplot` to chart how the policy improved during training.
     One iteration of `Cartpole-v0` consists of 200 time steps. The environment
@@ -27,7 +27,7 @@ def show_training_graph(returns, num_iterations):
     plt.plot(iterations, returns)
     plt.ylabel("Average Return")
     plt.xlabel("Iterations")
-    plt.savefig("training_graph.png")
+    plt.savefig("training_graph-{model_name}.png")
 
 
 def show_env_summary(env):
