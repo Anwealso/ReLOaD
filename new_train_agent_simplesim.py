@@ -2,7 +2,7 @@
 #
 # train_agent_simplesim.py
 #
-# Trains a dqn policy on the simplesim env, saving checkpoints along the way 
+# Trains a dqn policy on the simplesim env, saving checkpoints along the way
 # and exporting the final trained policy to file.
 #
 # Alex Nichoson
@@ -24,6 +24,7 @@ import reverb
 import tensorflow as tf
 import os
 import copy
+from datetime import datetime
 
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.drivers import py_driver
@@ -46,6 +47,7 @@ from tf_agents.networks import value_network
 #                                   FUNCTIONS                                  #
 # ---------------------------------------------------------------------------- #
 
+
 def create_envs(py_env):
     """
     Gets the test and train tf py envs for the trainer instance
@@ -67,7 +69,12 @@ def create_envs(py_env):
 
 
 def setup_data_collection(
-    env, agent, replay_buffer_max_length, collect_steps_per_iteration, batch_size, verbose=False
+    env,
+    agent,
+    replay_buffer_max_length,
+    collect_steps_per_iteration,
+    batch_size,
+    verbose=False,
 ):
     """
     Sets up the training data collection pipeline including replay buffer, data
@@ -150,7 +157,9 @@ def evaluate_baseline(
         tensor_spec.add_outer_dim(train_env.action_spec(), 1),
     )
 
-    reload.eval.compute_avg_return(eval_env, random_policy, num_eval_episodes)
+    avg_return = reload.eval.compute_avg_return(
+        eval_env, random_policy, num_eval_episodes
+    )
 
     py_driver.PyDriver(
         train_py_env,
@@ -159,21 +168,24 @@ def evaluate_baseline(
         max_steps=initial_collect_steps,
     ).run(train_py_env.reset())
 
-    print("Finished evaluating baseline policy.\n")
+    print(f"Finished evaluating baseline policy. Avg Return: {avg_return}\n")
+
+    return avg_return
 
 
 def train_agent(
     agent,
     py_env,
-    policy_dir,
-    num_iterations = 100,
-    initial_collect_steps = 100,
-    collect_steps_per_iteration = 1,
-    replay_buffer_max_length = 100000,
-    batch_size = 64,
-    log_interval = 200,
-    num_eval_episodes = 10,
-    eval_interval = 5000,
+    save_dir,
+    resume_checkpoint=False,
+    num_iterations=10000,
+    initial_collect_steps=100,
+    collect_steps_per_iteration=1,
+    replay_buffer_max_length=100000,
+    batch_size=64,
+    # log_interval=200,
+    num_eval_episodes=10,
+    eval_interval=5000,
 ):
     """
     Trains the agent.
@@ -188,6 +200,10 @@ def train_agent(
     # Setup envs
     train_env, eval_env = create_envs(py_env)
 
+    # Setup model save dirs
+    checkpoint_dir = os.path.join(save_dir, "checkpoint")
+    policy_dir = os.path.join(save_dir, "policy")
+
     # ------------------------------- Replay Buffer ------------------------------ #
 
     rb_observer, iterator, collect_driver, replay_buffer = setup_data_collection(
@@ -195,7 +211,7 @@ def train_agent(
     )
 
     # Evaluate baseline (random policy)
-    evaluate_baseline(
+    baseline_return = evaluate_baseline(
         py_env,
         train_env,
         eval_env,
@@ -203,8 +219,10 @@ def train_agent(
         rb_observer,
         initial_collect_steps,
     )
+    returns = [baseline_return]
 
     # -------------------------- Setup Checkpoint Saver -------------------------- #
+
     # Checkpointer
     train_checkpointer = common.Checkpointer(
         ckpt_dir=checkpoint_dir,
@@ -212,12 +230,12 @@ def train_agent(
         agent=agent,
         policy=agent.policy,
         replay_buffer=replay_buffer,
-        global_step=agent.train_step_counter
+        global_step=agent.train_step_counter,
     )
 
     # ------------------- Restore from Checkpoint (if desired) ------------------- #
-    # train_checkpointer.initialize_or_restore() 
-
+    if resume_checkpoint:
+        train_checkpointer.initialize_or_restore()
 
     # -------------------------- Run the actual training ------------------------- #
 
@@ -228,8 +246,8 @@ def train_agent(
     agent.train_step_counter.assign(0)
 
     # Evaluate the agent's policy once before training.
-    avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
-    returns = [avg_return]
+    # avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    # returns = [avg_return]
 
     # Setup PolicySaver
     tf_policy_saver = policy_saver.PolicySaver(agent.policy)
@@ -237,6 +255,7 @@ def train_agent(
     # Reset the environment.
     time_step = py_env.reset()
 
+    log_interval = eval_interval // 10
     for _ in range(num_iterations):
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
@@ -251,7 +270,9 @@ def train_agent(
             print("step = {0:,}: loss = {1}".format(step, train_loss))
 
         if step % eval_interval == 0:
-            avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+            avg_return = reload.eval.compute_avg_return(
+                eval_env, agent.policy, num_eval_episodes
+            )
             print("step = {0:,}: Average Return = {1}".format(step, avg_return))
             returns.append(avg_return)
 
@@ -273,53 +294,54 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 500000  # @param {type:"integer"}
-    # initial_collect_steps = 100  # @param {type:"integer"}
-    # collect_steps_per_iteration = 1  # @param {type:"integer"}
-    # replay_buffer_max_length = 100000  # @param {type:"integer"}
-    # batch_size = 64  # @param {type:"integer"}
-    # log_interval = 200  # @param {type:"integer"}
-    # num_eval_episodes = 10  # @param {type:"integer"}
-    eval_interval = 1000  # @param {type:"integer"}
+    num_iterations = 1000  # @param {type:"integer"}
+    eval_interval = 200  # @param {type:"integer"}
 
     # Env
     STARTING_BUDGET = 400
     NUM_TARGETS = 1
     PLAYER_FOV = 60
-    
+
     # Agent
     LEARNING_RATE = 1e-3  # @param {type:"number"}
 
     # Saving
-    SAVE_DIR = "saved_models" # dirs to save checkpoints
-    checkpoint_dir = os.path.join(SAVE_DIR, 'checkpoint')
-    policy_dir = os.path.join(SAVE_DIR, 'policy')
+    SAVE_PARENT_DIR = f"saved_models"  # dir where checkpointssaved_models are saved
 
     # -------------------------------- Environment ------------------------------- #
 
     # Instantiate two environments: one for training and one for evaluation.
     py_env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV, visualize=False)
     train_env, eval_env = create_envs(py_env)
-    
+
     # View Env Specs
-    reload.utils.show_env_summary(py_env)
+    # reload.utils.show_env_summary(py_env)
 
     # ----------------------------------- Agent ---------------------------------- #
 
-    # Create fresh agent
-    agent = reload.agents.get_dqn_agent(py_env, train_env, verbose=True, learning_rate=LEARNING_RATE)
+    # Create fresh DQN agent
+    agent = reload.agents.get_dqn_agent(
+        py_env, train_env, verbose=False, learning_rate=LEARNING_RATE
+    )
+
+    # Create fresh PPO agent
     # agent = reload.agents.get_ppo_agent(train_env, verbose=True)
 
-    # Restore agent from checkpoint (if desired)
-    # restore_checkpoint(agent)
-
     # --------------------------------- Training --------------------------------- #
+    # Saving
+    env_name = py_env.__class__.__name__
+    agent_name = agent.__class__.__name__
+    date_str = datetime.today().strftime("%Y%m%d")
+    save_dir = f"{SAVE_PARENT_DIR}/{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"  # dirs to save checkpoints
+
     returns = train_agent(
         agent,
         py_env,
-        policy_dir
+        save_dir,
+        num_iterations=num_iterations,
+        eval_interval=eval_interval,
+        # resume_checkpoint = True
     )
-
     # --------------------------- Visualise Performance -------------------------- #
 
     # Visualize the training progress
