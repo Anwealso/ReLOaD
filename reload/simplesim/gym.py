@@ -28,26 +28,27 @@ class SimpleSimGym(py_environment.PyEnvironment):
         # batch_size = 1
         # MAX_TIMESTEPS = 100
 
-        # self.action_cost = action_cost
+        # Internal State:
+        self.game = SimpleSim(
+            starting_budget, num_targets, player_fov, visualize=visualize
+        )
 
         # Actions: 0, 1, 2, 3 for F, B, L, R
         self._action_spec = array_spec.BoundedArraySpec(
-            shape=(), dtype=np.int32, minimum=0, maximum=4, name="action"
+            shape=(), dtype=np.int32, minimum=0, maximum=2, name="action"
         )
+        # self.action_cost = action_cost
 
         # Observations (visible state):
+        observation_shape = np.shape(self.get_observation())[0]
         obs_spec = array_spec.BoundedArraySpec(
-            shape=((2 * num_targets) + 2,),
+            shape=(observation_shape,),
             dtype=np.float32,
             minimum=0,
             name="observation",
         )
         self._observation_spec = obs_spec
 
-        # Internal State:
-        self.game = SimpleSim(
-            starting_budget, num_targets, player_fov, visualize=visualize
-        )
 
     def action_spec(self):
         return self._action_spec
@@ -59,16 +60,20 @@ class SimpleSimGym(py_environment.PyEnvironment):
         observation = np.squeeze(
             np.concatenate(
                 [
-                    np.array([[self.game.count]], dtype=np.float32),
                     np.array([[self.game.budget]], dtype=np.float32),
-                    np.float32(self.game.avg_confidences),
-                    np.float32(self.game.confidences),
+                    np.float32(self.game.avg_confidences), # average confidences
+                    np.float32(self.game.current_confidences), # confidences at current timestep
+                    # np.array([[self.game.robot.x, self.game.robot.y, self.game.robot.angle]], dtype=np.float32), # robot coords
+                    # np.array([[self.game.targets[0].x, self.game.targets[0].y]], dtype=np.float32), # target coords
                 ],
                 axis=0,
             ),
             axis=1,
         )
 
+        # np.array([[self.game.count]], dtype=np.float32),
+        # np.float32(self.game.confidences),
+        
         return observation
 
     def _reset(self):

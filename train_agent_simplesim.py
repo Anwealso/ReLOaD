@@ -113,6 +113,7 @@ def setup_data_collection(
         env,
         py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
         [rb_observer],
+        # max_episodes=2,
         max_steps=collect_steps_per_iteration,
     )
 
@@ -231,7 +232,7 @@ def train_agent(
     # Checkpointer
     train_checkpointer = common.Checkpointer(
         ckpt_dir=checkpoint_dir,
-        max_to_keep=1,
+        max_to_keep=5,
         agent=agent,
         policy=agent.policy,
         replay_buffer=replay_buffer,
@@ -267,18 +268,21 @@ def train_agent(
 
         # Sample a batch of data from the buffer and update the agent's network.
         experience, _ = next(iterator)
+
+        # print(f"agent.train(experience): {agent.train(experience)}")
         train_loss = agent.train(experience).loss
 
         step = agent.train_step_counter.numpy()
 
         if step % log_interval == 0:
-            print("step = {0:,}: loss = {1}".format(step, train_loss))
+            print("step = {0:,}: \033[91mloss = {1:,}\033[00m".format(step, train_loss))
+            # print(f"\n            obs = {time_step.observation}")
 
         if step % eval_interval == 0:
             avg_return = reload.eval.compute_avg_return(
                 eval_env, agent.policy, num_eval_episodes
             )
-            print("step = {0:,}: Average Return = {1}, Average Return / Step = {2}".format(step, avg_return, avg_return/2000))
+            print("step = {0:,}: \033[92mAverage Return = {1}\033[00m, Average Return / Step = {2}".format(step, avg_return, avg_return/2000))
             returns.append(avg_return)
 
             # Save a checkpoint
@@ -288,7 +292,7 @@ def train_agent(
     print(f"Saving policy ...")
     policy_dir = os.path.join(save_dir, "policy")
     tf_policy_saver.save(policy_dir)
-    print(f"Trained policy saved to: {policy_dir}")
+    print(f"\nTrained policy saved to: {policy_dir}\n")
 
     return returns
 
@@ -300,8 +304,9 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 30000  # @param {type:"integer"}
-    eval_interval = 5000  # @param {type:"integer"}
+    num_iterations = 20000  # @param {type:"integer"}
+    eval_interval = 2000  # @param {type:"integer"}
+    num_eval_episodes = 10
 
     # Env
     STARTING_BUDGET = 2000
@@ -309,7 +314,7 @@ if __name__ == "__main__":
     PLAYER_FOV = 60
 
     # Agent
-    LEARNING_RATE = 1e-3  # @param {type:"number"}
+    LEARNING_RATE = 5e-4  # @param {type:"number"}
 
     # Saving
     SAVE_PARENT_DIR = "saved_models"  # parent directory where models are saved
@@ -321,13 +326,13 @@ if __name__ == "__main__":
     train_env, eval_env = create_envs(py_env)
 
     # View Env Specs
-    # reload.utils.show_env_summary(py_env)
+    reload.utils.show_env_summary(py_env)
 
     # ----------------------------------- Agent ---------------------------------- #
 
     # Create fresh DQN agent
     agent = reload.agents.get_dqn_agent(
-        py_env, train_env, verbose=False, learning_rate=LEARNING_RATE
+        py_env, train_env, verbose=True, learning_rate=LEARNING_RATE
     )
 
     # Create fresh PPO agent
@@ -348,6 +353,7 @@ if __name__ == "__main__":
         save_dir,
         num_iterations=num_iterations,
         eval_interval=eval_interval,
+        num_eval_episodes = num_eval_episodes,
         resume_checkpoint = False
     )
     # --------------------------- Visualise Performance -------------------------- #

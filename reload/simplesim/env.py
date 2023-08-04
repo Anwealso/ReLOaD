@@ -531,6 +531,9 @@ class SimpleSim(object):
         if action not in [0, 1, 2, 3, 4]:
             raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
+        if action == 2:
+            action = 3
+
         # Handle agent controls and movement (note action 0 does nothing)
         if action == 1:
             self.robot.turn_right()
