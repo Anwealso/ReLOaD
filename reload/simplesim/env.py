@@ -449,7 +449,7 @@ class SimpleSim(object):
             (0, 255, 0),
         )
         high_score_text = font.render(
-            "Avg Confidences: " + str(format(self.get_reward(), ".2f")),
+            "Avg Confidences: " + str(format(np.sum(self.avg_confidences), ".2f")),
             1,
             (0, 255, 0),
         )
