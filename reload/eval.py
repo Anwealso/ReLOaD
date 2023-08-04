@@ -25,9 +25,10 @@ def compute_avg_return(eval_tf_env, policy, num_episodes=10):
     in an environment.
     """
 
-    print("Evaluating average return...")
+    print("Evaluating average return...", end="")
     total_return = 0.0
-    for _ in range(num_episodes):
+    for i in range(num_episodes):
+        print(f" {i}", end="", flush=True)
         time_step = eval_tf_env.reset()
         episode_return = 0.0
 
@@ -38,9 +39,11 @@ def compute_avg_return(eval_tf_env, policy, num_episodes=10):
 
         total_return += episode_return
         # print(f"total_return: {total_return}")
+    
+
 
     avg_return = total_return / num_episodes
-    # print(f"avg_return: {avg_return}")
+    print(f"\nFinished evaluating. Avg Return: {avg_return}\n")
     # print(f"avg_return.numpy()[0]: {avg_return.numpy()[0]}")
     # quit()
     return avg_return.numpy()[0]
