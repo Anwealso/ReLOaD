@@ -8,7 +8,7 @@
 # 21/07/2023
 
 
-def compute_avg_return(eval_tf_env, policy, num_episodes=10):
+def compute_avg_return(eval_tf_env, policy, num_episodes=5):
     """
     Computes the average return of a policy per episode, given the policy, environment, and
     a number of episodes.

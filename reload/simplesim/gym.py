@@ -35,7 +35,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
 
         # Actions: 0, 1, 2, 3 for F, B, L, R
         self._action_spec = array_spec.BoundedArraySpec(
-            shape=(), dtype=np.int32, minimum=0, maximum=2, name="action"
+            shape=(), dtype=np.int32, minimum=0, maximum=4, name="action"
         )
         # self.action_cost = action_cost
 

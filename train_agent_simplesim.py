@@ -261,7 +261,7 @@ def train_agent(
     # Reset the environment.
     time_step = py_env.reset()
 
-    log_interval = eval_interval // 10
+    log_interval = num_iterations // 100
     for _ in range(num_iterations):
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
@@ -304,8 +304,8 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 20000  # @param {type:"integer"}
-    eval_interval = 2000  # @param {type:"integer"}
+    num_iterations = 12000  # @param {type:"integer"}
+    eval_interval = num_iterations / 1  # @param {type:"integer"}
     num_eval_episodes = 10
 
     # Env

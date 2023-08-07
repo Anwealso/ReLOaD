@@ -30,9 +30,11 @@ if __name__ == "__main__":
     num_eval_episodes = 10  # @param {type:"integer"}
     visualize = False
     verbose = False
-    STARTING_BUDGET = 400
+
+    STARTING_BUDGET = 2000
     NUM_TARGETS = 1
     PLAYER_FOV = 60
+    
     policy_dir = ""
 
     # Get command line values
