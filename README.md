@@ -6,21 +6,18 @@ Alex Nicholson, The University of Queensland, 2023
 
 ## TODO
 
-### Want to implement these methods:
+### Plan to Fix Model Convergence
 
-my_trainer = Trainer()
+- Shrink the environment state space in case theres not enough room in the q network
+- Agent doesnt seem to be doing anything at all when evaluating - is this because of using agent.policy instead of agent.collect_policy
 
-my_trainer.set_envs(py_env, train_tf_env, eval_tf_env)
-    - sets the env for training
-my_trainer.restore_agent_checkpoint()
-    - restores agent from checkpoint
-my_trainer.set_agent(agent)
-    - sets the agent for training
-returns = my_trainer.train()
-    - trains the agent, saving checkpoints and exporting finished policy
-    - also saves a picture of the training_progress graph to file
-    - Returns: the avg returns over training
-
+Options to tweak
+- Simplify action space to help agent to converge
+- Decrease learning rate
+- Decrease / increase model size
+- Change observation vector to give agent more information
+- Increase training amount to increase learning
+- Decrease learning time if overfitting or collapse
 
 
 

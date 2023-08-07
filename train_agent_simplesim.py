@@ -252,7 +252,7 @@ def train_agent(
     agent.train_step_counter.assign(0)
 
     # Evaluate the agent's policy once before training.
-    avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, 1)
     returns = [avg_return]
 
     # Setup PolicySaver
