@@ -32,7 +32,7 @@ if __name__ == "__main__":
     verbose = False
 
     STARTING_BUDGET = 2000
-    NUM_TARGETS = 1
+    NUM_TeRGETS = 3
     PLAYER_FOV = 60
     
     policy_dir = ""

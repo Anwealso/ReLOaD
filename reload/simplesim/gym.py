@@ -57,12 +57,20 @@ class SimpleSimGym(py_environment.PyEnvironment):
         return self._observation_spec
 
     def get_observation(self):
+        target_rel_positions = []
+        for target in self.game.targets:
+            rel_x = target.x - self.game.robot.x 
+            target_rel_positions.append(rel_x)
+            rel_y = target.y - self.game.robot.y
+            target_rel_positions.append(rel_y)
+
         observation = np.squeeze(
             np.concatenate(
                 [
-                    np.array([[self.game.budget]], dtype=np.float32),
+                    np.array([[self.game.budget]], dtype=np.float32), # bugdet
                     np.float32(self.game.avg_confidences), # average confidences
                     np.float32(self.game.current_confidences), # confidences at current timestep
+                    np.transpose(np.array([target_rel_positions], dtype=np.float32)), # target relative positions from robot
                     # np.array([[self.game.robot.x, self.game.robot.y, self.game.robot.angle]], dtype=np.float32), # robot coords
                     # np.array([[self.game.targets[0].x, self.game.targets[0].y]], dtype=np.float32), # target coords
                 ],
@@ -71,8 +79,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
             axis=1,
         )
 
-        # np.array([[self.game.count]], dtype=np.float32),
-        # np.float32(self.game.confidences),
+        print(observation)
         
         return observation
 

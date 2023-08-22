@@ -273,8 +273,7 @@ class Robot(object):
         # A factor representing the distance difficulty (should be between 0 and 1)
         max_dist = math.sqrt(sw**2 + sh**2)
         target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
-        # distance_factor = 1 - (target_dist / max_dist)
-        distance_factor = (1/100) ** (target_dist / max_dist)
+        distance_factor = 1 - (target_dist / max_dist)
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
         angle_between = np.degrees(
@@ -290,7 +289,7 @@ class Robot(object):
 
         # Decide the weightings between how much the distance and orientation
         # factors affect the confidence
-        distance_weighting = 400 # was 4
+        distance_weighting = 4
         orientation_weighting = 1
         weighting_sum = distance_weighting + orientation_weighting
         distance_weighting = distance_weighting / weighting_sum
@@ -521,7 +520,7 @@ class SimpleSim(object):
         # return np.sum(self.avg_confidences)
 
         # Use the current timestep confidence as the reward
-        return np.sum(self.current_confidences) * 10
+        return np.sum(self.current_confidences)
 
     def perform_action(self, action):
         """
@@ -601,9 +600,6 @@ class SimpleSim(object):
 
             # Perform the action
             self.perform_action(action)
-
-        # Get optional additional user action
-        self.perform_action_interactive()
 
         # Handle menu keyboard events
         for event in pygame.event.get():
