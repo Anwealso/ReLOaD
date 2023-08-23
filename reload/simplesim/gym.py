@@ -14,41 +14,30 @@ from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
 
-# ---------------------------------------------------------------------------- #
-#                                    CLASSES                                   #
-# ---------------------------------------------------------------------------- #
-
-
 class SimpleSimGym(py_environment.PyEnvironment):
     """
     A gym wrapper for our simple simulator environment
     """
 
     def __init__(self, starting_budget, num_targets, player_fov, visualize=True):
-        # batch_size = 1
-        # MAX_TIMESTEPS = 100
-
         # Internal State:
         self.game = SimpleSim(
             starting_budget, num_targets, player_fov, visualize=visualize
         )
 
-        # Actions: 0, 1, 2, 3 for F, B, L, R
+        # Actions: 0, 1, 2, 3 for L, R, F, B
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=4, name="action"
         )
-        # self.action_cost = action_cost
 
         # Observations (visible state):
         observation_shape = np.shape(self.get_observation())[0]
-        obs_spec = array_spec.BoundedArraySpec(
+        self._observation_spec = array_spec.BoundedArraySpec(
             shape=(observation_shape,),
             dtype=np.float32,
             minimum=0,
             name="observation",
         )
-        self._observation_spec = obs_spec
-
 
     def action_spec(self):
         return self._action_spec
@@ -60,19 +49,20 @@ class SimpleSimGym(py_environment.PyEnvironment):
         target_rel_positions = []
         for target in self.game.targets:
             rel_x = target.x - self.game.robot.x 
-            target_rel_positions.append(rel_x)
+            norm_rel_x = rel_x / self.game.sw # normalise 
+            target_rel_positions.append(norm_rel_x)
             rel_y = target.y - self.game.robot.y
-            target_rel_positions.append(rel_y)
+            norm_rel_y = rel_y / self.game.sh # normalise
+            target_rel_positions.append(norm_rel_y)
 
         observation = np.squeeze(
             np.concatenate(
                 [
-                    np.array([[self.game.budget]], dtype=np.float32), # bugdet
-                    np.float32(self.game.avg_confidences), # average confidences
-                    np.float32(self.game.current_confidences), # confidences at current timestep
-                    np.transpose(np.array([target_rel_positions], dtype=np.float32)), # target relative positions from robot
-                    # np.array([[self.game.robot.x, self.game.robot.y, self.game.robot.angle]], dtype=np.float32), # robot coords
-                    # np.array([[self.game.targets[0].x, self.game.targets[0].y]], dtype=np.float32), # target coords
+                    # np.array([[self.game.budget / self.game.starting_budget]], dtype=np.float32), # fraction of bugdet remaining
+                    # np.float32(self.game.avg_confidences), # average confidences
+                    # np.float32(self.game.current_confidences), # confidences at current timestep
+                    # np.transpose(np.array([target_rel_positions], dtype=np.float32)), # target relative positions from robot
+                    np.transpose(np.array([[self.game.robot.x/self.game.sw, self.game.robot.y/self.game.sh, self.game.robot.angle/360]], dtype=np.float32)), # target relative positions from robot
                 ],
                 axis=0,
             ),
@@ -82,10 +72,27 @@ class SimpleSimGym(py_environment.PyEnvironment):
         print(observation)
         
         return observation
+    
+    def get_reward(self, action):
+        """
+        The reward function for the RL agent
+          - Agent gets positive reward for the current instantaneous confidence
+            it achieved in the last time step
+          - Agent receives negative reward for moving
+        
+        Agent will learn to maximise this instantaneous reward at each time 
+        step.
+        """
+        reward = (self.game.robot.x/self.game.sw + self.game.robot.y/self.game.sh) / 2
+
+        # reward = np.sum(self.game.current_confidences)
+        # if action != 0: # if action is not do-nothing
+        #     reward -= 0.5
+
+        return reward
 
     def _reset(self):
         self.game.reset()
-
         return ts.restart(self.get_observation())
 
     def _step(self, action):
@@ -95,24 +102,24 @@ class SimpleSimGym(py_environment.PyEnvironment):
             return self.reset()
 
         # Step the game
-        if action in [0, 1, 2, 3, 4]:
-            self.game.step(action)
-        else:
-            raise ValueError("`action` should be 0, 1, 2, 3, or 4.")
+        self.game.step(action)
 
+        self.game.perform_action_interactive()
+
+        # Show info on scoreboard
+        # self.game.set_scoreboard({"Reward": format(self.get_reward(action), ".2f")})
+        self.game.set_scoreboard({"Reward": format(self.get_reward(action), ".2f"), "Observation": self.get_observation()})
+
+        # Return reward
         if self.game.gameover:
-            # Reward only given at the end of the episode
-            reward = self.game.get_reward()
-            # if action != 0:
-                # reward -= self.action_cost
-            return ts.termination(self.get_observation(), reward=reward)
+            # End of episode case
+            return ts.termination(
+                self.get_observation(), 
+                reward=self.get_reward(action)
+            )
         else:
-            # Continuous rewards recieved at each timestep
-            reward = self.game.get_reward()
-            # if action != 0:
-            #     reward -= self.action_cost
+            # Mid-episode case
             return ts.transition(
                 self.get_observation(), 
-                reward=reward, 
-                # discount=1.0
+                reward=self.get_reward(action)
             )

@@ -180,10 +180,14 @@ class Robot(object):
 
     def turn_left(self):
         self.angle += 5
+        if self.angle >= 360:
+            self.angle = self.angle - 360 # wrap angle back around
         self.handle_boundary_collisions()
 
     def turn_right(self):
         self.angle -= 5
+        if self.angle < 0:
+            self.angle = self.angle + 360 # wrap angle back around
         self.handle_boundary_collisions()
 
     def move_forward(self):
@@ -326,13 +330,13 @@ class SimpleSim(object):
             self.render_black_screen()
 
         self.starting_budget = starting_budget
+        self.budget = self.starting_budget
         self.num_targets = num_targets
-
         self.gameover = False
         self.paused = False
-        self.budget = self.starting_budget
         self.count = 0
         self.run = True
+        self.scoreboard_items = {}
 
         self.robot = Robot(player_fov)
         self.targets = []
@@ -344,6 +348,9 @@ class SimpleSim(object):
         self.avg_confidences = np.zeros((self.num_targets, 1))
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
+
+        self.sw = sw
+        self.sh = sh
 
         self.spawn_targets(self.num_targets)
 
@@ -364,6 +371,7 @@ class SimpleSim(object):
 
         self.current_confidences = np.zeros((self.num_targets, 1))
         self.confidences = np.zeros((self.num_targets, 1))
+        self.avg_confidences = np.zeros((self.num_targets, 1))
         self.count = 0
 
     def spawn_targets(self, num_to_spawn):
@@ -387,7 +395,6 @@ class SimpleSim(object):
             None
         Returns:
             None
-        Week 11
         """
         numSeen = 0
 
@@ -417,6 +424,9 @@ class SimpleSim(object):
         # Add the current timestep confidences to the comprehensive all timesteps list
         np.append(self.confidences, self.current_confidences, axis=1)
 
+    def set_scoreboard(self, scoreboard_items):
+        self.scoreboard_items = scoreboard_items
+
     def redraw_game_window(self):
         """
         Main render function
@@ -439,30 +449,11 @@ class SimpleSim(object):
 
         # Draw the onscreen menu text
         font = pygame.font.SysFont("arial", 30)
+        
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
+        win.blit(budget_text, (25, 25))
+        
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
-        pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
-        score_text = font.render(
-            "Current Confidences: "
-            + str(format(np.sum(self.current_confidences), ".2f")),
-            1,
-            (0, 255, 0),
-        )
-        high_score_text = font.render(
-            "Avg Confidences: " + str(format(np.sum(self.avg_confidences), ".2f")),
-            1,
-            (0, 255, 0),
-        )
-        # high_score_text = font.render('Time Weighted Confidence: ' + str(int(np.sum(self.confidences))), 1, (255, 255, 255))
-
-        if self.paused:
-            win.blit(
-                pause_text,
-                (
-                    sw // 2 - pause_text.get_width() // 2,
-                    sh // 2 - pause_text.get_height() // 2,
-                ),
-            )
         if self.gameover:
             win.blit(
                 play_again_text,
@@ -471,12 +462,37 @@ class SimpleSim(object):
                     sh // 2 - play_again_text.get_height() // 2,
                 ),
             )
-        win.blit(score_text, (sw - score_text.get_width() - 25, 25))
-        win.blit(budget_text, (25, 25))
-        win.blit(
-            high_score_text,
-            (sw - high_score_text.get_width() - 25, 35 + score_text.get_height()),
-        )
+        
+        pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
+        if self.paused:
+            win.blit(
+                pause_text,
+                (
+                    sw // 2 - pause_text.get_width() // 2,
+                    sh // 2 - pause_text.get_height() // 2,
+                ),
+            )
+
+        metric_count = 0
+        for metric_name in self.scoreboard_items.keys():
+            metric_text = font.render(
+                f"{metric_name}: "
+                + str(self.scoreboard_items[metric_name]),
+                1,
+                (0, 255, 0),
+            )
+            win.blit(
+                metric_text,
+                (sw - metric_text.get_width() - 25, (metric_count * 35) + metric_text.get_height()),
+            )
+            metric_count += 1
+
+
+        # win.blit(reward_text, (sw - reward_text.get_width() - 25, 25))
+        # win.blit(
+        #     observation_text,
+        #     (sw - observation_text.get_width() - 25, 35 + reward_text.get_height()),
+        # )
         pygame.display.update()
 
     def render_black_screen(self):
@@ -505,43 +521,42 @@ class SimpleSim(object):
         state_dict["count"] = self.count
         state_dict["budget"] = self.budget
         state_dict["current_confidences"] = self.current_confidences
+        state_dict["confidences"] = self.confidences
+        state_dict["avg_confidences"] = self.avg_confidences
 
         return state_dict
 
-    def get_reward(self):
-        """
-        Get the reward for this step, based on the time-weighted confidences
+    # def get_reward(self):
+    #     """
+    #     Get the reward for this step, based on the time-weighted confidences
 
-        Args:
-            None
-        Returns:
-            (np.ndarray) the avg_confidences vector
-        """
-        # return np.sum(self.avg_confidences)
+    #     Args:
+    #         None
+    #     Returns:
+    #         (np.ndarray) the avg_confidences vector
+    #     """
+    #     # return np.sum(self.avg_confidences)
 
-        # Use the current timestep confidence as the reward
-        return np.sum(self.current_confidences)
+    #     # Use the current timestep confidence as the reward
+    #     return np.sum(self.current_confidences)
 
     def perform_action(self, action):
         """
         Given an action tuple, execute the action in the environment.
-        Action is given as tuple (["F"/"B"/None], ["L"/"R"/None]).
+        Actions 0,1,2,3,4 - None,R,L,F,B
         """
         # Check action format
         if action not in [0, 1, 2, 3, 4]:
             raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
-        # if action == 2:
-        #     action = 3
-
         # Handle agent controls and movement (note action 0 does nothing)
         if action == 1:
             self.robot.turn_right()
         elif action == 2:
-            self.robot.move_forward()
+            self.robot.turn_left()
 
         if action == 3:
-            self.robot.turn_left()
+            self.robot.move_forward()
         elif action == 4:
             self.robot.move_backward()
 
@@ -588,7 +603,7 @@ class SimpleSim(object):
             if action != 0:
                 self.budget -= 4
 
-            # Update the player potisions
+            # Update the player positions
             self.robot.handle_boundary_collisions()
 
             # Get the detection confidences on the environment
@@ -635,20 +650,19 @@ if __name__ == "__main__":
     game = SimpleSim(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV)
 
     state = {}
-    action = (None, None)
-    last_reward = []
+    # last_reward = []
 
     while game.run:
         # Get the games state
         state = game.get_state()
 
-        # Get the reward
-        last_reward = game.get_reward()
+        # # Get the reward
+        # last_reward = game.get_reward()
 
         # Get optional additional user action
         game.perform_action_interactive()
 
         # Step the game engine
-        game.step(None)
+        game.step(0)
 
     pygame.quit()

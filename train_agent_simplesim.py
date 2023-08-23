@@ -193,7 +193,7 @@ def train_agent(
     save_dir,
     resume_checkpoint=False,
     num_iterations=10000,
-    initial_collect_steps=100,
+    # initial_collect_steps=100,
     collect_steps_per_iteration=1,
     replay_buffer_max_length=100000,
     batch_size=64,
@@ -216,15 +216,6 @@ def train_agent(
     rb_observer, iterator, collect_driver, replay_buffer = setup_data_collection(
         py_env, agent, replay_buffer_max_length, collect_steps_per_iteration, batch_size
     )
-
-    # # Evaluate baseline (random policy)
-    # random_baseline_return = evaluate_random_baseline(
-    #     py_env,
-    #     eval_env,
-    #     num_eval_episodes,
-    #     rb_observer,
-    #     initial_collect_steps,
-    # )
 
     # -------------------------- Setup Checkpoint Saver -------------------------- #
 
@@ -304,8 +295,8 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 20000  # @param {type:"integer"}
-    eval_interval = 2000  # @param {type:"integer"}
+    num_iterations = 40000  # @param {type:"integer"}
+    eval_interval = 8000  # @param {type:"integer"}
     num_eval_episodes = 10
 
     # Env
@@ -314,7 +305,7 @@ if __name__ == "__main__":
     PLAYER_FOV = 60
 
     # Agent
-    LEARNING_RATE = 5e-4  # @param {type:"number"}
+    LEARNING_RATE = 1e-3  # @param {type:"number"}
 
     # Saving
     SAVE_PARENT_DIR = "saved_models"  # parent directory where models are saved
@@ -334,9 +325,6 @@ if __name__ == "__main__":
     agent = reload.agents.get_dqn_agent(
         py_env, train_env, verbose=True, learning_rate=LEARNING_RATE
     )
-
-    # Create fresh PPO agent
-    # agent = reload.agents.get_ppo_agent(train_env, verbose=True)
 
     # --------------------------------- Training --------------------------------- #
     # Saving
