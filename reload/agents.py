@@ -33,7 +33,7 @@ from tf_agents.utils import common
 
 
 
-def get_dqn_agent(env, train_env, verbose=False, learning_rate=None):
+def get_dqn_agent(env, train_env, fc_layer_params=(100,50), verbose=False, learning_rate=None):
     """
     Creates a DQN agent for the give env and returns it.
 
@@ -84,7 +84,7 @@ def get_dqn_agent(env, train_env, verbose=False, learning_rate=None):
     -   `info` — auxiliary data, such as log probabilities of actions
     """
 
-    fc_layer_params = (100, 50)
+    # fc_layer_params = (100, 50)
     action_tensor_spec = tensor_spec.from_spec(env.action_spec())
     num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
     print(f"num_actions: {num_actions}")

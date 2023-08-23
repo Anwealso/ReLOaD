@@ -113,6 +113,7 @@ def setup_data_collection(
         env,
         py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
         [rb_observer],
+        # max_episodes=2,
         max_steps=collect_steps_per_iteration,
     )
 
@@ -192,7 +193,7 @@ def train_agent(
     save_dir,
     resume_checkpoint=False,
     num_iterations=10000,
-    initial_collect_steps=100,
+    # initial_collect_steps=100,
     collect_steps_per_iteration=1,
     replay_buffer_max_length=100000,
     batch_size=64,
@@ -216,22 +217,13 @@ def train_agent(
         py_env, agent, replay_buffer_max_length, collect_steps_per_iteration, batch_size
     )
 
-    # # Evaluate baseline (random policy)
-    # random_baseline_return = evaluate_random_baseline(
-    #     py_env,
-    #     eval_env,
-    #     num_eval_episodes,
-    #     rb_observer,
-    #     initial_collect_steps,
-    # )
-
     # -------------------------- Setup Checkpoint Saver -------------------------- #
 
     checkpoint_dir = os.path.join(save_dir, "checkpoint")
     # Checkpointer
     train_checkpointer = common.Checkpointer(
         ckpt_dir=checkpoint_dir,
-        max_to_keep=1,
+        max_to_keep=5,
         agent=agent,
         policy=agent.policy,
         replay_buffer=replay_buffer,
@@ -251,7 +243,7 @@ def train_agent(
     agent.train_step_counter.assign(0)
 
     # Evaluate the agent's policy once before training.
-    avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    avg_return = reload.eval.compute_avg_return(eval_env, agent.policy, 1)
     returns = [avg_return]
 
     # Setup PolicySaver
@@ -267,18 +259,21 @@ def train_agent(
 
         # Sample a batch of data from the buffer and update the agent's network.
         experience, _ = next(iterator)
+
+        # print(f"agent.train(experience): {agent.train(experience)}")
         train_loss = agent.train(experience).loss
 
         step = agent.train_step_counter.numpy()
 
         if step % log_interval == 0:
-            print("step = {0:,}: loss = {1}".format(step, train_loss))
+            print("step = {0:,}: \033[91mloss = {1:,}\033[00m".format(step, train_loss))
+            # print(f"\n            obs = {time_step.observation}")
 
         if step % eval_interval == 0:
             avg_return = reload.eval.compute_avg_return(
                 eval_env, agent.policy, num_eval_episodes
             )
-            print("step = {0:,}: Average Return = {1}".format(step, avg_return))
+            print("step = {0:,}: \033[92mAverage Return = {1}\033[00m, Average Return / Step = {2}".format(step, avg_return, avg_return/2000))
             returns.append(avg_return)
 
             # Save a checkpoint
@@ -288,7 +283,7 @@ def train_agent(
     print(f"Saving policy ...")
     policy_dir = os.path.join(save_dir, "policy")
     tf_policy_saver.save(policy_dir)
-    print(f"Trained policy saved to: {policy_dir}")
+    print(f"\nTrained policy saved to: {policy_dir}\n")
 
     return returns
 
@@ -300,12 +295,13 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 500000  # @param {type:"integer"}
-    eval_interval = 5000  # @param {type:"integer"}
+    num_iterations = 40000  # @param {type:"integer"}
+    eval_interval = 8000  # @param {type:"integer"}
+    num_eval_episodes = 10
 
     # Env
-    STARTING_BUDGET = 400
-    NUM_TARGETS = 1
+    STARTING_BUDGET = 2000
+    NUM_TARGETS = 3
     PLAYER_FOV = 60
 
     # Agent
@@ -321,17 +317,14 @@ if __name__ == "__main__":
     train_env, eval_env = create_envs(py_env)
 
     # View Env Specs
-    # reload.utils.show_env_summary(py_env)
+    reload.utils.show_env_summary(py_env)
 
     # ----------------------------------- Agent ---------------------------------- #
 
     # Create fresh DQN agent
     agent = reload.agents.get_dqn_agent(
-        py_env, train_env, verbose=False, learning_rate=LEARNING_RATE
+        py_env, train_env, verbose=True, learning_rate=LEARNING_RATE
     )
-
-    # Create fresh PPO agent
-    # agent = reload.agents.get_ppo_agent(train_env, verbose=True)
 
     # --------------------------------- Training --------------------------------- #
     # Saving
@@ -348,7 +341,8 @@ if __name__ == "__main__":
         save_dir,
         num_iterations=num_iterations,
         eval_interval=eval_interval,
-        resume_checkpoint = True
+        num_eval_episodes = num_eval_episodes,
+        resume_checkpoint = False
     )
     # --------------------------- Visualise Performance -------------------------- #
 
