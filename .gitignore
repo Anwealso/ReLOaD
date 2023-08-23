@@ -7,3 +7,4 @@ __pycache__/
 *$py.class
 *.png
 saved_models*
+very_special_saved_models*
