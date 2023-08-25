@@ -93,7 +93,7 @@ import reload.utils
 import reload.eval
 import reload.agents
 from reload.simplesim.gym import SimpleSimGym
-import datetime
+from datetime import datetime
 import os
 
 # Set up a virtual display for rendering OpenAI gym environments.
@@ -106,7 +106,7 @@ tf.version.VERSION
 #                                Hyperparameters                               #
 # ---------------------------------------------------------------------------- #
 
-num_iterations = 60000  # @param {type:"integer"}
+num_iterations = 40000  # @param {type:"integer"}
 
 initial_collect_steps = 100  # @param {type:"integer"}
 collect_steps_per_iteration = 1  # @param {type:"integer"}
@@ -116,8 +116,8 @@ batch_size = 64  # @param {type:"integer"}
 learning_rate = 1e-3  # @param {type:"number"}
 log_interval = 200  # @param {type:"integer"}
 
-num_eval_episodes = 10  # @param {type:"integer"}
-eval_interval = num_iterations / 10 # 40000  # @param {type:"integer"}
+num_eval_episodes = 5  # @param {type:"integer"}
+eval_interval = num_iterations / 20 # 40000  # @param {type:"integer"}
 
 
 # ---------------------------------------------------------------------------- #

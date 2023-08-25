@@ -295,9 +295,9 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
     num_iterations = 40000  # @param {type:"integer"}
-    eval_interval = num_iterations / 10  # @param {type:"integer"}
+    eval_interval = num_iterations / 20  # @param {type:"integer"}
     log_interval = 200  # @param {type:"integer"}
-    num_eval_episodes = 10
+    num_eval_episodes = 5
 
     # Env
     STARTING_BUDGET = 200
