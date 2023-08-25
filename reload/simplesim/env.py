@@ -22,11 +22,11 @@ import os
 # ---------------------------------------------------------------------------- #
 pygame.init()
 
-sw = 1000
-sh = 1000
+sw = 500 # was 1k
+sh = 500 # was 1k
 
-player_width = 100
-player_height = 100
+player_width = 50 # was 100
+player_height = 50 # was 100
 
 sprites_dir = os.path.dirname(__file__) + "/sprites/"
 
@@ -553,10 +553,10 @@ class SimpleSim(object):
         if action == 1:
             self.robot.turn_right()
         elif action == 2:
-            self.robot.turn_left()
+            self.robot.move_forward()
 
         if action == 3:
-            self.robot.move_forward()
+            self.robot.turn_left()
         elif action == 4:
             self.robot.move_backward()
 
@@ -599,9 +599,6 @@ class SimpleSim(object):
 
             # Decrement the budget over time
             self.budget -= 1
-            # Decrement the budget due to movement
-            if action != 0:
-                self.budget -= 4
 
             # Update the player positions
             self.robot.handle_boundary_collisions()
