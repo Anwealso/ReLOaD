@@ -82,6 +82,7 @@ from tf_agents.metrics import tf_metrics
 from tf_agents.networks import sequential
 from tf_agents.policies import py_tf_eager_policy
 from tf_agents.policies import random_tf_policy
+from tf_agents.policies import policy_saver
 from tf_agents.replay_buffers import reverb_replay_buffer
 from tf_agents.replay_buffers import reverb_utils
 from tf_agents.trajectories import trajectory
@@ -92,7 +93,8 @@ import reload.utils
 import reload.eval
 import reload.agents
 from reload.simplesim.gym import SimpleSimGym
-
+import datetime
+import os
 
 # Set up a virtual display for rendering OpenAI gym environments.
 # display = pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
@@ -104,7 +106,7 @@ tf.version.VERSION
 #                                Hyperparameters                               #
 # ---------------------------------------------------------------------------- #
 
-num_iterations = 40000  # @param {type:"integer"}
+num_iterations = 60000  # @param {type:"integer"}
 
 initial_collect_steps = 100  # @param {type:"integer"}
 collect_steps_per_iteration = 1  # @param {type:"integer"}
@@ -440,6 +442,9 @@ agent.train_step_counter.assign(0)
 avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
 returns = [avg_return]
 
+# Setup PolicySaver
+tf_policy_saver = policy_saver.PolicySaver(agent.policy)
+
 # Reset the environment.
 time_step = train_py_env.reset()
 
@@ -469,6 +474,22 @@ for _ in range(num_iterations):
         # print("step = {0}: Average Return = {1}".format(step, avg_return))
         print("step = {0:,}: \033[92mAverage Return = {1}\033[00m, Average Return / Step = {2}".format(step, avg_return, avg_return/STARTING_BUDGET))
         returns.append(avg_return)
+
+
+# Saving
+SAVE_PARENT_DIR = "saved_models"  # parent directory where models are saved
+env_name = env.__class__.__name__
+agent_name = "TUTE_" + agent.__class__.__name__
+date_str = datetime.today().strftime("%Y_%m_%dT%H:%M")
+model_name = f"{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"
+save_dir = f"{SAVE_PARENT_DIR}/{model_name}"  # dirs to save checkpoints
+
+# Save the finished policy as a SavedPolicy
+print(f"Saving policy ...")
+policy_dir = os.path.join(save_dir, "policy")
+tf_policy_saver.save(policy_dir)
+print(f"\nTrained policy saved to: {policy_dir}\n")
+
 
 """## Visualization
 

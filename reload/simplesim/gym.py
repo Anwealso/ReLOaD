@@ -12,6 +12,7 @@ import numpy as np
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
+import math
 
 
 class SimpleSimGym(py_environment.PyEnvironment):
@@ -84,7 +85,8 @@ class SimpleSimGym(py_environment.PyEnvironment):
         Agent will learn to maximise this instantaneous reward at each time 
         step.
         """
-        reward = (self.game.robot.x + self.game.robot.y)
+        norm_reward = ((self.game.robot.x + self.game.robot.y) / (self.game.sw + self.game.sh))
+        reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)})
 
         # reward = np.sum(self.game.current_confidences)
         # if action != 0: # if action is not do-nothing

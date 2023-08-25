@@ -197,7 +197,7 @@ def train_agent(
     collect_steps_per_iteration=1,
     replay_buffer_max_length=100000,
     batch_size=64,
-    # log_interval=200,
+    log_interval=200,
     num_eval_episodes=10,
     eval_interval=5000,
 ):
@@ -252,7 +252,6 @@ def train_agent(
     # Reset the environment.
     time_step = py_env.reset()
 
-    log_interval = eval_interval // 10
     for _ in range(num_iterations):
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
@@ -296,12 +295,13 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
     num_iterations = 40000  # @param {type:"integer"}
-    eval_interval = 8000  # @param {type:"integer"}
+    eval_interval = num_iterations / 10  # @param {type:"integer"}
+    log_interval = 200  # @param {type:"integer"}
     num_eval_episodes = 10
 
     # Env
-    STARTING_BUDGET = 2000
-    NUM_TARGETS = 3
+    STARTING_BUDGET = 200
+    NUM_TARGETS = 1
     PLAYER_FOV = 60
 
     # Agent
@@ -329,7 +329,8 @@ if __name__ == "__main__":
     # --------------------------------- Training --------------------------------- #
     # Saving
     env_name = py_env.__class__.__name__
-    agent_name = agent.__class__.__name__
+    # agent_name = agent.__class__.__name__
+    agent_name = "ALEX_" + agent.__class__.__name__
     date_str = datetime.today().strftime("%Y_%m_%dT%H:%M")
     model_name = f"{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"
     save_dir = f"{SAVE_PARENT_DIR}/{model_name}"  # dirs to save checkpoints
@@ -341,6 +342,7 @@ if __name__ == "__main__":
         save_dir,
         num_iterations=num_iterations,
         eval_interval=eval_interval,
+        log_interval = log_interval,
         num_eval_episodes = num_eval_episodes,
         resume_checkpoint = False
     )
