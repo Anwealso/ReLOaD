@@ -482,11 +482,11 @@ One iteration of `Cartpole-v0` consists of 200 time steps. The environment gives
 
 # @test {"skip": true}
 
-iterations = range(0, num_iterations + 1, eval_interval)
-plt.plot(iterations, returns)
-plt.ylabel("Average Return")
-plt.xlabel("Iterations")
-plt.ylim(top=250)
+# iterations = range(0, num_iterations + 1, eval_interval)
+# plt.plot(iterations, returns)
+# plt.ylabel("Average Return")
+# plt.xlabel("Iterations")
+# plt.ylim(top=250)
 
 
 # Visualize the training progress

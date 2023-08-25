@@ -27,7 +27,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
 
         # Actions: 0, 1, 2, 3 for L, R, F, B
         self._action_spec = array_spec.BoundedArraySpec(
-            shape=(), dtype=np.int32, minimum=0, maximum=2, name="action"
+            shape=(), dtype=np.int32, minimum=0, maximum=3, name="action"
         )
 
         # Observations (visible state):
