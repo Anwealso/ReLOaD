@@ -28,7 +28,6 @@ from datetime import datetime
 
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.drivers import py_driver
-from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.environments import tf_py_environment
 from tf_agents.networks import sequential
 from tf_agents.policies import py_tf_eager_policy
@@ -42,7 +41,6 @@ from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents import PPOAgent
 from tf_agents.networks import actor_distribution_network
 from tf_agents.networks import value_network
-from tf_agents.metrics import tf_metrics
 
 
 # ---------------------------------------------------------------------------- #
@@ -74,10 +72,8 @@ def setup_data_collection(
     env,
     agent,
     replay_buffer_max_length,
-    collect_episodes_per_epoch,
-    # collect_steps_per_iteration,
+    collect_steps_per_iteration,
     batch_size,
-    train_metrics,
     verbose=False,
 ):
     """
@@ -113,20 +109,23 @@ def setup_data_collection(
     )
 
     # Create a driver to collect experience.
-    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
+    collect_driver = py_driver.PyDriver(
         env,
         py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
-        observers=[rb_observer] + train_metrics,
-        num_episodes=collect_episodes_per_epoch,
-        # max_steps=collect_steps_per_iteration,
+        [rb_observer],
+        # max_episodes=2,
+        max_steps=collect_steps_per_iteration,
     )
 
     collect_driver.run(env.reset())
 
-    """
-    The replay buffer is now a collection of Trajectories.
+    """The replay buffer is now a collection of Trajectories."""
 
-    The agent needs access to the replay buffer. This is provided by creating an iterable `tf.data.Dataset` pipeline which will feed data to the agent.
+    # For the curious:
+    # Uncomment to peel one of these off and inspect it.
+    # iter(replay_buffer.as_dataset()).next()
+
+    """The agent needs access to the replay buffer. This is provided by creating an iterable `tf.data.Dataset` pipeline which will feed data to the agent.
 
     Each row of the replay buffer only stores a single observation step. But since the DQN Agent needs both the current and next observation to compute the loss, the dataset pipeline will sample two adjacent rows for each item in the batch (`num_steps=2`).
 
@@ -193,11 +192,9 @@ def train_agent(
     eval_env,
     save_dir,
     resume_checkpoint=False,
-    # num_iterations=10000,
+    num_iterations=10000,
     # initial_collect_steps=100,
-    # collect_steps_per_iteration=1,
-    num_epochs=50,
-    collect_episodes_per_epoch=5,
+    collect_steps_per_iteration=1,
     replay_buffer_max_length=100000,
     batch_size=64,
     log_interval=200,
@@ -214,24 +211,10 @@ def train_agent(
     This example also periodicially evaluates the policy and prints the current score.
     """
 
-    # --------------------------- Setup Metrics Logging -------------------------- #
-
-    train_dir = os.path.join(save_dir, 'train')    
-    train_summary_writer = tf.summary.create_file_writer(train_dir, flush_millis=10000)
-    train_summary_writer.set_as_default()    
-    train_metrics = [
-        tf_metrics.NumberOfEpisodes(),
-        tf_metrics.EnvironmentSteps(),
-        tf_metrics.AverageReturnMetric(buffer_size=collect_episodes_per_epoch),
-        tf_metrics.AverageEpisodeLengthMetric(buffer_size=collect_episodes_per_epoch),
-        # tf_metrics.AverageReturnMetric(buffer_size=collect_steps_per_iteration),
-        # tf_metrics.AverageEpisodeLengthMetric(buffer_size=collect_steps_per_iteration),
-    ]
-
     # ------------------------------- Replay Buffer ------------------------------ #
 
     rb_observer, iterator, collect_driver, replay_buffer = setup_data_collection(
-        py_env, agent, replay_buffer_max_length, collect_episodes_per_epoch, batch_size, train_metrics
+        py_env, agent, replay_buffer_max_length, collect_steps_per_iteration, batch_size
     )
 
     # -------------------------- Setup Checkpoint Saver -------------------------- #
@@ -269,7 +252,7 @@ def train_agent(
     # Reset the environment.
     time_step = py_env.reset()
 
-    for _ in range(num_epochs):
+    for _ in range(num_iterations):
         # Collect a few steps and save to the replay buffer.
         time_step, _ = collect_driver.run(time_step)
 
@@ -295,10 +278,6 @@ def train_agent(
             # Save a checkpoint
             train_checkpointer.save(agent.train_step_counter)
 
-        # Log Metrics
-        for train_metric in train_metrics:
-            train_metric.tf_summaries(train_step=agent.train_step_counter, step_metrics=train_metrics[:2])
-
     # Save the finished policy as a SavedPolicy
     print(f"Saving policy ...")
     policy_dir = os.path.join(save_dir, "policy")
@@ -315,9 +294,8 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    # num_iterations = 40000  # @param {type:"integer"}
-    num_epochs = 10
-    eval_interval = num_epochs // 3  # @param {type:"integer"}
+    num_iterations = 40000  # @param {type:"integer"}
+    eval_interval = num_iterations / 20  # @param {type:"integer"}
     log_interval = 200  # @param {type:"integer"}
     num_eval_episodes = 5
 
@@ -354,7 +332,7 @@ if __name__ == "__main__":
     # agent_name = agent.__class__.__name__
     agent_name = "ALEX_" + agent.__class__.__name__
     date_str = datetime.today().strftime("%Y_%m_%dT%H:%M")
-    model_name = f"{env_name}-{agent_name}-e{num_epochs}k-{date_str}"
+    model_name = f"{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"
     save_dir = f"{SAVE_PARENT_DIR}/{model_name}"  # dirs to save checkpoints
 
     returns = train_agent(
@@ -362,8 +340,7 @@ if __name__ == "__main__":
         py_env,
         eval_env,
         save_dir,
-        # num_iterations=num_iterations,
-        num_epochs=num_epochs,
+        num_iterations=num_iterations,
         eval_interval=eval_interval,
         log_interval = log_interval,
         num_eval_episodes = num_eval_episodes,
@@ -372,5 +349,4 @@ if __name__ == "__main__":
     # --------------------------- Visualise Performance -------------------------- #
 
     # Visualize the training progress
-    # reload.utils.show_training_graph(returns, num_iterations, model_name)
-    reload.utils.show_training_graph(returns, num_epochs, model_name)
+    reload.utils.show_training_graph(returns, num_iterations, model_name)

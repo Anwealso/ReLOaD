@@ -9,9 +9,8 @@
 
 from reload.simplesim.env import SimpleSim
 import numpy as np
-import tensorflow as tf
 from tf_agents.environments import py_environment
-import tf_agents.specs
+from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 import math
 
@@ -28,35 +27,24 @@ class SimpleSimGym(py_environment.PyEnvironment):
         )
 
         # Actions: 0, 1, 2, 3 for L, R, F, B
-        self._action_spec = tf_agents.specs.BoundedTensorSpec(
+        self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=3, name="action"
         )
 
         # Observations (visible state):
         observation_shape = np.shape(self.get_observation())[0]
-        self._observation_spec = tf_agents.specs.TensorSpec(
+        self._observation_spec = array_spec.BoundedArraySpec(
             shape=(observation_shape,),
             dtype=np.float32,
-            # minimum=0,
+            minimum=0,
             name="observation",
         )
-
-        self._reward_spec = tf_agents.specs.TensorSpec(
-            shape=(1,1),
-            dtype=np.float32,
-            # minimum=0,
-            name="reward",
-        )
-
 
     def action_spec(self):
         return self._action_spec
 
     def observation_spec(self):
         return self._observation_spec
-
-    def reward_spec(self):
-        return self._reward_spec
 
     def get_observation(self):
         # target_rel_positions = []
@@ -104,11 +92,6 @@ class SimpleSimGym(py_environment.PyEnvironment):
         # if action != 0: # if action is not do-nothing
         #     reward -= 0.5
 
-        reward = np.array(reward)
-        reward = np.expand_dims(reward, axis=0)
-        reward = np.expand_dims(reward, axis=1)
-        reward = tf.convert_to_tensor(reward, dtype=np.float32)
-
         return reward
 
     def _reset(self):
@@ -128,8 +111,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
 
         # Show info on scoreboard
         # self.game.set_scoreboard({"Reward": format(self.get_reward(action), ".2f")})
-        # print(self.get_reward(action))
-        self.game.set_scoreboard({"Reward": format(int(self.get_reward(action)[0][0]), ".2f"), "Observation": self.get_observation()})
+        self.game.set_scoreboard({"Reward": format(self.get_reward(action), ".2f"), "Observation": self.get_observation()})
 
         # Return reward
         if self.game.gameover:
