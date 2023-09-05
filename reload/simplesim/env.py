@@ -28,7 +28,10 @@ sh = 1000 # was 1k
 player_width = 50 # was 100
 player_height = 50 # was 100
 
-sprites_dir = os.path.dirname(__file__) + "/sprites/"
+if os.path.dirname(__file__) != "":
+    sprites_dir = os.path.dirname(__file__) + "/sprites/"
+else:
+    sprites_dir = "sprites/"
 
 bg = pygame.transform.scale(pygame.image.load(sprites_dir + "roombg.jpg"), (sw, sh))
 player_robot = pygame.transform.scale(
