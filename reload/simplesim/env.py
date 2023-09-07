@@ -22,8 +22,8 @@ import os
 # ---------------------------------------------------------------------------- #
 pygame.init()
 
-sw = 500 # was 1k
-sh = 500 # was 1k
+sw = 1000 # was 1k
+sh = 1000 # was 1k
 
 player_width = 50 # was 100
 player_height = 50 # was 100
@@ -50,8 +50,7 @@ fov_color = (0, 0, 255, 70)
 fov_line_length = 500
 fov_line_thickness = 10
 
-pygame.display.set_caption("ReLOaD Simulator")
-win = pygame.display.set_mode((sw, sh))
+# win = None
 clock = pygame.time.Clock()
 
 # ---------------------------------------------------------------------------- #
@@ -74,8 +73,7 @@ class Target(object):
             random.randrange(0 + self.w, sw - self.w),
             random.randrange(0 + self.h, sh - self.h),
         )
-        # self.x, self.y = self.ranPoint
-        self.x, self.y = (0, 0)
+        self.x, self.y = self.ranPoint
 
         # Set the orientation
         self.angle = 90  # unit circle format
@@ -331,6 +329,9 @@ class SimpleSim(object):
         """
         self.visualize = visualize
         if self.visualize == False:
+            pygame.display.set_caption("ReLOaD Simulator")
+            global win
+            win = pygame.display.set_mode((sw, sh))
             self.render_black_screen()
 
         self.starting_budget = starting_budget

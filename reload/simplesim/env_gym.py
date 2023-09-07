@@ -1,5 +1,5 @@
 # Library Imports
-from ReLOaD.reload.simplesim.env import SimpleSim
+from reload.simplesim.env import SimpleSim
 import math
 import gym
 from gym import spaces
@@ -76,14 +76,16 @@ class SimpleSimGym(gym.Env):
             it achieved in the last time step
           - Agent receives negative reward for moving
         
-        Agent will learn to maximise this instantaneous reward at each time 
+        Agent will learn to maximise this instantaneous reward at each time
         step.
 
         Current reward is a function of how close the robot is to the target
         """
-        dS = (self.game.targets[0].x - self.game.robot.x) + (self.game.targets[0].y - self.game.robot.y)
-        norm_reward = dS / (self.game.sw + self.game.sh)
-        reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)})
+        dS = math.sqrt((self.game.targets[0].x - self.game.robot.x)**2 + (self.game.targets[0].y - self.game.robot.y)**2)
+        farness = abs(dS) / math.sqrt(self.game.sw**2 + self.game.sh**2) # dS as a fraction of max (scaled from 0 to 1)
+        norm_reward = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
+        
+        reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
 
         # reward = np.sum(self.game.current_confidences)
         # if action != 0: # if action is not do-nothing
@@ -109,7 +111,7 @@ class SimpleSimGym(gym.Env):
         if action is not None: # First step without action, called from reset()
             # Step the game
             self.game.step(action)
-            # self.game.perform_action_interactive()
+            self.game.perform_action_interactive()
 
             # Show info on scoreboard
             # self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f")})
