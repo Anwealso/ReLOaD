@@ -13,7 +13,7 @@
 #                                    IMPORTS                                   #
 # ---------------------------------------------------------------------------- #
 
-from reload.simplesim.gym import SimpleSimGym
+from reload.simplesim.env_gym import SimpleSimGym
 import reload.utils
 import reload.eval
 import reload.agents
