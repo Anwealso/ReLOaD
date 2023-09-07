@@ -7,7 +7,7 @@
 # Alex Nichoson
 # 27/05/2023
 
-from reload.simplesim.env import SimpleSim
+from ReLOaD.reload.simplesim.env import SimpleSim
 import numpy as np
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
