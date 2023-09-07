@@ -28,7 +28,7 @@ class SimpleSimGym(py_environment.PyEnvironment):
 
         # Actions: 0, 1, 2, 3 for L, R, F, B
         self._action_spec = array_spec.BoundedArraySpec(
-            shape=(), dtype=np.int32, minimum=0, maximum=3, name="action"
+            shape=(), dtype=np.int32, minimum=0, maximum=4, name="action"
         )
 
         # Observations (visible state):
@@ -47,23 +47,24 @@ class SimpleSimGym(py_environment.PyEnvironment):
         return self._observation_spec
 
     def get_observation(self):
-        target_rel_positions = []
+        target_positions = []
         for target in self.game.targets:
             rel_x = target.x - self.game.robot.x 
-            norm_rel_x = rel_x / self.game.sw # normalise 
-            target_rel_positions.append(norm_rel_x)
+            target_positions.append(rel_x)
             rel_y = target.y - self.game.robot.y
-            norm_rel_y = rel_y / self.game.sh # normalise
-            target_rel_positions.append(norm_rel_y)
+            target_positions.append(rel_y)
+        target_positions = np.transpose(np.array([target_positions], dtype=np.float32))
+
+        robot_pose = np.transpose(np.array([[self.game.robot.x, self.game.robot.y, self.game.robot.angle]], dtype=np.float32))
 
         observation = np.squeeze(
             np.concatenate(
                 [
+                    target_positions, # target relative positions from robot
+                    robot_pose, # robot pose intformation
+                    self.game.current_confidences, # confidences at current timestep
                     # np.array([[self.game.budget / self.game.starting_budget]], dtype=np.float32), # fraction of bugdet remaining
                     # np.float32(self.game.avg_confidences), # average confidences
-                    np.float32(self.game.current_confidences), # confidences at current timestep
-                    np.transpose(np.array([target_rel_positions], dtype=np.float32)), # target relative positions from robot
-                    np.transpose(np.array([[self.game.robot.x, self.game.robot.y, self.game.robot.angle]], dtype=np.float32)), # target relative positions from robot
                 ],
                 axis=0,
             ),
@@ -85,15 +86,20 @@ class SimpleSimGym(py_environment.PyEnvironment):
         Agent will learn to maximise this instantaneous reward at each time 
         step.
         """
-        # norm_reward = ((self.game.robot.x + self.game.robot.y) / (self.game.sw + self.game.sh))
 
-        norm_reward = np.sum(self.game.current_confidences) / (self.game.current_confidences.shape[0]*self.game.current_confidences.shape[1])
+        # Distance to bottom left reward
+        # norm_reward = (self.game.robot.x + self.game.robot.y) / (self.game.sw + self.game.sh)
 
-        # reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)})
-        reward = 100 * norm_reward # (y=100 e^{5(x-1)})
+        # Distance to target reward
+        norm_reward = ((self.game.sw + self.game.sh) - (abs(self.game.targets[0].x - self.game.robot.x) + abs(self.game.targets[0].y - self.game.robot.y))) / (self.game.sw + self.game.sh)
+        
+        # Confidence based reward
+        # norm_reward = np.sum(self.game.current_confidences) / (self.game.current_confidences.shape[0]*self.game.current_confidences.shape[1])
 
-        if reward !=0 and action != 0: # if target is in sight and action is not do-nothing
-            reward = 0
+        reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)})
+
+        if action != 0: # if target is in sight and action is not do-nothing
+            reward = reward/2
 
         return reward
 

@@ -22,8 +22,8 @@ import os
 # ---------------------------------------------------------------------------- #
 pygame.init()
 
-sw = 1000 # was 1k
-sh = 1000 # was 1k
+sw = 500 # was 1k
+sh = 500 # was 1k
 
 player_width = 50 # was 100
 player_height = 50 # was 100
@@ -74,7 +74,8 @@ class Target(object):
             random.randrange(0 + self.w, sw - self.w),
             random.randrange(0 + self.h, sh - self.h),
         )
-        self.x, self.y = self.ranPoint
+        # self.x, self.y = self.ranPoint
+        self.x, self.y = (0, 0)
 
         # Set the orientation
         self.angle = 90  # unit circle format
@@ -344,11 +345,11 @@ class SimpleSim(object):
         self.robot = Robot(player_fov)
         self.targets = []
         # 1D array of confidences on each object at current timestep
-        self.current_confidences = np.zeros((self.num_targets, 1))
+        self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         # 2D array of confidences on each object at each timestep
-        self.confidences = np.zeros((self.num_targets, 1))
+        self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         # 1D array of confidences on each object avg over all past timesteps
-        self.avg_confidences = np.zeros((self.num_targets, 1))
+        self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
@@ -372,9 +373,9 @@ class SimpleSim(object):
         self.spawn_targets(self.num_targets)
         self.robot.reset()
 
-        self.current_confidences = np.zeros((self.num_targets, 1))
-        self.confidences = np.zeros((self.num_targets, 1))
-        self.avg_confidences = np.zeros((self.num_targets, 1))
+        self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+        self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+        self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.count = 0
 
     def spawn_targets(self, num_to_spawn):

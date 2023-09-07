@@ -294,7 +294,7 @@ def train_agent(
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Trainer
-    num_iterations = 40000  # @param {type:"integer"}
+    num_iterations = 200000  # @param {type:"integer"}
     eval_interval = num_iterations / 20  # @param {type:"integer"}
     log_interval = 200  # @param {type:"integer"}
     num_eval_episodes = 5
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     PLAYER_FOV = 60
 
     # Agent
-    LEARNING_RATE = 1e-3  # @param {type:"number"}
+    LEARNING_RATE = 1e-6  # @param {type:"number"}
 
     # Saving
     SAVE_PARENT_DIR = "saved_models"  # parent directory where models are saved
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     # Saving
     env_name = py_env.__class__.__name__
     # agent_name = agent.__class__.__name__
-    agent_name = "ALEX_" + agent.__class__.__name__
+    agent_name = agent.__class__.__name__
     date_str = datetime.today().strftime("%Y_%m_%dT%H:%M")
     model_name = f"{env_name}-{agent_name}-{num_iterations//1000}k-{date_str}"
     save_dir = f"{SAVE_PARENT_DIR}/{model_name}"  # dirs to save checkpoints
