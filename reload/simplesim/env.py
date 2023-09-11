@@ -22,8 +22,8 @@ import os
 # ---------------------------------------------------------------------------- #
 pygame.init()
 
-sw = 1000 # was 1k
-sh = 1000 # was 1k
+sw = 500 # was 1k
+sh = 500 # was 1k
 
 player_width = 50 # was 100
 player_height = 50 # was 100

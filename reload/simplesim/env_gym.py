@@ -21,30 +21,26 @@ class SimpleSimGym(gym.Env):
             starting_budget, num_targets, player_fov, visualize=visualize
         )
 
-        # # Actions: 0, 1, 2, 3 for L, R, F, B
-        # self._action_spec = array_spec.BoundedArraySpec(
-        #     shape=(), dtype=np.int32, minimum=0, maximum=3, name="action"
-        # )
+        # Actions: 0, 1, 2, 3 for L, R, F, B
         self.action_space = spaces.Discrete(5) # actions are: do nothing, R, F, L, B
 
-        # # Observations (visible state):
-        # observation_shape = np.shape(self._get_obs())[0]
-        # self._observation_spec = array_spec.BoundedArraySpec(
-        #     shape=(observation_shape,),
-        #     dtype=np.float32,
-        #     minimum=0,
-        #     name="observation",
-        # )
-        # Observations are dictionaries with the agent's and the targets' locations.
+        # Observations (visible state):
         self.observation_space = spaces.Dict(
             {
+                # "agent": spaces.Box(
+                #     np.array([0, 0, 0]).astype(np.float32),
+                #     np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
+                # ), # agent x,y,angle
                 "agent": spaces.Box(
-                    np.array([0, 0, 0]).astype(np.float32),
-                    np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
-                ), # agent x,y,angle
+                    np.array([0]).astype(np.float32),
+                    np.array([359]).astype(np.float32),
+                ), # agent angle
                 "targets": spaces.Box(
                     low=0, high=self.game.sw, shape=(2, num_targets), dtype=np.float32
                 ), # target relative positions (x,y)
+                # "current_conf": spaces.Box(
+                #     low=0, high=1, shape=(num_targets, 1), dtype=np.float32
+                # ), # confidences on each object
             }
         )
 
@@ -61,11 +57,11 @@ class SimpleSimGym(gym.Env):
             target_rel_positions[1][i] = dy
 
         # Agent x,y,angle
-        agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
+        # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
+        agent = np.array([self.game.robot.angle]).astype(np.float32)
 
-        # Print the observation
-        # print(observation, end='\r')
-        # print("                                                  ", end='\r')
+        # Current object confidences
+        # conf = self.game.current_confidences
         
         return {"agent": agent, "targets": target_rel_positions}
 
@@ -85,11 +81,17 @@ class SimpleSimGym(gym.Env):
         farness = abs(dS) / math.sqrt(self.game.sw**2 + self.game.sh**2) # dS as a fraction of max (scaled from 0 to 1)
         norm_reward = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
         
-        reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
+        # 100 if closeness is > 95%, zero else wise reward 
+        reward = 0
+        if norm_reward > 0.9:
+            reward = 100
 
-        # reward = np.sum(self.game.current_confidences)
-        if action != 0: # if action is not do-nothing
-            reward = reward / 2
+        # # Exponentially scaled closeness reward
+        # reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
+
+        # # reward = np.sum(self.game.current_confidences)
+        # if action != 0: # if action is not do-nothing
+        #     reward = reward / 2
 
         return reward
 
