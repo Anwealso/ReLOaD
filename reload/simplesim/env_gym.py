@@ -88,8 +88,8 @@ class SimpleSimGym(gym.Env):
         reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
 
         # reward = np.sum(self.game.current_confidences)
-        # if action != 0: # if action is not do-nothing
-        #     reward -= 0.5
+        if action != 0: # if action is not do-nothing
+            reward = reward / 2
 
         return reward
 
