@@ -70,10 +70,13 @@ class Target(object):
 
         # Set the initial position
         self.ranPoint = (
-            random.randrange(0 + self.w, sw - self.w),
-            random.randrange(0 + self.h, sh - self.h),
+            random.randrange(0 + self.w/2, sw - self.w/2),
+            random.randrange(0 + self.h/2, sh - self.h/2),
         )
-        self.x, self.y = self.ranPoint
+        # self.x, self.y = self.ranPoint
+        # self.x, self.y = 0 + self.w/2, 0 + self.h/2 # root keeps going top-right
+        self.x, self.y = 0 + self.w/2, sh - self.h/2 # robot keeps going middle-right
+        self.x, self.y = 0 + self.w/2, sh - self.h/2
 
         # Set the orientation
         self.angle = 90  # unit circle format
@@ -181,27 +184,35 @@ class Robot(object):
         win.blit(rotated_fov_surf, rotated_fov_rect)
 
     def turn_left(self):
-        self.angle += 5
-        if self.angle >= 360:
-            self.angle = self.angle - 360 # wrap angle back around
+        # self.angle += 5
+        # if self.angle >= 360:
+        #     self.angle = self.angle - 360 # wrap angle back around
+
+        self.x -= 10
         self.handle_boundary_collisions()
 
     def turn_right(self):
-        self.angle -= 5
-        if self.angle < 0:
-            self.angle = self.angle + 360 # wrap angle back around
+        # self.angle -= 5
+        # if self.angle < 0:
+        #     self.angle = self.angle + 360 # wrap angle back around
+
+        self.x += 10
         self.handle_boundary_collisions()
 
     def move_forward(self):
-        self.x += math.cos(math.radians(self.angle)) * 6
-        self.y -= math.sin(math.radians(self.angle)) * 6
-        self.trail.append((self.x, self.y))
+        # self.x += math.cos(math.radians(self.angle)) * 6
+        # self.y -= math.sin(math.radians(self.angle)) * 6
+        # self.trail.append((self.x, self.y))
+
+        self.y -= 10
         self.handle_boundary_collisions()
 
     def move_backward(self):
-        self.x -= math.cos(math.radians(self.angle)) * 6
-        self.y += math.sin(math.radians(self.angle)) * 6
-        self.trail.append((self.x, self.y))
+        # self.x -= math.cos(math.radians(self.angle)) * 6
+        # self.y += math.sin(math.radians(self.angle)) * 6
+        # self.trail.append((self.x, self.y))
+
+        self.y += 10
         self.handle_boundary_collisions()
 
     def handle_boundary_collisions(self):
@@ -389,8 +400,9 @@ class SimpleSim(object):
             None
         """
         for _ in range(0, num_to_spawn):
-            ran = random.choice([1, 1, 1, 2, 2, 3])
-            self.targets.append(Target(ran))
+            # ran = random.choice([1, 1, 1, 2, 2, 3])
+            # self.targets.append(Target(ran))
+            self.targets.append(Target(1))
 
     def detect_targets(self):
         """

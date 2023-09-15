@@ -1,5 +1,6 @@
 # Library Imports
-from env import SimpleSim
+from reload.simplesim.env import SimpleSim
+# from env import SimpleSim
 import math
 import numpy as np
 import time
@@ -53,7 +54,7 @@ class SimpleSimGym(gym.Env):
         # Target relative positions (dx,dy)
         target_rel_positions = np.zeros(shape=(2, len(self.game.targets)), dtype=np.float32)
         for i, target in enumerate(self.game.targets):
-            dx = target.x - self.game.robot.x 
+            dx = self.game.robot.x - target.x 
             dy = target.y - self.game.robot.y
             target_rel_positions[0][i] = dx
             target_rel_positions[1][i] = dy
@@ -121,7 +122,7 @@ class SimpleSimGym(gym.Env):
             # Show info on scoreboard
             # self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f")})
             self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f"), "Observation": self._get_obs()})
-            print(f"Reward: {format(self._get_reward(action), '.2f')}, Observation: {self._get_obs()}")
+            print(f"Reward: {format(self._get_reward(action), '.2f')}, Observation: {self._get_obs()}\n")
 
         reward = 0
         terminated = False # if we reached the goal
@@ -153,12 +154,14 @@ class SimpleSimGym(gym.Env):
             ([np.array size=(2,1) type=np.float32]): Random State
         """
         self.game.reset()
-        print(1)
-        print(self._get_obs())
-        print(2)
-        # print(spaces.utils.flatten(self.observation_space, self._get_obs()))
-        print(self._get_obs())
-        print(3)
+
+        # print(1)
+        # print(self._get_obs())
+        # print(2)
+        # # print(spaces.utils.flatten(self.observation_space, self._get_obs()))
+        # print(self._get_obs())
+        # print(3)
+
         info = {} # no extra info at this stage
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), info
         return self._get_obs(), info
@@ -237,10 +240,7 @@ if __name__ == "__main__":
 
             # action = env.action_space.sample()  # this is where you would insert your policy
             observation, reward, terminated, truncated, info = env.step(action)
-
-            print(f"Observation: {observation}")
-            print(f"Reward: {reward}")
-            print("")
+            # print(f"Reward: {format(reward, '.2f')}, Observation: {observation}\n")
 
             if terminated or truncated:
                 observation, info = env.reset()
