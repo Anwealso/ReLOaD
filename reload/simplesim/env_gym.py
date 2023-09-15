@@ -1,9 +1,10 @@
 # Library Imports
-from reload.simplesim.env import SimpleSim
+from env import SimpleSim
 import math
 import gym
 from gym import spaces
 import numpy as np
+import time
 
 
 class SimpleSimGym(gym.Env):
@@ -118,6 +119,7 @@ class SimpleSimGym(gym.Env):
             # Show info on scoreboard
             # self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f")})
             self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f"), "Observation": self._get_obs()})
+            print(f"Reward: {format(self._get_reward(action), '.2f')}, Observation: {self._get_obs()}")
 
         reward = 0
         terminated = False
@@ -194,3 +196,40 @@ class SimpleSimGym(gym.Env):
     #     if self.viewer:
     #         self.viewer.close()
     #         self.viewer = None
+
+if __name__ == "__main__":
+    # ------------------------------ Hyperparameters ----------------------------- #
+    # Env
+    STARTING_BUDGET = 2000
+    NUM_TARGETS = 1
+    PLAYER_FOV = 60
+
+    # -------------------------------- Environment ------------------------------- #
+
+    # Instantiate two environments: one for training and one for evaluation.
+    env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV, visualize=False)
+
+    # View Env Specs
+    # utils.show_env_summary(py_env)
+
+    num_episodes = 10
+
+    env.reset()
+
+    for i in range(num_episodes):
+        terminated = False
+        truncated = False
+
+        while not (terminated or truncated):
+            time.sleep(0.05)
+            action = env.game.get_action_interactive()
+
+            # action = env.action_space.sample()  # this is where you would insert your policy
+            observation, reward, terminated, truncated, info = env.step(action)
+
+            print(f"Observation: {observation}")
+            print(f"Reward: {reward}")
+            print("")
+
+            if terminated or truncated:
+                observation, info = env.reset()
