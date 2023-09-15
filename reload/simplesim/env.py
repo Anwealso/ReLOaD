@@ -583,6 +583,26 @@ class SimpleSim(object):
             if keys[pygame.K_DOWN]:
                 self.robot.move_backward()
 
+    def get_action_interactive(self):
+        """
+        Get player commands from keyboard and return the relevant action vector.
+        """
+
+        # Handle player controls and movement
+        while True:
+            if (not self.paused) and (not self.gameover):
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_RIGHT]:
+                    return 1
+                if keys[pygame.K_UP]:
+                    return 2
+                if keys[pygame.K_LEFT]:
+                    return 3
+                if keys[pygame.K_DOWN]:
+                    return 4
+                else:
+                    return 0
+
     def step(self, action):
         """
         Runs the game logic (controller)
