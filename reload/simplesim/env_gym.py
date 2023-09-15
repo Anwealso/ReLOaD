@@ -1,5 +1,5 @@
 # Library Imports
-from reload.simplesim.env import SimpleSim
+from env import SimpleSim
 import math
 import numpy as np
 import gymnasium as gym
@@ -25,7 +25,7 @@ class SimpleSimGym(gym.Env):
         self.action_space = spaces.Discrete(5) # actions are: do nothing, R, F, L, B
 
         # Observations (visible state):
-        self.observation_space = spaces.Dict(
+        self.observation_space_unflattened = spaces.Dict(
             {
                 # "agent": spaces.Box(
                 #     np.array([0, 0, 0]).astype(np.float32),
@@ -122,8 +122,8 @@ class SimpleSimGym(gym.Env):
             self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f"), "Observation": self._get_obs()})
 
         reward = 0
-        terminated = False
-        truncated = False
+        terminated = False # if we reached the goal
+        truncated = False # if the episode was cut off by timeout
         info = {}
 
         # Return reward
@@ -133,9 +133,12 @@ class SimpleSimGym(gym.Env):
 
             if self.game.gameover:
                 # End of episode case
-                terminated = True
+                truncated = True
                 # step_reward = -100
 
+            elif reward > 0:
+                terminated = True
+                
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
         return self._get_obs(), reward, terminated, truncated, info
 
