@@ -1,16 +1,16 @@
 # Library Imports
 from reload.simplesim.env import SimpleSim
 import math
-import gym
-from gym import spaces
 import numpy as np
+import gymnasium as gym
+from gymnasium import spaces
 
 
 class SimpleSimGym(gym.Env):
 
     # metadata = {"render.modes": ["human", "rgb_array"], "video.FPS": 50}
 
-    def __init__(self, starting_budget, num_targets, player_fov, visualize=True):
+    def __init__(self, starting_budget=2000, num_targets=8, player_fov=60, visualize=True):
         """
         Description,
             Initializes the openai-gym environment with it's features.
@@ -36,17 +36,18 @@ class SimpleSimGym(gym.Env):
         #     name="observation",
         # )
         # Observations are dictionaries with the agent's and the targets' locations.
-        self.observation_space = spaces.Dict(
+        self.observation_space_unflattened = spaces.Dict(
             {
                 "agent": spaces.Box(
                     np.array([0, 0, 0]).astype(np.float32),
                     np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
                 ), # agent x,y,angle
                 "targets": spaces.Box(
-                    low=0, high=self.game.sw, shape=(2, num_targets), dtype=np.float32
+                    low=-self.game.sw, high=self.game.sw, shape=(2, num_targets), dtype=np.float32
                 ), # target relative positions (x,y)
             }
         )
+        self.observation_space = spaces.utils.flatten_space(self.observation_space_unflattened)
 
         # Init. Renders
         # self.viewer = None
@@ -67,7 +68,8 @@ class SimpleSimGym(gym.Env):
         # print(observation, end='\r')
         # print("                                                  ", end='\r')
         
-        return {"agent": agent, "targets": target_rel_positions}
+        observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_rel_positions})
+        return observation
 
     def _get_reward(self, action):
         """
@@ -120,7 +122,7 @@ class SimpleSimGym(gym.Env):
         reward = 0
         terminated = False
         truncated = False
-        info = None
+        info = {}
 
         # Return reward
         if action is not None:  # First step without action, called from reset()
@@ -132,9 +134,10 @@ class SimpleSimGym(gym.Env):
                 terminated = True
                 # step_reward = -100
 
-        return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
+        # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
+        return self._get_obs(), reward, terminated, truncated, info
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """
         Description,
             Resets the ENV.
@@ -143,10 +146,15 @@ class SimpleSimGym(gym.Env):
             ([np.array size=(2,1) type=np.float32]): Random State
         """
         self.game.reset()
+        print(1)
         print(self._get_obs())
-        print(spaces.utils.flatten(self.observation_space, self._get_obs()))
-        info = None
-        return spaces.utils.flatten(self.observation_space, self._get_obs()), info
+        print(2)
+        # print(spaces.utils.flatten(self.observation_space, self._get_obs()))
+        print(self._get_obs())
+        print(3)
+        info = {} # no extra info at this stage
+        # return spaces.utils.flatten(self.observation_space, self._get_obs()), info
+        return self._get_obs(), info
 
     # def render(self, mode="human"):
     #     """
