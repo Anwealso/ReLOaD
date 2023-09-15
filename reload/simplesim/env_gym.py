@@ -1,17 +1,17 @@
 # Library Imports
 from env import SimpleSim
 import math
-import gym
-from gym import spaces
 import numpy as np
 import time
+import gymnasium as gym
+from gymnasium import spaces
 
 
 class SimpleSimGym(gym.Env):
 
     # metadata = {"render.modes": ["human", "rgb_array"], "video.FPS": 50}
 
-    def __init__(self, starting_budget, num_targets, player_fov, visualize=True):
+    def __init__(self, starting_budget=2000, num_targets=8, player_fov=60, visualize=True):
         """
         Description,
             Initializes the openai-gym environment with it's features.
@@ -26,7 +26,7 @@ class SimpleSimGym(gym.Env):
         self.action_space = spaces.Discrete(5) # actions are: do nothing, R, F, L, B
 
         # Observations (visible state):
-        self.observation_space = spaces.Dict(
+        self.observation_space_unflattened = spaces.Dict(
             {
                 # "agent": spaces.Box(
                 #     np.array([0, 0, 0]).astype(np.float32),
@@ -37,13 +37,14 @@ class SimpleSimGym(gym.Env):
                     np.array([359]).astype(np.float32),
                 ), # agent angle
                 "targets": spaces.Box(
-                    low=0, high=self.game.sw, shape=(2, num_targets), dtype=np.float32
+                    low=-self.game.sw, high=self.game.sw, shape=(2, num_targets), dtype=np.float32
                 ), # target relative positions (x,y)
                 # "current_conf": spaces.Box(
                 #     low=0, high=1, shape=(num_targets, 1), dtype=np.float32
                 # ), # confidences on each object
             }
         )
+        self.observation_space = spaces.utils.flatten_space(self.observation_space_unflattened)
 
         # Init. Renders
         # self.viewer = None
@@ -64,7 +65,8 @@ class SimpleSimGym(gym.Env):
         # Current object confidences
         # conf = self.game.current_confidences
         
-        return {"agent": agent, "targets": target_rel_positions}
+        observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_rel_positions})
+        return observation
 
     def _get_reward(self, action):
         """
@@ -122,9 +124,9 @@ class SimpleSimGym(gym.Env):
             print(f"Reward: {format(self._get_reward(action), '.2f')}, Observation: {self._get_obs()}")
 
         reward = 0
-        terminated = False
-        truncated = False
-        info = None
+        terminated = False # if we reached the goal
+        truncated = False # if the episode was cut off by timeout
+        info = {}
 
         # Return reward
         if action is not None:  # First step without action, called from reset()
@@ -133,12 +135,16 @@ class SimpleSimGym(gym.Env):
 
             if self.game.gameover:
                 # End of episode case
-                terminated = True
+                truncated = True
                 # step_reward = -100
 
-        return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
+            elif reward > 0:
+                terminated = True
+                
+        # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
+        return self._get_obs(), reward, terminated, truncated, info
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """
         Description,
             Resets the ENV.
@@ -147,10 +153,15 @@ class SimpleSimGym(gym.Env):
             ([np.array size=(2,1) type=np.float32]): Random State
         """
         self.game.reset()
+        print(1)
         print(self._get_obs())
-        print(spaces.utils.flatten(self.observation_space, self._get_obs()))
-        info = None
-        return spaces.utils.flatten(self.observation_space, self._get_obs()), info
+        print(2)
+        # print(spaces.utils.flatten(self.observation_space, self._get_obs()))
+        print(self._get_obs())
+        print(3)
+        info = {} # no extra info at this stage
+        # return spaces.utils.flatten(self.observation_space, self._get_obs()), info
+        return self._get_obs(), info
 
     # def render(self, mode="human"):
     #     """
