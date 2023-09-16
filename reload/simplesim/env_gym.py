@@ -1,5 +1,5 @@
 # Library Imports
-from reload.simplesim.env import SimpleSim
+from env import SimpleSim
 # from env import SimpleSim
 import math
 import numpy as np
@@ -10,20 +10,24 @@ from gymnasium import spaces
 
 class SimpleSimGym(gym.Env):
 
-    # metadata = {"render.modes": ["human", "rgb_array"], "video.FPS": 50}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
-    def __init__(self, starting_budget=2000, num_targets=8, player_fov=60, visualize=True):
+    def __init__(self, starting_budget=2000, num_targets=8, player_fov=60, render_mode=None):
         """
         Description,
             Initializes the openai-gym environment with it's features.
         """
 
+        # Init. Renders
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+
         # Internal State:
         self.game = SimpleSim(
-            starting_budget, num_targets, player_fov, visualize=visualize
+            starting_budget, num_targets, player_fov, render_mode=render_mode, render_fps=self.metadata["render_fps"]
         )
 
-        # Actions: 0, 1, 2, 3 for L, R, F, B
+        # Actions: 0, 1, 2, 3, 4 for D/N, L, R, F, B
         self.action_space = spaces.Discrete(5) # actions are: do nothing, R, F, L, B
 
         # Observations (visible state):
@@ -33,12 +37,12 @@ class SimpleSimGym(gym.Env):
                 #     np.array([0, 0, 0]).astype(np.float32),
                 #     np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
                 # ), # agent x,y,angle
-                "agent": spaces.Box(
-                    np.array([0]).astype(np.float32),
-                    np.array([359]).astype(np.float32),
-                ), # agent angle
+                # "agent": spaces.Box(
+                #     np.array([0]).astype(np.float32),
+                #     np.array([359]).astype(np.float32),
+                # ), # agent angle
                 "targets": spaces.Box(
-                    low=-self.game.sw, high=self.game.sw, shape=(2, num_targets), dtype=np.float32
+                    low=-self.game.window_size, high=self.game.window_size, shape=(2, num_targets), dtype=np.float32
                 ), # target relative positions (x,y)
                 # "current_conf": spaces.Box(
                 #     low=0, high=1, shape=(num_targets, 1), dtype=np.float32
@@ -47,8 +51,18 @@ class SimpleSimGym(gym.Env):
         )
         self.observation_space = spaces.utils.flatten_space(self.observation_space_unflattened)
 
-        # Init. Renders
-        # self.viewer = None
+
+        """
+        If human-rendering is used, `self.window` will be a reference
+        to the window that we draw to. `self.clock` will be a clock that is used
+        to ensure that the environment is rendered at the correct framerate in
+        human-mode. They will remain `None` until human-mode is used for the
+        first time.
+        """
+        self.window = None
+        self.clock = None
+
+
 
     def _get_obs(self):
         # Target relative positions (dx,dy)
@@ -82,7 +96,7 @@ class SimpleSimGym(gym.Env):
         Current reward is a function of how close the robot is to the target
         """
         dS = math.sqrt((self.game.targets[0].x - self.game.robot.x)**2 + (self.game.targets[0].y - self.game.robot.y)**2)
-        farness = abs(dS) / math.sqrt(self.game.sw**2 + self.game.sh**2) # dS as a fraction of max (scaled from 0 to 1)
+        farness = abs(dS) / math.sqrt(self.game.window_size**2 + self.game.window_size**2) # dS as a fraction of max (scaled from 0 to 1)
         norm_reward = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
         
         # 100 if closeness is > 95%, zero else wise reward 
@@ -166,50 +180,42 @@ class SimpleSimGym(gym.Env):
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), info
         return self._get_obs(), info
 
-    # def render(self, mode="human"):
-    #     """
-    #     Description,
-    #         Renders the ENV.
-    #     """
-    #     screen_width = 600
-    #     screen_height = 400
+    def render(self, mode="human"):
+        """
+        Description,
+            Renders the ENV.
+        """
+        screen_width = 600
+        screen_height = 400
 
-    #     world_width = self.x_threshold * 2
-    #     scale = screen_width / world_width
-    #     carty = 100
-    #     cartwidth = 50.0
-    #     cartheight = 30.0
+        world_width = self.x_threshold * 2
+        scale = screen_width / world_width
+        carty = 100
+        cartwidth = 50.0
+        cartheight = 30.0
 
-    #     if self.viewer is None:
-    #         from gym.envs.classic_control import rendering
+        if self.viewer is None:
+            from gym.envs.classic_control import rendering
 
-    #         self.viewer = rendering.Viewer(screen_width, screen_height)
-    #         l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
-    #         cart = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-    #         self.carttrans = rendering.Transform()
-    #         cart.add_attr(self.carttrans)
-    #         self.viewer.add_geom(cart)
-    #         self.track = rendering.Line((0, carty), (screen_width, carty))
-    #         self.track.set_color(0, 0, 0)
-    #         self.viewer.add_geom(self.track)
+            self.viewer = rendering.Viewer(screen_width, screen_height)
+            l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
+            cart = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+            self.carttrans = rendering.Transform()
+            cart.add_attr(self.carttrans)
+            self.viewer.add_geom(cart)
+            self.track = rendering.Line((0, carty), (screen_width, carty))
+            self.track.set_color(0, 0, 0)
+            self.viewer.add_geom(self.track)
 
-    #     if self.state is None:
-    #         return None
+        if self.state is None:
+            return None
 
-    #     x = self.state
-    #     cartx = x[0] * scale + screen_width / 2.0
-    #     self.carttrans.set_translation(cartx, carty)
+        x = self.state
+        cartx = x[0] * scale + screen_width / 2.0
+        self.carttrans.set_translation(cartx, carty)
 
-    #     return self.viewer.render(return_rgb_array=mode == "rgb_array")
-
-    # def close(self):
-    #     """
-    #     Description,
-    #         Closes the rendering window if provoked.
-    #     """
-    #     if self.viewer:
-    #         self.viewer.close()
-    #         self.viewer = None
+        return self.viewer.render(return_rgb_array=mode == "rgb_array")
+    
 
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
@@ -221,7 +227,10 @@ if __name__ == "__main__":
     # -------------------------------- Environment ------------------------------- #
 
     # Instantiate two environments: one for training and one for evaluation.
-    env = SimpleSimGym(STARTING_BUDGET, NUM_TARGETS, PLAYER_FOV, visualize=False)
+    env = SimpleSimGym(starting_budget=STARTING_BUDGET, 
+                       num_targets=NUM_TARGETS, 
+                       player_fov=PLAYER_FOV, 
+                       render_mode="human")
 
     # View Env Specs
     # utils.show_env_summary(py_env)
