@@ -18,6 +18,8 @@ class SimpleSimGym(gym.Env):
             Initializes the openai-gym environment with it's features.
         """
 
+        self.action_cost = 1
+
         # Init. Renders
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -27,8 +29,8 @@ class SimpleSimGym(gym.Env):
             starting_budget, num_targets, player_fov, render_mode=render_mode, render_fps=self.metadata["render_fps"]
         )
 
-        # Actions: 0, 1, 2, 3, 4 for D/N, L, R, F, B
-        self.action_space = spaces.Discrete(5) # actions are: do nothing, R, F, L, B
+        # Actions: 0, 1, 2, 3, 4 for D/N, L, R, F
+        self.action_space = spaces.Discrete(4) # actions are: do nothing, R, F, L
 
         # Observations (visible state):
         self.observation_space_unflattened = spaces.Dict(
@@ -37,10 +39,10 @@ class SimpleSimGym(gym.Env):
                 #     np.array([0, 0, 0]).astype(np.float32),
                 #     np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
                 # ), # agent x,y,angle
-                # "agent": spaces.Box(
-                #     np.array([0]).astype(np.float32),
-                #     np.array([359]).astype(np.float32),
-                # ), # agent angle
+                "agent": spaces.Box(
+                    np.array([0]).astype(np.float32),
+                    np.array([359]).astype(np.float32),
+                ), # agent angle
                 "targets": spaces.Box(
                     low=-self.game.window_size, high=self.game.window_size, shape=(2, num_targets), dtype=np.float32
                 ), # target relative positions (x,y)
@@ -95,23 +97,44 @@ class SimpleSimGym(gym.Env):
 
         Current reward is a function of how close the robot is to the target
         """
+        # # Exponentially scaled closeness reward
+        # reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
+
         dS = math.sqrt((self.game.targets[0].x - self.game.robot.x)**2 + (self.game.targets[0].y - self.game.robot.y)**2)
         farness = abs(dS) / math.sqrt(self.game.window_size**2 + self.game.window_size**2) # dS as a fraction of max (scaled from 0 to 1)
         norm_reward = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
         
         # 100 if closeness is > 95%, zero else wise reward 
         reward = 0
+
+        # Apply penalty per step to incentivise to get to goal fast
+        reward -= self.action_cost
+
+        # Apply reward if goal reached
         if norm_reward > 0.9:
-            reward = 100
-
-        # # Exponentially scaled closeness reward
-        # reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
-
-        # # reward = np.sum(self.game.current_confidences)
-        # if action != 0: # if action is not do-nothing
-        #     reward = reward / 2
+            # The end reward is calcuclated so that the total reward for the minimum possible cost policy over the episode is 1
+            # Effectively should be: min_cost + end_reward = 1
+            end_reward = 1 + self.min_cost_to_goal()
+            reward += end_reward
 
         return reward
+
+
+    def min_cost_to_goal(self):
+        # First cost is the turning actions
+        target_angle = math.degrees(math.atan(self.game.targets[0].y / self.game.targets[0].x))
+        target_angle = target_angle+360 if target_angle<0 else target_angle
+        
+        dtheta = abs(self.game.robot.starting_angle - target_angle)
+        num_turn_actions = math.ceil(dtheta / self.game.robot.turn_rate) # each turn action is 5deg
+
+        dS = math.sqrt((self.game.targets[0].x - self.game.robot.starting_x)**2 + (self.game.targets[0].y - self.game.robot.starting_y)**2)
+        num_move_actions = math.ceil(dS / self.game.robot.move_rate)
+
+        total_num_actions = num_turn_actions + num_move_actions
+        min_cost = total_num_actions * self.action_cost
+
+        return min_cost
 
 
     def step(self, action):
@@ -131,12 +154,9 @@ class SimpleSimGym(gym.Env):
         if action is not None: # First step without action, called from reset()
             # Step the game
             self.game.step(action)
-            self.game.perform_action_interactive()
 
             # Show info on scoreboard
-            # self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f")})
             self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f"), "Observation": self._get_obs()})
-            print(f"Reward: {format(self._get_reward(action), '.2f')}, Observation: {self._get_obs()}\n")
 
         reward = 0
         terminated = False # if we reached the goal
@@ -155,6 +175,7 @@ class SimpleSimGym(gym.Env):
 
             elif reward > 0:
                 terminated = True
+                print(f"End Ep Reward: {reward}")
                 
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
         return self._get_obs(), reward, terminated, truncated, info
@@ -168,53 +189,15 @@ class SimpleSimGym(gym.Env):
             ([np.array size=(2,1) type=np.float32]): Random State
         """
         self.game.reset()
-
-        # print(1)
-        # print(self._get_obs())
-        # print(2)
-        # # print(spaces.utils.flatten(self.observation_space, self._get_obs()))
-        # print(self._get_obs())
-        # print(3)
-
         info = {} # no extra info at this stage
-        # return spaces.utils.flatten(self.observation_space, self._get_obs()), info
         return self._get_obs(), info
 
-    def render(self, mode="human"):
+    def render(self):
         """
         Description,
             Renders the ENV.
         """
-        screen_width = 600
-        screen_height = 400
-
-        world_width = self.x_threshold * 2
-        scale = screen_width / world_width
-        carty = 100
-        cartwidth = 50.0
-        cartheight = 30.0
-
-        if self.viewer is None:
-            from gym.envs.classic_control import rendering
-
-            self.viewer = rendering.Viewer(screen_width, screen_height)
-            l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
-            cart = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            self.carttrans = rendering.Transform()
-            cart.add_attr(self.carttrans)
-            self.viewer.add_geom(cart)
-            self.track = rendering.Line((0, carty), (screen_width, carty))
-            self.track.set_color(0, 0, 0)
-            self.viewer.add_geom(self.track)
-
-        if self.state is None:
-            return None
-
-        x = self.state
-        cartx = x[0] * scale + screen_width / 2.0
-        self.carttrans.set_translation(cartx, carty)
-
-        return self.viewer.render(return_rgb_array=mode == "rgb_array")
+        return self.game.render()
     
 
 if __name__ == "__main__":

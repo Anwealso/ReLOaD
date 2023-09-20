@@ -55,16 +55,22 @@ class Robot(object):
         # self.image = player_robot
         self.env_size = env_size
         self.size = size
-        # self.h = player_robot.get_height()
+
         # Set position
         self.starting_x = starting_x
         self.starting_y = starting_y
         self.x = self.starting_x
         self.y = self.starting_y
-        self.trail = []  # a trail of all past x,y coords
-        # Set starting orientation (facing upwards)
-        self.angle = 90  # unit circle angles
 
+        # Set starting orientation (facing upwards)
+        self.starting_angle = 90  # unit circle angles
+        self.angle = self.starting_angle # unit circle angles
+
+        # Set move speeds
+        self.turn_rate = 5
+        self.move_rate = 6
+
+        self.trail = []  # a trail of all past x,y coords
         # Draw player fov indicator
         self.fov = fov
 
@@ -78,90 +84,37 @@ class Robot(object):
         self.trail.clear()  # a trail of all past x,y coords
         # Reset orientation
         self.angle = 90  # unit circle angles
-        
-    # def draw(self, win):
-    #     # Make a surface with a line on it
-    #     fov_surf = pygame.Surface((sw, sw), pygame.SRCALPHA)
-    #     fov_surf.set_colorkey((0, 0, 0, 0))
-    #     rotated_fov_surf = pygame.transform.rotate(fov_surf, self.angle)
-    #     pygame.draw.line(
-    #         fov_surf,
-    #         fov_color,
-    #         (
-    #             fov_surf.get_rect().w / 2,
-    #             fov_surf.get_rect().h / 2,
-    #         ),
-    #         (
-    #             (fov_surf.get_rect().w / 2)
-    #             - (fov_line_length * math.sin(math.radians(self.fov / 2))),
-    #             (fov_surf.get_rect().h / 2)
-    #             - (fov_line_length * math.cos(math.radians(self.fov / 2))),
-    #         ),
-    #         fov_line_thickness,
-    #     )
-    #     pygame.draw.line(
-    #         fov_surf,
-    #         fov_color,
-    #         (
-    #             fov_surf.get_rect().w / 2,
-    #             fov_surf.get_rect().h / 2,
-    #         ),
-    #         (
-    #             (fov_surf.get_rect().w / 2)
-    #             + (fov_line_length * math.sin(math.radians(self.fov / 2))),
-    #             (fov_surf.get_rect().h / 2)
-    #             - (fov_line_length * math.cos(math.radians(self.fov / 2))),
-    #         ),
-    #         fov_line_thickness,
-    #     )
-
-    #     # Update player sprite position
-    #     # 90deg rotated version of the sprite surf image
-    #     rotated_player_surf = pygame.transform.rotate(player_robot, self.angle - 90)
-    #     # The rectangle bounding box of the surf
-    #     rotated_player_rect = rotated_player_surf.get_rect()
-    #     # Set the centre position of the surf to the player position vars
-    #     rotated_player_rect.center = (self.x, self.y)
-    #     # Update fov indicator lines position
-    #     rotated_fov_surf = pygame.transform.rotate(fov_surf, self.angle - 90)
-    #     rotated_fov_rect = rotated_fov_surf.get_rect()
-    #     rotated_fov_rect.center = (self.x, self.y)
-
-    #     # Redraw the player surfs
-    #     win.blit(rotated_player_surf, rotated_player_rect)
-    #     # Redraw the fov indicator surfs
-    #     win.blit(rotated_fov_surf, rotated_fov_rect)
-
+    
     def turn_left(self):
-        # self.angle += 5
-        # if self.angle >= 360:
-        #     self.angle = self.angle - 360 # wrap angle back around
+        self.angle += self.turn_rate
+        if self.angle >= 360:
+            self.angle = self.angle - 360 # wrap angle back around
 
-        self.x -= 10
-        self.handle_boundary_collisions()
+        # self.x -= 10
+        # self.handle_boundary_collisions()
 
     def turn_right(self):
-        # self.angle -= 5
-        # if self.angle < 0:
-        #     self.angle = self.angle + 360 # wrap angle back around
+        self.angle -= self.turn_rate
+        if self.angle < 0:
+            self.angle = self.angle + 360 # wrap angle back around
 
-        self.x += 10
-        self.handle_boundary_collisions()
+        # self.x += 10
+        # self.handle_boundary_collisions()
 
     def move_forward(self):
-        # self.x += math.cos(math.radians(self.angle)) * 6
-        # self.y -= math.sin(math.radians(self.angle)) * 6
-        # self.trail.append((self.x, self.y))
+        self.x += math.cos(math.radians(self.angle)) * self.move_rate
+        self.y -= math.sin(math.radians(self.angle)) * self.move_rate
+        self.trail.append((self.x, self.y))
 
-        self.y -= 10
+        # self.y -= 10
         self.handle_boundary_collisions()
 
     def move_backward(self):
-        # self.x -= math.cos(math.radians(self.angle)) * 6
-        # self.y += math.sin(math.radians(self.angle)) * 6
-        # self.trail.append((self.x, self.y))
+        self.x -= math.cos(math.radians(self.angle)) * self.move_rate
+        self.y += math.sin(math.radians(self.angle)) * self.move_rate
+        self.trail.append((self.x, self.y))
 
-        self.y += 10
+        # self.y += 10
         self.handle_boundary_collisions()
 
     def handle_boundary_collisions(self):
@@ -304,7 +257,6 @@ class SimpleSim(object):
         self.gameover = False
         self.paused = False
         self.count = 0
-        self.run = True
         self.scoreboard_items = {}
 
         self.robot = Robot(player_fov, self.player_size, self.window_size//2, self.window_size//2, self.window_size)
@@ -335,9 +287,13 @@ class SimpleSim(object):
             size = self.target_size * rank
 
             x, y = (
-                random.randrange(0 + size/2, self.window_size - size/2),
-                random.randrange(0 + size/2, self.window_size - size/2),
+                random.randrange(0 + size//2, self.window_size - size//2),
+                random.randrange(0 + size//2, self.window_size - size//2),
             )
+            # x, y = (
+            #     0 + size/2,
+            #     self.window_size - size/2
+            # )
 
             self.targets.append(Target(rank, x, y))
 
@@ -400,24 +356,6 @@ class SimpleSim(object):
             self.robot.turn_left()
         elif action == 4:
             self.robot.move_backward()
-
-    def perform_action_interactive(self):
-        """
-        Get player commands from keyboard and execute the action in the
-        environment.
-        """
-
-        # Handle player controls and movement
-        if (not self.paused) and (not self.gameover):
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                self.robot.turn_left()
-            if keys[pygame.K_RIGHT]:
-                self.robot.turn_right()
-            if keys[pygame.K_UP]:
-                self.robot.move_forward()
-            if keys[pygame.K_DOWN]:
-                self.robot.move_backward()
 
     def get_action_interactive(self):
         """
@@ -485,24 +423,25 @@ class SimpleSim(object):
             # Perform the action
             self.perform_action(action)
 
-        # Handle menu keyboard events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.run = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_TAB:
-                    if self.gameover:
-                        self.reset()
-
-                if event.key == pygame.K_p:
-                    self.paused = not self.paused
-
-                if event.key == pygame.K_v:
-                    self.visualize = not self.visualize
-                    # Set the screen to black
-                    self.render_black_screen()
 
         if self.render_mode == "human":
+            # Handle menu keyboard events
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_TAB:
+                        if self.gameover:
+                            self.reset()
+
+                    if event.key == pygame.K_p:
+                        self.paused = not self.paused
+
+                    if event.key == pygame.K_v:
+                        self.visualize = not self.visualize
+                        # Set the screen to black
+                        self.render_black_screen()
+
             while (self.paused):
                 # Do nothing, pause until key pressed again
                 for event in pygame.event.get():
@@ -541,8 +480,8 @@ class SimpleSim(object):
             return self._render_frame()
 
     def _render_frame(self):
+        pygame.init()
         if self.window is None and self.render_mode == "human":
-            pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode((self.window_size, self.window_size))
             pygame.display.set_caption("ReLOaD Simulator")
@@ -550,14 +489,16 @@ class SimpleSim(object):
             self.clock = pygame.time.Clock()
 
         
-        # ------------------ Create the base window and load assets ------------------ #
+        # ------------------ Create the base canvas and load assets ------------------ #
+        canvas = pygame.Surface((self.window_size, self.window_size))
         player_size = 50 # was 100
         player_height = 50 # was 100
 
-        if os.path.dirname(__file__) != "":
-            sprites_dir = os.path.dirname(__file__) + "/sprites/"
-        else:
-            sprites_dir = "sprites/"
+        # if os.path.dirname(__file__) != "":
+        #     sprites_dir = os.path.dirname(__file__) + "/sprites/"
+        # else:
+        #     sprites_dir = "sprites/"
+        sprites_dir = ""
 
         bg = pygame.transform.scale(pygame.image.load(sprites_dir + "roombg.jpg"), (self.window_size, self.window_size))
         player_robot = pygame.transform.scale(
@@ -578,7 +519,8 @@ class SimpleSim(object):
 
 
         # --------------------------- Draw all the entities -------------------------- #
-        self.window.blit(bg, (0, 0))
+        # Draw the background image
+        canvas.blit(bg, (0, 0))
 
 
 
@@ -631,9 +573,9 @@ class SimpleSim(object):
         rotated_fov_rect.center = (self.robot.x, self.robot.y)
 
         # Redraw the player surfs
-        self.window.blit(rotated_player_surf, rotated_player_rect)
+        canvas.blit(rotated_player_surf, rotated_player_rect)
         # Redraw the fov indicator surfs
-        self.window.blit(rotated_fov_surf, rotated_fov_rect)
+        canvas.blit(rotated_fov_surf, rotated_fov_rect)
 
 
 
@@ -652,27 +594,28 @@ class SimpleSim(object):
             rotated_target_rect = rotated_target_surf.get_rect()
             rotated_target_rect.center = (target.x, target.y)
 
-            self.window.blit(rotated_target_surf, rotated_target_rect)        
+            canvas.blit(rotated_target_surf, rotated_target_rect)        
         
 
 
         
         # Draw the robot's trail
         for point in self.robot.trail:
-            pygame.draw.circle(self.window, (255, 0, 0), point, 2)
+            pygame.draw.circle(canvas, (255, 0, 0), point, 2)
 
 
 
 
         # Draw the onscreen menu text
-        font = pygame.font.SysFont("arial", 30)
+        # font = pygame.font.SysFont("arial", 30)
+        font = pygame.font.Font(None, 25)
         
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
-        self.window.blit(budget_text, (25, 25))
+        canvas.blit(budget_text, (25, 25))
         
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
-            self.window.blit(
+            canvas.blit(
                 play_again_text,
                 (
                     self.window_size // 2 - play_again_text.get_width() // 2,
@@ -682,7 +625,7 @@ class SimpleSim(object):
         
         pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
         if self.paused:
-            self.window.blit(
+            canvas.blit(
                 pause_text,
                 (
                     self.window_size // 2 - pause_text.get_width() // 2,
@@ -698,7 +641,7 @@ class SimpleSim(object):
                 1,
                 (0, 255, 0),
             )
-            self.window.blit(
+            canvas.blit(
                 metric_text,
                 (self.window_size - metric_text.get_width() - 25, (metric_count * 35) + metric_text.get_height()),
             )
@@ -711,7 +654,7 @@ class SimpleSim(object):
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(self.window, self.window.get_rect())
+            self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
             pygame.display.update()
 
@@ -720,7 +663,7 @@ class SimpleSim(object):
             self.clock.tick(self.render_fps)
         else:  # rgb_array
             return np.transpose(
-                np.array(pygame.surfarray.pixels3d(self.window)), axes=(1, 0, 2)
+                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
 
 
