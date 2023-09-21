@@ -272,7 +272,7 @@ class SimpleSim(object):
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
-        self.curriculum = 1
+        self.curriculum = 1 # no limit unless this member variable is set manually
         self.min_target_dist = 0 # was 80
         self.spawn_targets(self.num_targets)
 
@@ -290,23 +290,23 @@ class SimpleSim(object):
             rank = 1
             size = self.target_size * rank
 
+            # If target is within allowable distance to robot, break
+            max_band_gap = (math.sqrt(2*(self.window_size)**2) - self.min_target_dist) # the max width of the band between the min and max spawn limits
+            current_max_target_dist = self.min_target_dist + (self.curriculum * max_band_gap)
+            if current_max_target_dist == self.min_target_dist:
+                current_max_target_dist += 5 # avoid infinite or very long loops
+
             while True:
                 x, y = (
                     random.randrange(0 + size//2, self.window_size - size//2),
                     random.randrange(0 + size//2, self.window_size - size//2),
                 )
-
-                # If target is within allowable distance to robot, break
                 dS = math.sqrt((x - self.robot.x)**2 + (y - self.robot.y)**2)
-
-                max_gap = (math.sqrt(2*(self.window_size)**2) - self.min_target_dist)
-                current_max_target_dist = self.min_target_dist + (self.curriculum * max_gap)
-
-                if current_max_target_dist == self.min_target_dist:
-                    current_max_target_dist += 5 # avoid infinite or very long loops
                 
                 if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
                     break
+
+            # print(f"current_max_target_dist: {current_max_target_dist}")
 
             self.targets.append(Target(rank, x, y))
 

@@ -115,6 +115,9 @@ class SimpleSimGym(gym.Env):
         return reward
 
     def get_closeness(self, robot, target):
+        """
+        Gets the closeness of a target to the robot
+        """
         dS = math.sqrt((target.x - robot.x)**2 + (target.y - robot.y)**2)
         farness = abs(dS) / math.sqrt(self.game.window_size**2 + self.game.window_size**2) # dS as a fraction of max (scaled from 0 to 1)
         closeness = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
@@ -123,9 +126,8 @@ class SimpleSimGym(gym.Env):
 
     def min_cost_to_goal(self):
         """
-        Finally fixed min cost to goal calc
+        Gets the cost of the shortest path to the goal
         """
-
         min_farness = 1-self.goal_reached_cutoff
         buffer_distance = min_farness * math.sqrt(self.game.window_size**2 + self.game.window_size**2)
 
@@ -253,15 +255,21 @@ if __name__ == "__main__":
 
     # View Env Specs
     # utils.show_env_summary(py_env)
-
     num_episodes = 10
-
     env.reset()
 
+    curriculum = np.linspace(0, 1, num=(int(num_episodes))) # increase from 5 to farthest corner distance
+    print(curriculum)
+
+    env.game.curriculum = curriculum[0]
     for i in range(num_episodes):
+        # Set the level of the curriculum
+        env.game.curriculum = curriculum[i]
+        env.reset()
+        print(f"curriculum: {curriculum[i]}")
+
         terminated = False
         truncated = False
-
         ep_reward = 0
 
         while not (terminated or truncated):
