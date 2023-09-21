@@ -19,7 +19,8 @@ class SimpleSimGym(gym.Env):
         """
 
         self.action_cost = 1
-
+        self.goal_reached_cutoff = 0.9
+        
         # Init. Renders
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -64,14 +65,17 @@ class SimpleSimGym(gym.Env):
         self.window = None
         self.clock = None
 
-
-
     def _get_obs(self):
         # Target relative positions (dx,dy)
         target_rel_positions = np.zeros(shape=(2, len(self.game.targets)), dtype=np.float32)
         for i, target in enumerate(self.game.targets):
-            dx = self.game.robot.x - target.x 
-            dy = target.y - self.game.robot.y
+            target_x_cart = target.x
+            target_y_cart = self.game.window_size - target.y
+            robot_x_cart = self.game.robot.x
+            robot_y_cart = self.game.window_size - self.game.robot.y
+
+            dx = target_x_cart - robot_x_cart 
+            dy = target_y_cart - robot_y_cart
             target_rel_positions[0][i] = dx
             target_rel_positions[1][i] = dy
 
@@ -87,52 +91,69 @@ class SimpleSimGym(gym.Env):
 
     def _get_reward(self, action):
         """
-        The reward function for the RL agent
-          - Agent gets positive reward for the current instantaneous confidence
-            it achieved in the last time step
-          - Agent receives negative reward for moving
-        
-        Agent will learn to maximise this instantaneous reward at each time
-        step.
+        The reward function for the RL agent.
 
-        Current reward is a function of how close the robot is to the target
+        Current Reward Format:
+        - Agent receives a -1 reward every time step in which it doesnt reach the goal
+        - Agent receives an end reward when it reaches the goal area (within 90% closeness). 
+          The end reward = 1 + min_cost_to_goal(), i.e. the end reward is calcuclated so that 
+          the total reward for the minimum possible cost policy over the episode is 1
         """
-        # # Exponentially scaled closeness reward
-        # reward = 100 * math.exp(5*(norm_reward-1)) # (y=100 e^{5(x-1)}) - norm_reward but scaled exponentially between 0 and 100
-
-        dS = math.sqrt((self.game.targets[0].x - self.game.robot.x)**2 + (self.game.targets[0].y - self.game.robot.y)**2)
-        farness = abs(dS) / math.sqrt(self.game.window_size**2 + self.game.window_size**2) # dS as a fraction of max (scaled from 0 to 1)
-        norm_reward = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
-        
-        # 100 if closeness is > 95%, zero else wise reward 
         reward = 0
 
         # Apply penalty per step to incentivise to get to goal fast
         reward -= self.action_cost
 
         # Apply reward if goal reached
-        if norm_reward > 0.9:
+        closeness = self.get_closeness(self.game.robot, self.game.targets[0])
+        if closeness > self.goal_reached_cutoff:
             # The end reward is calcuclated so that the total reward for the minimum possible cost policy over the episode is 1
-            # Effectively should be: min_cost + end_reward = 1
-            end_reward = 1 + self.min_cost_to_goal()
+            # Effectively should be: min_cost + end_reward = 0
+            end_reward = 1 + self.min_cost_to_goal() # +1 for the action_cost we just did
             reward += end_reward
 
         return reward
 
+    def get_closeness(self, robot, target):
+        dS = math.sqrt((target.x - robot.x)**2 + (target.y - robot.y)**2)
+        farness = abs(dS) / math.sqrt(self.game.window_size**2 + self.game.window_size**2) # dS as a fraction of max (scaled from 0 to 1)
+        closeness = 1 - farness # closeness = opposite of farness (scales from 1 to 0)
+        return closeness
+
 
     def min_cost_to_goal(self):
-        # First cost is the turning actions
-        target_angle = math.degrees(math.atan(self.game.targets[0].y / self.game.targets[0].x))
-        target_angle = target_angle+360 if target_angle<0 else target_angle
-        
+        """
+        Finally fixed min cost to goal calc
+        """
+
+        min_farness = 1-self.goal_reached_cutoff
+        buffer_distance = min_farness * math.sqrt(self.game.window_size**2 + self.game.window_size**2)
+
+        # Get cartesian coord distances
+        target_x_cart = self.game.targets[0].x
+        target_y_cart = self.game.window_size - self.game.targets[0].y
+        robot_starting_x_cart = self.game.robot.starting_x
+        robot_starting_y_cart = self.game.window_size - self.game.robot.starting_y
+
+        dy = target_y_cart-robot_starting_y_cart
+        dx = target_x_cart-robot_starting_x_cart
+        dS = math.sqrt((dx)**2 + (dy)**2)
+        min_dist = dS - buffer_distance
+        num_move_actions = math.floor(min_dist / self.game.robot.move_rate)
+
+        target_angle = math.degrees(math.atan2(dy, dx))
+        target_angle = 360+target_angle if target_angle<0 else target_angle # correct for ambiguous case
         dtheta = abs(self.game.robot.starting_angle - target_angle)
-        num_turn_actions = math.ceil(dtheta / self.game.robot.turn_rate) # each turn action is 5deg
+        dtheta = dtheta-180 if dtheta>180 else dtheta # correct since we can go clockwise or anti-clockwise
+        dtheta = 180-dtheta if dtheta>90 else dtheta # correct since we can also reverse into the target
+        num_turn_actions = math.floor(dtheta / self.game.robot.turn_rate) # each turn action is 5deg
 
-        dS = math.sqrt((self.game.targets[0].x - self.game.robot.starting_x)**2 + (self.game.targets[0].y - self.game.robot.starting_y)**2)
-        num_move_actions = math.ceil(dS / self.game.robot.move_rate)
-
-        total_num_actions = num_turn_actions + num_move_actions
+        if num_move_actions < 1: # we start inside the object, any movement will cause us to reach goal
+            total_num_actions = 1
+        else:
+            total_num_actions = num_turn_actions + num_move_actions
         min_cost = total_num_actions * self.action_cost
+        # print(f"min_total_num_actions: {total_num_actions}, min_cost: {min_cost}")
 
         return min_cost
 
@@ -151,20 +172,30 @@ class SimpleSimGym(gym.Env):
             ([np.bool: ENV]). Terminal condition.
         """
 
+
         if action is not None: # First step without action, called from reset()
             # Step the game
             self.game.step(action)
 
+
+            target_x_cart = self.game.targets[0].x
+            target_y_cart = self.game.window_size - self.game.targets[0].y
+            robot_x_cart = self.game.robot.x
+            robot_y_cart = self.game.window_size - self.game.robot.y
+
+            # print(f"target: {(target_x_cart, target_y_cart)}")
+            # print(f"robot: {(self.game.robot.angle, robot_x_cart, robot_y_cart)}")
+            # print("\n")
+
             # Show info on scoreboard
             self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f"), "Observation": self._get_obs()})
+            
+            reward = 0
+            terminated = False # if we reached the goal
+            truncated = False # if the episode was cut off by timeout
+            info = {}
 
-        reward = 0
-        terminated = False # if we reached the goal
-        truncated = False # if the episode was cut off by timeout
-        info = {}
-
-        # Return reward
-        if action is not None:  # First step without action, called from reset()
+            # Return reward
             # Mid-episode case
             reward = self._get_reward(action)
 
@@ -175,8 +206,9 @@ class SimpleSimGym(gym.Env):
 
             elif reward > 0:
                 terminated = True
-                print(f"End Ep Reward: {reward}")
-                
+                # print(f"End Ep Reward: {reward}")
+
+
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
         return self._get_obs(), reward, terminated, truncated, info
 
@@ -189,6 +221,10 @@ class SimpleSimGym(gym.Env):
             ([np.array size=(2,1) type=np.float32]): Random State
         """
         self.game.reset()
+        
+        # DEBUG
+        self.min_cost_to_goal()
+
         info = {} # no extra info at this stage
         return self._get_obs(), info
 
@@ -226,6 +262,8 @@ if __name__ == "__main__":
         terminated = False
         truncated = False
 
+        ep_reward = 0
+
         while not (terminated or truncated):
             time.sleep(0.05)
             action = env.game.get_action_interactive()
@@ -234,5 +272,9 @@ if __name__ == "__main__":
             observation, reward, terminated, truncated, info = env.step(action)
             # print(f"Reward: {format(reward, '.2f')}, Observation: {observation}\n")
 
+            ep_reward += reward
+
             if terminated or truncated:
                 observation, info = env.reset()
+
+        print(f"Total Ep Reward: {ep_reward}")

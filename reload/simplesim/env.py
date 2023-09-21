@@ -86,6 +86,7 @@ class Robot(object):
         self.angle = 90  # unit circle angles
     
     def turn_left(self):
+        # print("turn_left")
         self.angle += self.turn_rate
         if self.angle >= 360:
             self.angle = self.angle - 360 # wrap angle back around
@@ -94,6 +95,7 @@ class Robot(object):
         # self.handle_boundary_collisions()
 
     def turn_right(self):
+        # print("turn_right")
         self.angle -= self.turn_rate
         if self.angle < 0:
             self.angle = self.angle + 360 # wrap angle back around
@@ -270,6 +272,8 @@ class SimpleSim(object):
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
+        self.curriculum = 1
+        self.min_target_dist = 0 # was 80
         self.spawn_targets(self.num_targets)
 
     def spawn_targets(self, num_to_spawn):
@@ -286,14 +290,23 @@ class SimpleSim(object):
             rank = 1
             size = self.target_size * rank
 
-            x, y = (
-                random.randrange(0 + size//2, self.window_size - size//2),
-                random.randrange(0 + size//2, self.window_size - size//2),
-            )
-            # x, y = (
-            #     0 + size/2,
-            #     self.window_size - size/2
-            # )
+            while True:
+                x, y = (
+                    random.randrange(0 + size//2, self.window_size - size//2),
+                    random.randrange(0 + size//2, self.window_size - size//2),
+                )
+
+                # If target is within allowable distance to robot, break
+                dS = math.sqrt((x - self.robot.x)**2 + (y - self.robot.y)**2)
+
+                max_gap = (math.sqrt(2*(self.window_size)**2) - self.min_target_dist)
+                current_max_target_dist = self.min_target_dist + (self.curriculum * max_gap)
+
+                if current_max_target_dist == self.min_target_dist:
+                    current_max_target_dist += 5 # avoid infinite or very long loops
+                
+                if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
+                    break
 
             self.targets.append(Target(rank, x, y))
 
@@ -336,6 +349,8 @@ class SimpleSim(object):
 
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
+        if self.render_mode == "human":
+            self._render_frame()
 
     def perform_action(self, action):
         """
@@ -364,6 +379,7 @@ class SimpleSim(object):
 
         # Handle player controls and movement
         while True:
+            # event = pygame.event.wait()
             if (not self.paused) and (not self.gameover):
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RIGHT]:
@@ -399,7 +415,6 @@ class SimpleSim(object):
         """
         Runs the game logic (controller)
         """
-
         if not self.gameover:
             # self.clock.tick(600)
             self.count += 1
@@ -420,10 +435,6 @@ class SimpleSim(object):
             if self.budget <= 0:
                 self.gameover = True
 
-            # Perform the action
-            self.perform_action(action)
-
-
         if self.render_mode == "human":
             # Handle menu keyboard events
             for event in pygame.event.get():
@@ -433,10 +444,8 @@ class SimpleSim(object):
                     if event.key == pygame.K_TAB:
                         if self.gameover:
                             self.reset()
-
                     if event.key == pygame.K_p:
                         self.paused = not self.paused
-
                     if event.key == pygame.K_v:
                         self.visualize = not self.visualize
                         # Set the screen to black
