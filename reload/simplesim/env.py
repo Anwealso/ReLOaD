@@ -48,7 +48,7 @@ class Target(object):
 
 class Robot(object):
     """
-    The mobile robot that the RL algorith will control
+    The mobile robot that the RL algorithm will control
     """
 
     def __init__(self, fov, size, starting_x, starting_y, env_size):
