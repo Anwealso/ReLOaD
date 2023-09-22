@@ -4,6 +4,7 @@ test/
 .DS_Store
 __pycache__/
 logs/
+out/
 .ipynb_chackpoints
 *.py[cod]
 *$py.class
