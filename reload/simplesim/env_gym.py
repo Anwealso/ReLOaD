@@ -40,10 +40,10 @@ class SimpleSimGym(gym.Env):
                 #     np.array([0, 0, 0]).astype(np.float32),
                 #     np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
                 # ), # agent x,y,angle
-                "agent": spaces.Box(
-                    np.array([0]).astype(np.float32),
-                    np.array([359]).astype(np.float32),
-                ), # agent angle
+                # "agent": spaces.Box(
+                #     np.array([0]).astype(np.float32),
+                #     np.array([359]).astype(np.float32),
+                # ), # agent angle
                 "targets": spaces.Box(
                     low=-self.game.window_size, high=self.game.window_size, shape=(2, num_targets), dtype=np.float32
                 ), # target relative positions (x,y)
@@ -76,22 +76,19 @@ class SimpleSimGym(gym.Env):
 
             dx = target_x_cart - robot_x_cart 
             dy = target_y_cart - robot_y_cart
-            target_rel_positions[0][i] = dx
-            target_rel_positions[1][i] = dy
-
             (x_prime, y_prime) = self.world_to_body_frame(dx, dy)
-            print(f"oldvec: {dx}, {dy}")
-            print(f"newvec: {x_prime}, {y_prime}")
-            print(f"================================\n")
+            target_rel_positions[0][i] = x_prime
+            target_rel_positions[1][i] = y_prime
 
         # Agent x,y,angle
         # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
-        agent = np.array([self.game.robot.angle]).astype(np.float32)
+        # agent = np.array([self.game.robot.angle]).astype(np.float32)
 
         # Current object confidences
         # conf = self.game.current_confidences
         
-        observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_rel_positions})
+        # observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_rel_positions})
+        observation =  spaces.utils.flatten(self.observation_space_unflattened, {"targets": target_rel_positions})
         return observation
 
     def _get_reward(self, action):
@@ -160,7 +157,6 @@ class SimpleSimGym(gym.Env):
         else:
             total_num_actions = num_turn_actions + num_move_actions
         min_cost = total_num_actions * self.action_cost
-        # print(f"min_total_num_actions: {total_num_actions}, min_cost: {min_cost}")
 
         return min_cost
 
@@ -169,21 +165,12 @@ class SimpleSimGym(gym.Env):
         Rotates (no translation) a relative distance vector from world frame into body frame
         """
         v = np.array([[x],[y]])
-        print(v)
-        print(np.shape(v))
-        print("")
 
         d_theta = -(self.game.robot.angle - 90)
         rotation_matrix = np.array([[math.cos(math.radians(d_theta)), -math.sin(math.radians(d_theta))],
                                     [math.sin(math.radians(d_theta)), math.cos(math.radians(d_theta))]])
-        print(rotation_matrix)
-        print(np.shape(rotation_matrix))
-        print("")
 
         v_prime = np.matmul(rotation_matrix, v)
-        print(v_prime)
-        print(np.shape(v_prime))
-        print("")
         x_prime, y_prime = v_prime
 
         return (x_prime, y_prime)
@@ -207,16 +194,6 @@ class SimpleSimGym(gym.Env):
             # Step the game
             self.game.step(action)
 
-
-            target_x_cart = self.game.targets[0].x
-            target_y_cart = self.game.window_size - self.game.targets[0].y
-            robot_x_cart = self.game.robot.x
-            robot_y_cart = self.game.window_size - self.game.robot.y
-
-            # print(f"target: {(target_x_cart, target_y_cart)}")
-            # print(f"robot: {(self.game.robot.angle, robot_x_cart, robot_y_cart)}")
-            # print("\n")
-
             # Show info on scoreboard
             self.game.set_scoreboard({"Reward": format(self._get_reward(action), ".2f"), "Observation": self._get_obs()})
             
@@ -236,7 +213,6 @@ class SimpleSimGym(gym.Env):
 
             elif reward > 0:
                 terminated = True
-                # print(f"End Ep Reward: {reward}")
 
 
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
