@@ -76,9 +76,9 @@ class SimpleSimGym(gym.Env):
 
             dx = target_x_cart - robot_x_cart 
             dy = target_y_cart - robot_y_cart
-            (x_prime, y_prime) = self.world_to_body_frame(dx, dy)
-            target_rel_positions[0][i] = x_prime
-            target_rel_positions[1][i] = y_prime
+            (dx, dy) = self.world_to_body_frame(dx, dy) # convert to body frame
+            target_rel_positions[0][i] = dx
+            target_rel_positions[1][i] = dy
 
         # Agent x,y,angle
         # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
