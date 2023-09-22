@@ -3,8 +3,8 @@ test/
 .vscode/
 .DS_Store
 __pycache__/
+.ipynb_chackpoints
 *.py[cod]
 *$py.class
-*.png
 saved_models*
 very_special_saved_models*
