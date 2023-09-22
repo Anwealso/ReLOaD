@@ -3,6 +3,7 @@ test/
 .vscode/
 .DS_Store
 __pycache__/
+logs/
 .ipynb_chackpoints
 *.py[cod]
 *$py.class
