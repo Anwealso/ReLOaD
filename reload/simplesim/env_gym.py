@@ -79,6 +79,11 @@ class SimpleSimGym(gym.Env):
             target_rel_positions[0][i] = dx
             target_rel_positions[1][i] = dy
 
+            (x_prime, y_prime) = self.world_to_body_frame(dx, dy)
+            print(f"oldvec: {dx}, {dy}")
+            print(f"newvec: {x_prime}, {y_prime}")
+            print(f"================================\n")
+
         # Agent x,y,angle
         # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
         agent = np.array([self.game.robot.angle]).astype(np.float32)
@@ -159,6 +164,29 @@ class SimpleSimGym(gym.Env):
 
         return min_cost
 
+    def world_to_body_frame(self, x, y):
+        """
+        Rotates (no translation) a relative distance vector from world frame into body frame
+        """
+        v = np.array([[x],[y]])
+        print(v)
+        print(np.shape(v))
+        print("")
+
+        d_theta = -(self.game.robot.angle - 90)
+        rotation_matrix = np.array([[math.cos(math.radians(d_theta)), -math.sin(math.radians(d_theta))],
+                                    [math.sin(math.radians(d_theta)), math.cos(math.radians(d_theta))]])
+        print(rotation_matrix)
+        print(np.shape(rotation_matrix))
+        print("")
+
+        v_prime = np.matmul(rotation_matrix, v)
+        print(v_prime)
+        print(np.shape(v_prime))
+        print("")
+        x_prime, y_prime = v_prime
+
+        return (x_prime, y_prime)
 
     def step(self, action):
         """
