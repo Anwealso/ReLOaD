@@ -18,7 +18,8 @@ class SimpleSimGym(gym.Env):
             Initializes the openai-gym environment with it's features.
         """
 
-        self.action_cost = 1
+        self.step_cost = 1
+        self.action_cost = 0 # was 1
         self.goal_reached_cutoff = 0.9
         
         # Init. Renders
@@ -30,8 +31,11 @@ class SimpleSimGym(gym.Env):
             starting_budget, num_targets, player_fov, render_mode=render_mode, render_fps=self.metadata["render_fps"]
         )
 
-        # Actions: 0, 1, 2, 3, 4 for D/N, L, R, F
-        self.action_space = spaces.Discrete(4) # actions are: do nothing, R, F, L
+        # Actions: 0, 1, 2, 3 for do nothing, R, F, L
+        self.action_space = spaces.Discrete(4)
+        
+        # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
+        # self.action_space = spaces.Discrete(45)
 
         # Observations (visible state):
         self.observation_space_unflattened = spaces.Dict(
@@ -97,24 +101,89 @@ class SimpleSimGym(gym.Env):
 
         Current Reward Format:
         - Agent receives a -1 reward every time step in which it doesnt reach the goal
-        - Agent receives an end reward when it reaches the goal area (within 90% closeness). 
-          The end reward = 1 + min_cost_to_goal(), i.e. the end reward is calcuclated so that 
-          the total reward for the minimum possible cost policy over the episode is 1
+        - Agent receives a goal reward for each timestep it spends inside the goal area (within 90% closeness). 
+          The goal reward is calcuclated so that the best total reward possible over the whole episode is 0.
+        
+        Essentially the goal structure we have is:
+        moving && !goal < !moving && !goal < !moving && goal < !moving && goal
+        
+        But to improve trining exploraiton we want:
+        !moving && !goal < moving && !goal < !moving && goal < !moving && goal
         """
         reward = 0
 
         # Apply penalty per step to incentivise to get to goal fast
-        reward -= self.action_cost
+        reward -= self.step_cost
+        
+        # # Apply penalty per action so that it doesnt move extraneously once it 
+        # # gets to the goal
+        # if action != 0:
+        #     reward -= self.action_cost
 
         # Apply reward if goal reached
         closeness = self.get_closeness(self.game.robot, self.game.targets[0])
         if closeness > self.goal_reached_cutoff:
-            # The end reward is calcuclated so that the total reward for the minimum possible cost policy over the episode is 1
-            # Effectively should be: min_cost + end_reward = 0
-            end_reward = 1 + self.min_cost_to_goal() # +1 for the action_cost we just did
-            reward += end_reward
+            # Give less reward if we moved
+            if action != 0:
+                reward += self.get_goal_reward() / 2
+            else:
+                # reward += 1000
+                reward += self.get_goal_reward()
 
         return reward
+
+    def get_goal_reward(self):
+        """
+        Gets the reward to give to the agent for each step that it remains in 
+        the goal area.
+
+        Essentially the best path is if the agent expends min_cost_to_goal cost
+        to get to the coal and then stays within the goal area for the rest of 
+        the episode.
+        """
+        # Get the (optimal possible) number of steps that can be spent at the goal
+        # steps_at_goal = self.game.starting_budget - (self.min_cost_to_goal()/self.action_cost)
+        steps_at_goal = self.game.starting_budget - self.min_steps_to_goal()
+        # print("")
+        # print(f"steps_at_goal: {steps_at_goal}")
+        
+        # Goal reward must compensate the agent for the cost to get to the goal
+        # plus the step costs across the whole episode.
+        total_goal_reward = self.min_cost_to_goal() + (self.game.starting_budget*self.step_cost)
+        # print(f"total_goal_reward: {total_goal_reward}")
+        
+        # The amount of the reward to give the agent for each step
+        step_goal_reward = total_goal_reward / steps_at_goal
+        # print(f"step_goal_reward: {step_goal_reward}")
+        # print("")
+
+        return step_goal_reward
+
+    def print_goal_reward(self):
+        """
+        Gets the reward to give to the agent for each step that it remains in 
+        the goal area.
+
+        Essentially the best path is if the agent expends min_cost_to_goal cost
+        to get to the coal and then stays within the goal area for the rest of 
+        the episode.
+        """
+        # Get the (optimal possible) number of steps that can be spent at the goal
+        steps_at_goal = self.game.starting_budget - self.min_steps_to_goal()
+        print("")
+        print(f"steps_at_goal: {steps_at_goal}")
+        
+        # Goal reward must compensate the agent for the cost to get to the goal
+        # plus the step costs across the whole episode.
+        total_goal_reward = self.min_cost_to_goal() + (self.game.starting_budget*self.step_cost)
+        print(f"total_goal_reward: {total_goal_reward}")
+        
+        # The amount of the reward to give the agent for each step
+        step_goal_reward = total_goal_reward / steps_at_goal
+        print(f"step_goal_reward: {step_goal_reward}")
+        print("")
+
+        return step_goal_reward
 
     def get_closeness(self, robot, target):
         """
@@ -126,7 +195,7 @@ class SimpleSimGym(gym.Env):
         return closeness
 
 
-    def min_cost_to_goal(self):
+    def min_steps_to_goal(self):
         """
         Gets the cost of the shortest path to the goal
         """
@@ -149,15 +218,22 @@ class SimpleSimGym(gym.Env):
         target_angle = 360+target_angle if target_angle<0 else target_angle # correct for ambiguous case
         dtheta = abs(self.game.robot.starting_angle - target_angle)
         dtheta = dtheta-180 if dtheta>180 else dtheta # correct since we can go clockwise or anti-clockwise
-        dtheta = 180-dtheta if dtheta>90 else dtheta # correct since we can also reverse into the target
+        # print(f"dtheta1: {dtheta}\r")
+        # dtheta = 180-dtheta if dtheta>90 else dtheta # correct since we can also reverse into the target
+        # print(f"dtheta2: {dtheta}")
         num_turn_actions = math.floor(dtheta / self.game.robot.turn_rate) # each turn action is 5deg
 
         if num_move_actions < 1: # we start inside the object, any movement will cause us to reach goal
             total_num_actions = 1
         else:
             total_num_actions = num_turn_actions + num_move_actions
-        min_cost = total_num_actions * self.action_cost
+        return total_num_actions
 
+    def min_cost_to_goal(self):
+        """
+        Gets the cost of the shortest path to the goal
+        """
+        min_cost = self.min_steps_to_goal() * self.action_cost
         return min_cost
 
     def world_to_body_frame(self, x, y):
@@ -211,8 +287,9 @@ class SimpleSimGym(gym.Env):
                 truncated = True
                 # step_reward = -100
 
-            elif reward > 0:
-                terminated = True
+            # Dont truncate the episode any more
+            # elif reward > 0: 
+            #     terminated = True
 
 
         # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
@@ -227,9 +304,6 @@ class SimpleSimGym(gym.Env):
             ([np.array size=(2,1) type=np.float32]): Random State
         """
         self.game.reset()
-        
-        # DEBUG
-        self.min_cost_to_goal()
 
         info = {} # no extra info at this stage
         return self._get_obs(), info
@@ -245,7 +319,7 @@ class SimpleSimGym(gym.Env):
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
-    STARTING_BUDGET = 2000
+    STARTING_BUDGET = 200
     NUM_TARGETS = 1
     PLAYER_FOV = 60
 
@@ -262,19 +336,24 @@ if __name__ == "__main__":
     num_episodes = 10
     env.reset()
 
-    curriculum = np.linspace(0, 1, num=(int(num_episodes))) # increase from 5 to farthest corner distance
-    print(curriculum)
+    # curriculum = np.linspace(0, 1, num=(int(num_episodes))) # increase from 5 to farthest corner distance
+    # print(curriculum)
 
-    env.game.curriculum = curriculum[0]
+    # env.game.curriculum = curriculum[0]
     for i in range(num_episodes):
         # Set the level of the curriculum
-        env.game.curriculum = curriculum[i]
-        env.reset()
-        print(f"curriculum: {curriculum[i]}")
+        # env.game.curriculum = curriculum[i]
+        # env.reset()
+        # print(f"curriculum: {curriculum[i]}")
 
         terminated = False
         truncated = False
         ep_reward = 0
+        found = False
+        j = 0
+
+        # DEBUG
+        print(f"min_cost_to_goal: {env.min_cost_to_goal()}")
 
         while not (terminated or truncated):
             time.sleep(0.05)
@@ -282,11 +361,23 @@ if __name__ == "__main__":
 
             # action = env.action_space.sample()  # this is where you would insert your policy
             observation, reward, terminated, truncated, info = env.step(action)
+            
+            j += 1
             # print(f"Reward: {format(reward, '.2f')}, Observation: {observation}\n")
 
+            if reward > -env.step_cost and found == False:
+                print(f"Real Cost to Reach Goal: {j * env.action_cost}")
+                print(f"Real Actions to Reach Goal: {j}")
+
+                env.print_goal_reward()
+                found = True
+
+
             ep_reward += reward
+
 
             if terminated or truncated:
                 observation, info = env.reset()
 
         print(f"Total Ep Reward: {ep_reward}")
+        quit()

@@ -379,7 +379,7 @@ class SimpleSim(object):
 
         # Handle player controls and movement
         while True:
-            # event = pygame.event.wait()
+            event = pygame.event.wait()
             if (not self.paused) and (not self.gameover):
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RIGHT]:
@@ -390,7 +390,7 @@ class SimpleSim(object):
                     return 3
                 if keys[pygame.K_DOWN]:
                     return 4
-                else:
+                elif keys[pygame.K_SPACE]:
                     return 0
 
     def get_state(self):
