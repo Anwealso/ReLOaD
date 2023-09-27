@@ -345,7 +345,9 @@ class SimpleSim(object):
         ) / (self.count + 1)
 
         # Add the current timestep confidences to the comprehensive all timesteps list
-        np.append(self.confidences, self.current_confidences, axis=1)
+        self.confidences = np.append(self.confidences, self.current_confidences, axis=1)
+        # print(f"############# DETECTING TARGETS: self.confidences={self.current_confidences}")
+        # print(f"############# DETECTING TARGETS: self.confidences={self.confidences}")
 
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
