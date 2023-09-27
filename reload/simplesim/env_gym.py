@@ -130,7 +130,7 @@ class SimpleSimGym(gym.Env):
         #     reward -= self.action_cost
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward() * self.game.starting_budget
+        reward += self.get_entropy_reward(verbose=1) * self.game.starting_budget
 
         return reward
 
@@ -218,10 +218,10 @@ class SimpleSimGym(gym.Env):
                 # The reduction in entropy achieved by this new observation
                 entropy_diff = self.entropy[i] - new_entropy[i]
                 
-                entropy_reward = entropy_diff
-                # # The reward is either the entropy_diff if we made a reduction 
-                # # or 0 otherwise.
-                # entropy_reward += np.max(entropy_diff, 0)
+                # entropy_reward = entropy_diff
+                # The reward is either the entropy_diff if we made a reduction 
+                # or 0 otherwise.
+                entropy_reward += np.max(entropy_diff, 0)
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
@@ -245,6 +245,8 @@ class SimpleSimGym(gym.Env):
             print("\n")
 
         self.entropy = new_entropy
+        print(entropy_reward)
+
         return entropy_reward
 
     def get_goal_reward(self):
@@ -456,7 +458,7 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 200
-    NUM_TARGETS = 1
+    NUM_TARGETS = 2
     PLAYER_FOV = 60
 
     # -------------------------------- Environment ------------------------------- #
