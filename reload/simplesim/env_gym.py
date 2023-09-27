@@ -129,22 +129,12 @@ class SimpleSimGym(gym.Env):
         # if action != 0:
         #     reward -= self.action_cost
 
-        # # Apply reward if goal reached
-        # closeness = self.get_closeness(self.game.robot, self.game.targets[0])
-        # if closeness > self.goal_reached_cutoff:
-        #     # Give less reward if we moved
-        #     if action != 0:
-        #         reward += self.get_goal_reward() / 2
-        #     else:
-        #         # reward += 1000
-        #         reward += self.get_goal_reward() * self.game.current_confidences[0][0]
-
-        # Apply reward based on confidence
-        reward += self.get_entropy_reward()
+        # Apply reward based on observation entropy
+        reward += self.get_entropy_reward() * self.game.starting_budget
 
         return reward
 
-    def get_entropy_reward(self):
+    def get_entropy_reward(self, verbose=0):
         """
         An entropy / information gain based reward feedback for the agent.
         Essentially we want to implement an exploit vs explore (epsilon greedy
@@ -160,7 +150,7 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
 
-        TODO: Convert this to numpy matrix operations so its not so slow
+        Note: Since the entropy reward is the decrease in 
         """
         entropy_reward = 0
 
@@ -174,55 +164,41 @@ class SimpleSimGym(gym.Env):
         #     for timestep_index in num_timesteps:
         #         id_prob = self.game.confidences[target_index][timestep_index]
         #         target_entropy += id_prob * math.log(id_prob)
-        print(f"self.game.confidences: {self.game.confidences}")
 
         # Num observations:
         num_observations = np.count_nonzero(self.game.confidences, axis=1)
-        print(f"num_observations: {num_observations}")
 
-        # Get the experimental probability of each event:
         occurrence_prob = self.game.confidences
-        # occurrence_prob = np.divide(self.game.confidences, num_observations)
-        # print(f"probability: {occurrence_prob}")
+        # Get the experimental probability of each event:
 
         reciprocal_positive = np.reciprocal(
             self.game.confidences, where=(self.game.confidences > 0)
         )
-        print(f"reciprocal_positive: {reciprocal_positive}")
         suprises_positive = np.log2(
             reciprocal_positive,
             where=(self.game.confidences > 0),
         )
 
-        conjugate_negative = 1 - self.game.confidences
-        # print(f"conjugate_negative: {conjugate_negative}")
+        occurrence_prob_negative = 1 - self.game.confidences
         reciprocal_negative = np.reciprocal(
-            conjugate_negative
+            occurrence_prob_negative,
+            where=(occurrence_prob_negative > 0)
         )
-        # print(f"reciprocal_negative: {reciprocal_negative}")
         suprises_negative = np.log2(
             reciprocal_negative,
             where=(reciprocal_negative > 0),
         )
-        print(f"suprises_positive: {suprises_positive}")
-        print(f"suprises_negative: {suprises_negative}")
 
         entropy_positive = np.multiply(occurrence_prob, suprises_positive)
-        entropy_negative = np.multiply(1 - occurrence_prob, suprises_negative)
-        # print(f"entropy_positive: {entropy_positive}")
-        # print(f"entropy_negative: {entropy_negative}")
+        entropy_negative = np.multiply(occurrence_prob_negative, suprises_negative)
 
-        # new_entropy = np.divide(
-        #     np.sum(
-        #         entropy_positive + entropy_negative,
-        #         axis=1,
-        #     ),
-        #     num_observations,
-        #     where=(num_observations > 0)
-        # )
-        new_entropy = np.sum(
-            entropy_positive + entropy_negative,
-            axis=1,
+        new_entropy = np.divide(
+            np.sum(
+                entropy_positive + entropy_negative,
+                axis=1,
+            ),
+            num_observations,
+            where=(num_observations>0)
         )
         # So far we have used zeros as the placeholder values for cases where 
         # the argets arenot observed / are out of sight / no observations have 
@@ -232,8 +208,6 @@ class SimpleSimGym(gym.Env):
         # instead we will set their entropy to be 1 - since really in this 
         # no-knowledge case the system should have maximum entropy
         new_entropy[new_entropy == 0] = 1
-        # print(f"prev_entropy: {self.entropy}")
-        print(f"new_entropy: {new_entropy}")
 
         entropy_reward = 0
         for i, target in enumerate(self.game.targets):
@@ -241,14 +215,36 @@ class SimpleSimGym(gym.Env):
                 if self.entropy[i] == 0:
                     self.entropy[i] = 1
                 
-                # Reward = the gain in entropy
-                entropy_reward += self.entropy[i] - new_entropy[i]
+                # The reduction in entropy achieved by this new observation
+                entropy_diff = self.entropy[i] - new_entropy[i]
+                
+                entropy_reward = entropy_diff
+                # # The reward is either the entropy_diff if we made a reduction 
+                # # or 0 otherwise.
+                # entropy_reward += np.max(entropy_diff, 0)
 
-        print(f"entropy_reward: {entropy_reward}")
-        print("\n\n")
+        if verbose > 0:
+            print(f"self.game.confidences: {self.game.confidences}")
+
+            # print(f"num_observations: {num_observations}")
+            # print(f"occurrence_prob: {occurrence_prob}")
+            # print(f"occurrence_prob_negative: {occurrence_prob_negative}")
+            
+            # print(f"reciprocal_positive: {reciprocal_positive}")
+            # print(f"reciprocal_negative: {reciprocal_negative}")
+
+            # print(f"suprises_positive: {suprises_positive}")
+            # print(f"suprises_negative: {suprises_negative}")
+
+            # print(f"entropy_positive: {entropy_positive}")
+            # print(f"entropy_negative: {entropy_negative}")
+
+            print(f"old_entropy: {self.entropy}")
+            print(f"new_entropy: {new_entropy}")
+            print(f"====================== entropy_reward: {entropy_reward} ======================")
+            print("\n")
 
         self.entropy = new_entropy
-
         return entropy_reward
 
     def get_goal_reward(self):
