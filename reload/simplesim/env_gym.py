@@ -21,7 +21,7 @@ class SimpleSimGym(gym.Env):
         """
 
         self.step_cost = 1
-        self.action_cost = 0  # was 1
+        self.action_cost = 1  # was 1
         self.goal_reached_cutoff = 0.9
 
         # Init. Renders
@@ -126,15 +126,56 @@ class SimpleSimGym(gym.Env):
         # Apply penalty per step to incentivise to get to goal fast
         reward -= self.step_cost
 
-        # # Apply penalty per action so that it doesnt move extraneously once it
-        # # gets to the goal
-        # if action != 0:
-        #     reward -= self.action_cost
+        # Apply penalty per action so that it doesnt move extraneously once it
+        # gets to the goal
+        if action != 0:
+            reward -= self.action_cost
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(verbose=0) * self.game.starting_budget
+        # reward += self.get_entropy_reward(verbose=0) * self.game.starting_budget
+        reward += self.get_time_reward(verbose=0)
+
+        return reward    
+
+    def get_time_reward(self, verbose=0):
+        """
+        A time based reward that gives reward proportional to the amount of 
+        times each target is correctly classified in an observation (correct 
+        class has the highest probability)
+        
+        Or in this case - correct class has >50% probability
+        """
+
+        # Get the the set of all correct observations for each target
+        correct_obs_confidences = np.zeros_like(self.game.confidences)
+        correct_obs_confidences = np.add(
+            correct_obs_confidences, 
+            self.game.confidences,
+            where=(self.game.confidences > 0.5), 
+            out=np.zeros_like(self.game.confidences)
+        )
+
+        target_correct_obs_confidences = np.sum(
+            correct_obs_confidences,
+            axis=1,
+        )
+        
+        total_correct_obs_confidences = np.sum(target_correct_obs_confidences)
+
+        # Normalise the reward to 0-1, against the length of the episode so far and the number of targets
+        reward = float(total_correct_obs_confidences) / (self.game.num_targets * self.game.count)
+        
+        scaling_factor = 10
+        reward = reward * scaling_factor
+
+        if verbose > 0:
+            print(f"correct_obs_confidences: {correct_obs_confidences}")
+            print(f"target_correct_obs_confidences: {target_correct_obs_confidences}")
+            print(f"total_correct_obs_confidences: {total_correct_obs_confidences}")
+            print(f"reward: {reward}")
 
         return reward
+
 
     def get_entropy_reward(self, verbose=0):
         """
