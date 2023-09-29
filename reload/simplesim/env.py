@@ -64,7 +64,7 @@ class Robot(object):
 
         # Set starting orientation (facing upwards)
         self.starting_angle = 90  # unit circle angles
-        self.angle = self.starting_angle # unit circle angles
+        self.angle = self.starting_angle  # unit circle angles
 
         # Set move speeds
         self.turn_rate = 5
@@ -84,12 +84,12 @@ class Robot(object):
         self.trail.clear()  # a trail of all past x,y coords
         # Reset orientation
         self.angle = 90  # unit circle angles
-    
+
     def turn_left(self):
         # print("turn_left")
         self.angle += self.turn_rate
         if self.angle >= 360:
-            self.angle = self.angle - 360 # wrap angle back around
+            self.angle = self.angle - 360  # wrap angle back around
 
         # self.x -= 10
         # self.handle_boundary_collisions()
@@ -98,7 +98,7 @@ class Robot(object):
         # print("turn_right")
         self.angle -= self.turn_rate
         if self.angle < 0:
-            self.angle = self.angle + 360 # wrap angle back around
+            self.angle = self.angle + 360  # wrap angle back around
 
         # self.x += 10
         # self.handle_boundary_collisions()
@@ -229,7 +229,14 @@ class SimpleSim(object):
     A class to handle all of the data structures and logic of the game
     """
 
-    def __init__(self, starting_budget, num_targets, player_fov, render_mode=None, render_fps=None):
+    def __init__(
+        self,
+        starting_budget,
+        num_targets,
+        player_fov,
+        render_mode=None,
+        render_fps=None,
+    ):
         """
         Initialises a SimpleSim instance
 
@@ -261,7 +268,13 @@ class SimpleSim(object):
         self.count = 0
         self.scoreboard_items = {}
 
-        self.robot = Robot(player_fov, self.player_size, self.window_size//2, self.window_size//2, self.window_size)
+        self.robot = Robot(
+            player_fov,
+            self.player_size,
+            self.window_size // 2,
+            self.window_size // 2,
+            self.window_size,
+        )
         self.targets = []
         # 1D array of confidences on each object at current timestep
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
@@ -272,8 +285,8 @@ class SimpleSim(object):
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
-        self.curriculum = 1 # no limit unless this member variable is set manually
-        self.min_target_dist = 0 # was 80
+        self.curriculum = 1  # no limit unless this member variable is set manually
+        self.min_target_dist = 0  # was 80
         self.spawn_targets(self.num_targets)
 
     def spawn_targets(self, num_to_spawn):
@@ -291,18 +304,22 @@ class SimpleSim(object):
             size = self.target_size * rank
 
             # If target is within allowable distance to robot, break
-            max_band_gap = (math.sqrt(2*(self.window_size)**2) - self.min_target_dist) # the max width of the band between the min and max spawn limits
-            current_max_target_dist = self.min_target_dist + (self.curriculum * max_band_gap)
+            max_band_gap = (
+                math.sqrt(2 * (self.window_size) ** 2) - self.min_target_dist
+            )  # the max width of the band between the min and max spawn limits
+            current_max_target_dist = self.min_target_dist + (
+                self.curriculum * max_band_gap
+            )
             if current_max_target_dist == self.min_target_dist:
-                current_max_target_dist += 5 # avoid infinite or very long loops
+                current_max_target_dist += 5  # avoid infinite or very long loops
 
             while True:
                 x, y = (
-                    random.randrange(0 + size//2, self.window_size - size//2),
-                    random.randrange(0 + size//2, self.window_size - size//2),
+                    random.randrange(0 + size // 2, self.window_size - size // 2),
+                    random.randrange(0 + size // 2, self.window_size - size // 2),
                 )
-                dS = math.sqrt((x - self.robot.x)**2 + (y - self.robot.y)**2)
-                
+                dS = math.sqrt((x - self.robot.x) ** 2 + (y - self.robot.y) ** 2)
+
                 if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
                     break
 
@@ -453,15 +470,14 @@ class SimpleSim(object):
                         # Set the screen to black
                         self.render_black_screen()
 
-            while (self.paused):
+            while self.paused:
                 # Do nothing, pause until key pressed again
                 for event in pygame.event.get():
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                         self.paused = not self.paused
                         break
-            
-            self._render_frame()
 
+            self._render_frame()
 
     def reset(self):
         """
@@ -499,11 +515,10 @@ class SimpleSim(object):
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
-        
         # ------------------ Create the base canvas and load assets ------------------ #
         canvas = pygame.Surface((self.window_size, self.window_size))
-        player_size = 50 # was 100
-        player_height = 50 # was 100
+        player_size = 50  # was 100
+        player_height = 50  # was 100
 
         # if os.path.dirname(__file__) != "":
         #     sprites_dir = os.path.dirname(__file__) + "/sprites/"
@@ -511,9 +526,13 @@ class SimpleSim(object):
         #     sprites_dir = "sprites/"
         sprites_dir = ""
 
-        bg = pygame.transform.scale(pygame.image.load(sprites_dir + "roombg.jpg"), (self.window_size, self.window_size))
+        bg = pygame.transform.scale(
+            pygame.image.load(sprites_dir + "roombg.jpg"),
+            (self.window_size, self.window_size),
+        )
         player_robot = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "robot.png"), (self.player_size, self.player_size)
+            pygame.image.load(sprites_dir + "robot.png"),
+            (self.player_size, self.player_size),
         )
         target50 = pygame.transform.scale(
             pygame.image.load(sprites_dir + "apple.png"), (50, 50)
@@ -528,12 +547,9 @@ class SimpleSim(object):
         fov_line_length = 500
         fov_line_thickness = 10
 
-
         # --------------------------- Draw all the entities -------------------------- #
         # Draw the background image
         canvas.blit(bg, (0, 0))
-
-
 
         # Draw the robot
         # Make a surface with a line on it
@@ -573,7 +589,9 @@ class SimpleSim(object):
 
         # Update player sprite position
         # 90deg rotated version of the sprite surf image
-        rotated_player_surf = pygame.transform.rotate(player_robot, self.robot.angle - 90)
+        rotated_player_surf = pygame.transform.rotate(
+            player_robot, self.robot.angle - 90
+        )
         # The rectangle bounding box of the surf
         rotated_player_rect = rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
@@ -587,8 +605,6 @@ class SimpleSim(object):
         canvas.blit(rotated_player_surf, rotated_player_rect)
         # Redraw the fov indicator surfs
         canvas.blit(rotated_fov_surf, rotated_fov_rect)
-
-
 
         # Draw the targets
         for target in self.targets:
@@ -605,25 +621,19 @@ class SimpleSim(object):
             rotated_target_rect = rotated_target_surf.get_rect()
             rotated_target_rect.center = (target.x, target.y)
 
-            canvas.blit(rotated_target_surf, rotated_target_rect)        
-        
+            canvas.blit(rotated_target_surf, rotated_target_rect)
 
-
-        
         # Draw the robot's trail
         for point in self.robot.trail:
             pygame.draw.circle(canvas, (255, 0, 0), point, 2)
 
-
-
-
         # Draw the onscreen menu text
         # font = pygame.font.SysFont("arial", 30)
         font = pygame.font.Font(None, 25)
-        
+
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
         canvas.blit(budget_text, (25, 25))
-        
+
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
             canvas.blit(
@@ -633,7 +643,7 @@ class SimpleSim(object):
                     self.window_size // 2 - play_again_text.get_height() // 2,
                 ),
             )
-        
+
         pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
         if self.paused:
             canvas.blit(
@@ -647,19 +657,18 @@ class SimpleSim(object):
         metric_count = 0
         for metric_name in self.scoreboard_items.keys():
             metric_text = font.render(
-                f"{metric_name}: "
-                + str(self.scoreboard_items[metric_name]),
+                f"{metric_name}: " + str(self.scoreboard_items[metric_name]),
                 1,
                 (0, 255, 0),
             )
             canvas.blit(
                 metric_text,
-                (self.window_size - metric_text.get_width() - 25, (metric_count * 35) + metric_text.get_height()),
+                (
+                    self.window_size - metric_text.get_width() - 25,
+                    (metric_count * 35) + metric_text.get_height(),
+                ),
             )
             metric_count += 1
-
-
-
 
         # --------------- Send the rendered view to the relevant viewer -------------- #
 
@@ -678,7 +687,6 @@ class SimpleSim(object):
             )
 
 
-
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
 # ---------------------------------------------------------------------------- #
@@ -688,11 +696,13 @@ if __name__ == "__main__":
     NUM_TARGETS = 8
     PLAYER_FOV = 60
 
-    game = SimpleSim(starting_budget=STARTING_BUDGET, 
-                     num_targets=NUM_TARGETS, 
-                     player_fov=PLAYER_FOV, 
-                     render_mode="human", 
-                     render_fps=30)
+    game = SimpleSim(
+        starting_budget=STARTING_BUDGET,
+        num_targets=NUM_TARGETS,
+        player_fov=PLAYER_FOV,
+        render_mode="human",
+        render_fps=30,
+    )
     game._render_frame()
 
     state = {}

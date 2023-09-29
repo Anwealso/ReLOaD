@@ -144,6 +144,10 @@ class SimpleSimGym(gym.Env):
         class has the highest probability)
         
         Or in this case - correct class has >50% probability
+
+        TODO: Need to add a log/exp scaling to the reward sum for each target 
+        so that the robot is incentivised not to favour some targets over 
+        others but to look at them all adequately
         """
 
         # Get the the set of all correct observations for each target
