@@ -93,13 +93,13 @@ class Robot(object):
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
 
-    def reset(self):
-        # Reset position
-        self.x = self.starting_x
-        self.y = self.starting_y
-        self.trail.clear()  # a trail of all past x,y coords
-        # Reset orientation
-        self.angle = 90  # unit circle angles
+    # def reset(self):
+    #     # Reset position
+    #     self.x = self.starting_x
+    #     self.y = self.starting_y
+    #     self.trail.clear()  # a trail of all past x,y coords
+    #     # Reset orientation
+    #     self.angle = 90  # unit circle angles
 
     def turn_left(self):
         self.angle += self.turn_rate
@@ -230,7 +230,7 @@ class SimpleSim(object):
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
         self.spawn_walls(1)
-        self.robot = self.spawn_robot(player_fov)
+        self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
 
     def spawn_walls(self, num_to_spawn):
@@ -239,7 +239,7 @@ class SimpleSim(object):
         """
 
         min_size = 50
-        max_size = 300
+        max_size = 200
 
         for _ in range(0, num_to_spawn):
             xmin, ymin = (
@@ -255,7 +255,6 @@ class SimpleSim(object):
                 ),
             )
 
-            print(xmin, ymin, xmax, ymax)
             self.walls.append(Wall(xmin, ymin, xmax, ymax))
 
     def spawn_robot(self, player_fov):
@@ -289,15 +288,13 @@ class SimpleSim(object):
             if valid:
                 break
 
-        robot = Robot(
+        self.robot = Robot(
             player_fov,
             self.player_size,
             x,
             y,
             self.window_size,
         )
-
-        return robot
 
     def spawn_targets(self, num_to_spawn):
         """
@@ -653,9 +650,12 @@ class SimpleSim(object):
         """
         self.gameover = False
         self.budget = self.starting_budget
+        
+        self.walls.clear()
+        self.spawn_walls(2)
+        self.spawn_robot(self.robot.fov)
         self.targets.clear()
         self.spawn_targets(self.num_targets)
-        self.robot.reset()
 
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
