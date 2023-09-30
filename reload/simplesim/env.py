@@ -93,14 +93,6 @@ class Robot(object):
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
 
-    # def reset(self):
-    #     # Reset position
-    #     self.x = self.starting_x
-    #     self.y = self.starting_y
-    #     self.trail.clear()  # a trail of all past x,y coords
-    #     # Reset orientation
-    #     self.angle = 90  # unit circle angles
-
     def turn_left(self):
         self.angle += self.turn_rate
         if self.angle >= 360:
