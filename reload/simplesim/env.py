@@ -221,7 +221,8 @@ class SimpleSim(object):
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
-        self.spawn_walls(1)
+        self.num_walls = 2
+        self.spawn_walls(self.num_walls)
         self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
 
@@ -275,7 +276,7 @@ class SimpleSim(object):
                     and (y - (self.player_size / 2) < wall.ymax)
                 ):
                     # Point is inside wall
-                    valid == False
+                    valid = False
 
             if valid:
                 break
@@ -297,6 +298,7 @@ class SimpleSim(object):
         Returns:
             None
         """
+        # print("\n\n\n")
         for _ in range(0, num_to_spawn):
             # rank = random.choice([1, 1, 1, 2, 2, 3])
             rank = 1
@@ -312,27 +314,34 @@ class SimpleSim(object):
             if current_max_target_dist == self.min_target_dist:
                 current_max_target_dist += 5  # avoid infinite or very long loops
 
+            # print("Attempting spawn:")
             while True:
                 x, y = (
                     random.randrange(0 + size // 2, self.window_size - size // 2),
                     random.randrange(0 + size // 2, self.window_size - size // 2),
                 )
 
-                for wall in self.walls:
-                    # If part of the target is inside wall
-                    if (
-                        (x + (size / 2) > wall.xmin)
-                        and (y + (size / 2) > wall.ymin)
-                        and (x - (size / 2) < wall.xmax)
-                        and (y - (size / 2) < wall.ymax)
-                    ):
-                        break
-
+                # CHeck its within the curriculum zone 
                 dS = math.sqrt((x - self.robot.x) ** 2 + (y - self.robot.y) ** 2)
-
                 if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
-                    break
 
+                    # Check target is not inside wall
+                    valid = True
+                    for wall in self.walls:
+                        if (
+                            (x + (size / 2) > wall.xmin)
+                            and (y + (size / 2) > wall.ymin)
+                            and (x - (size / 2) < wall.xmax)
+                            and (y - (size / 2) < wall.ymax)
+                        ):
+                            # Inside wall
+                            # print("invalid :(")
+                            valid = False
+                    if valid:
+                        # print(f"valid!, {x}, {y}")
+                        # If target spawn wasnt inside and walls
+                        break
+            
             # print(f"current_max_target_dist: {current_max_target_dist}")
             self.targets.append(Target(rank, x, y))
 
@@ -644,7 +653,7 @@ class SimpleSim(object):
         self.budget = self.starting_budget
         
         self.walls.clear()
-        self.spawn_walls(2)
+        self.spawn_walls(self.num_walls)
         self.spawn_robot(self.robot.fov)
         self.targets.clear()
         self.spawn_targets(self.num_targets)

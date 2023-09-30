@@ -58,7 +58,7 @@ class SimpleSimGym(gym.Env):
                 "targets": spaces.Box(
                     low=-max_dist,
                     high=max_dist,
-                    shape=(2, num_targets),
+                    shape=(3, num_targets),
                     dtype=np.float32,
                 ),  # target relative positions (x,y)
                 # "current_conf": spaces.Box(
@@ -77,31 +77,31 @@ class SimpleSimGym(gym.Env):
 
     def _get_obs(self):
         # Target relative positions (dx,dy)
-        target_rel_positions = np.zeros(
-            shape=(2, len(self.game.targets)), dtype=np.float32
+        target_info = np.zeros(
+            shape=(3, len(self.game.targets)), dtype=np.float32
         )
         for i, target in enumerate(self.game.targets):
             target_x_cart = target.x
             target_y_cart = self.game.window_size - target.y
             robot_x_cart = self.game.robot.x
             robot_y_cart = self.game.window_size - self.game.robot.y
-
             dx = target_x_cart - robot_x_cart
             dy = target_y_cart - robot_y_cart
             (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-            target_rel_positions[0][i] = dx
-            target_rel_positions[1][i] = dy
+            # Add target relative positions
+            target_info[0][i] = dx
+            target_info[1][i] = dy
+            # Add current object confidences
+            target_info[2][i] = self.game.current_confidences[i]
 
         # Agent x,y,angle
         # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
         # agent = np.array([self.game.robot.angle]).astype(np.float32)
 
-        # Current object confidences
-        # conf = self.game.current_confidences
 
         # observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_rel_positions})
         observation = spaces.utils.flatten(
-            self.observation_space_unflattened, {"targets": target_rel_positions}
+            self.observation_space_unflattened, {"targets": target_info}
         )
         
         return observation
@@ -133,15 +133,15 @@ class SimpleSimGym(gym.Env):
 
         # Apply reward based on observation entropy
         # reward += self.get_entropy_reward(verbose=0) * self.game.starting_budget
-        reward += self.get_time_reward(verbose=0)
+        reward += self.get_confidence_reward(verbose=0)
 
         return reward    
 
-    def get_time_reward(self, verbose=0):
+    def get_confidence_reward(self, verbose=0):
         """
-        A time based reward that gives reward proportional to the amount of 
-        times each target is correctly classified in an observation (correct 
-        class has the highest probability)
+        A confidence based reward that gives reward proportional to 
+        the amount of times each target is correctly classified in an 
+        observation (correct class has the highest probability)
         
         Or in this case - correct class has >50% probability
 
@@ -160,37 +160,41 @@ class SimpleSimGym(gym.Env):
         )
 
         # The sum confidences of each target over all time
-        target_confidences = np.sum(
+        target_sum_confidences = np.sum(
+            # correct_obs_confidences,
             correct_obs_confidences,
             axis=1,
         )
-        # The average confidences of each target over all time
         num_observations = np.count_nonzero(self.game.confidences, axis=1)
-        avg_target_confidences = np.divide(target_confidences, num_observations, where=(num_observations > 0), out=np.zeros_like(target_confidences))
+        # The average confidences of each target over all time
+        avg_target_confidences = np.divide(target_sum_confidences, num_observations, where=(num_observations > 0), out=np.zeros_like(target_sum_confidences))
         
-        # The average of confidences over all targets
-        avg_confidences = np.divide(np.sum(avg_target_confidences), self.game.num_targets)
+        # The average of confidences over all targets over all time
+        avg_confidence = np.divide(np.sum(avg_target_confidences), self.game.num_targets)
+        # The average of the target sum confidences
+        # avg_target_sum_confidences = np.divide(np.sum(target_sum_confidences), self.game.num_targets)
         
         # Apply a penalty factor for proportional to the amount of variance in 
-        # the target confidences
-        variance = float(np.var(avg_target_confidences))
+        # the target sum confidences
+        variance = float(np.var(target_sum_confidences))
         # A penalty factor that scales from 1-0 for variance from 0-infty
-        similarity_factor = 1 / ((variance*10)+1)
+        # similarity_factor = 1 / ((variance*10)+1)
+        similarity_factor = 1 / ((variance/10)+1)
 
-        reward = avg_confidences
         scaling_factor = 10
-        reward = reward * scaling_factor * similarity_factor
+        reward = np.sum(avg_confidence)
+        # reward = np.sum(self.game.current_confidences)
+        reward = reward * similarity_factor #* scaling_factor
 
         if verbose > 0:
             # print(f"correct_obs_confidences: {correct_obs_confidences}")
-            print(f"avg_target_confidences: {avg_target_confidences}")
+            # print(f"avg_target_confidences: {avg_target_confidences}")
             # print(f"avg_confidences: {avg_confidences}")
             print(f"variance: {variance}")
             print(f"similarity_factor: {similarity_factor}")
             print(f"reward: {reward}")
 
         return reward
-
 
     def get_entropy_reward(self, verbose=0):
         """
@@ -294,7 +298,6 @@ class SimpleSimGym(gym.Env):
 
         self.entropy = new_entropy
         return entropy_reward
-    
 
     def get_goal_reward(self):
         """
@@ -324,32 +327,6 @@ class SimpleSimGym(gym.Env):
         # print("")
 
         return step_goal_reward
-
-    # def print_goal_reward(self):
-    #     """
-    #     Gets the reward to give to the agent for each step that it remains in
-    #     the goal area.
-
-    #     Essentially the best path is if the agent expends min_cost_to_goal cost
-    #     to get to the coal and then stays within the goal area for the rest of
-    #     the episode.
-    #     """
-    #     # Get the (optimal possible) number of steps that can be spent at the goal
-    #     steps_at_goal = self.game.starting_budget - self.min_steps_to_goal()
-    #     print("")
-    #     print(f"steps_at_goal: {steps_at_goal}")
-
-    #     # Goal reward must compensate the agent for the cost to get to the goal
-    #     # plus the step costs across the whole episode.
-    #     total_goal_reward = self.min_cost_to_goal() + (self.game.starting_budget*self.step_cost)
-    #     print(f"total_goal_reward: {total_goal_reward}")
-
-    #     # The amount of the reward to give the agent for each step
-    #     step_goal_reward = total_goal_reward / steps_at_goal
-    #     print(f"step_goal_reward: {step_goal_reward}")
-    #     print("")
-
-    #     return step_goal_reward
 
     def get_closeness(self, robot, target):
         """
@@ -460,12 +437,31 @@ class SimpleSimGym(gym.Env):
             reward = self._get_reward(action)
             obs = self._get_obs()
 
+
+            # Get the the set of all correct observations for each target
+            correct_obs_confidences = np.zeros_like(self.game.confidences)
+            correct_obs_confidences = np.add(
+                correct_obs_confidences, 
+                self.game.confidences,
+                where=(self.game.confidences > 0.5), 
+                out=np.zeros_like(self.game.confidences)
+            )
+            # The sum confidences of each target over all time
+            target_sum_confidences = np.sum(
+                # correct_obs_confidences,
+                correct_obs_confidences,
+                axis=1,
+            )   
+            variance = float(np.var(target_sum_confidences))
+
+
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
-                    "Confidence": format(self.game.current_confidences[0][0], ".2f"),
+                    "Confidence": format(np.sum(self.game.current_confidences), ".2f"),
+                    "Variance": format(variance, ".2f"),
                     "Reward": format(reward, ".2f"),
-                    "Observation": obs,
+                    "Observation": np.round(obs, 2),
                 }
             )
 
@@ -505,8 +501,8 @@ class SimpleSimGym(gym.Env):
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
-    STARTING_BUDGET = 200
-    NUM_TARGETS = 1
+    STARTING_BUDGET = 500
+    NUM_TARGETS = 2
     PLAYER_FOV = 60
 
     # -------------------------------- Environment ------------------------------- #
