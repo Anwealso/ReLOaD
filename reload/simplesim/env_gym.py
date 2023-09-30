@@ -159,23 +159,34 @@ class SimpleSimGym(gym.Env):
             out=np.zeros_like(self.game.confidences)
         )
 
-        target_correct_obs_confidences = np.sum(
+        # The sum confidences of each target over all time
+        target_confidences = np.sum(
             correct_obs_confidences,
             axis=1,
         )
+        # The average confidences of each target over all time
+        num_observations = np.count_nonzero(self.game.confidences, axis=1)
+        avg_target_confidences = np.divide(target_confidences, num_observations, where=(num_observations > 0), out=np.zeros_like(target_confidences))
         
-        total_correct_obs_confidences = np.sum(target_correct_obs_confidences)
+        # The average of confidences over all targets
+        avg_confidences = np.divide(np.sum(avg_target_confidences), self.game.num_targets)
+        
+        # Apply a penalty factor for proportional to the amount of variance in 
+        # the target confidences
+        variance = float(np.var(avg_target_confidences))
+        # A penalty factor that scales from 1-0 for variance from 0-infty
+        similarity_factor = 1 / ((variance*10)+1)
 
-        # Normalise the reward to 0-1, against the length of the episode so far and the number of targets
-        reward = float(total_correct_obs_confidences) / (self.game.num_targets * self.game.count)
-        
+        reward = avg_confidences
         scaling_factor = 10
-        reward = reward * scaling_factor
+        reward = reward * scaling_factor * similarity_factor
 
         if verbose > 0:
-            print(f"correct_obs_confidences: {correct_obs_confidences}")
-            print(f"target_correct_obs_confidences: {target_correct_obs_confidences}")
-            print(f"total_correct_obs_confidences: {total_correct_obs_confidences}")
+            # print(f"correct_obs_confidences: {correct_obs_confidences}")
+            print(f"avg_target_confidences: {avg_target_confidences}")
+            # print(f"avg_confidences: {avg_confidences}")
+            print(f"variance: {variance}")
+            print(f"similarity_factor: {similarity_factor}")
             print(f"reward: {reward}")
 
         return reward
@@ -495,7 +506,7 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 200
-    NUM_TARGETS = 2
+    NUM_TARGETS = 1
     PLAYER_FOV = 60
 
     # -------------------------------- Environment ------------------------------- #
