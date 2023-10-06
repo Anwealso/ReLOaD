@@ -76,6 +76,31 @@ class SimpleSimGym(gym.Env):
         self.clock = None
 
     def _get_obs(self):
+        # Get seen or not
+
+        # Get the the set of all correct observations for each target
+        correct_obs_confidences = np.zeros_like(self.game.confidences)
+        correct_obs_confidences = np.add(
+            correct_obs_confidences, 
+            self.game.confidences,
+            where=(self.game.confidences > 0.5), 
+            out=np.zeros_like(self.game.confidences)
+        )
+        # The sum confidences of each target over all time
+        target_sum_confidences = np.sum(
+            correct_obs_confidences,
+            axis=1,
+        )
+        # The sum confidences of each target over all time
+        targets_seen_status = np.zeros_like(target_sum_confidences)
+        targets_seen_status = np.add(
+            targets_seen_status,
+            1,
+            where=(target_sum_confidences > 0), 
+            out=np.zeros_like(target_sum_confidences)
+        )
+        # print(targets_seen_status, "\n")
+
         # Target relative positions (dx,dy)
         target_info = np.zeros(
             shape=(3, len(self.game.targets)), dtype=np.float32
@@ -93,6 +118,8 @@ class SimpleSimGym(gym.Env):
             target_info[1][i] = dy
             # Add current object confidences
             target_info[2][i] = self.game.current_confidences[i]
+            # Add target seen status
+            target_info[2][i] = targets_seen_status[i]
 
         # Agent x,y,angle
         # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
@@ -133,9 +160,54 @@ class SimpleSimGym(gym.Env):
 
         # Apply reward based on observation entropy
         # reward += self.get_entropy_reward(verbose=0) * self.game.starting_budget
-        reward += self.get_confidence_reward(verbose=0)
+        # reward += self.get_confidence_reward(verbose=0)
+        reward += self.get_discovery_reward(verbose=0)
 
         return reward    
+
+    def get_discovery_reward(self, verbose=0):
+        """
+        Gets a reward each time it discovers an object (with >80% conf)
+        """
+
+        conf_thresh = 0.5
+        # Scale so that total reward is enough to equal moving around for the whole episode
+        scaling_factor = (self.game.starting_budget * 2) / len(self.game.targets)
+
+        # Get the the set of all correct observations for each target
+        correct_obs_confidences = np.zeros_like(self.game.confidences)
+        correct_obs_confidences = np.add(
+            correct_obs_confidences, 
+            self.game.confidences,
+            where=(self.game.confidences > conf_thresh), 
+            out=np.zeros_like(self.game.confidences)
+        )
+
+        # The sum confidences of each target over all time
+        target_sum_confidences = np.sum(
+            correct_obs_confidences,
+            axis=1,
+        )
+
+        reward = 0
+        # If the current timestep confidence is equal to the all-time sum of
+        # confidences, then we have just discovered it for the first time
+        for target_num in range(0, len(self.game.targets)):
+            if (target_sum_confidences[target_num] > 0) and (self.game.current_confidences[target_num] == target_sum_confidences[target_num]):
+                # First time seeing
+                reward += 1
+
+        reward = reward * scaling_factor
+
+        # Essentially if high variance, reward just = reward
+        # But if low variance, reward = reward * 2
+
+        if verbose > 0:
+            print(f"correct_obs_confidences: {correct_obs_confidences}")
+            print(f"target_sum_confidences: {target_sum_confidences}")
+
+        return reward
+
 
     def get_confidence_reward(self, verbose=0):
         """
@@ -170,7 +242,7 @@ class SimpleSimGym(gym.Env):
         avg_target_confidences = np.divide(target_sum_confidences, num_observations, where=(num_observations > 0), out=np.zeros_like(target_sum_confidences))
         
         # The average of confidences over all targets over all time
-        avg_confidence = np.divide(np.sum(avg_target_confidences), self.game.num_targets)
+        # avg_confidence = np.divide(np.sum(avg_target_confidences), self.game.num_targets)
         # The average of the target sum confidences
         # avg_target_sum_confidences = np.divide(np.sum(target_sum_confidences), self.game.num_targets)
         
@@ -179,12 +251,16 @@ class SimpleSimGym(gym.Env):
         variance = float(np.var(target_sum_confidences))
         # A penalty factor that scales from 1-0 for variance from 0-infty
         # similarity_factor = 1 / ((variance*10)+1)
-        similarity_factor = 1 / ((variance/10)+1)
+        similarity_factor = 1 + (1 / ((variance/10)+1))
 
         scaling_factor = 10
-        reward = np.sum(avg_confidence)
-        # reward = np.sum(self.game.current_confidences)
-        reward = reward * similarity_factor #* scaling_factor
+        reward = np.sum(avg_target_confidences)
+        # reward = np.sum(avg_confidence)
+        # reward = np.sum(avg_target_sum_confidences)
+        reward = reward * similarity_factor * scaling_factor
+
+        # Essentially if high variance, reward just = reward
+        # But if low variance, reward = reward * 2
 
         if verbose > 0:
             # print(f"correct_obs_confidences: {correct_obs_confidences}")
