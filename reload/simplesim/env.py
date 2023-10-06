@@ -27,6 +27,22 @@ import os
 # ---------------------------------------------------------------------------- #
 
 
+class Wall(object):
+    """
+    Environment obstacles that cannot be seen through or passed through
+    """
+
+    def __init__(self, xmin, ymin, xmax, ymax):
+        self.xmin = xmin
+        self.ymin = ymin
+        self.xmax = xmax
+        self.ymax = ymax
+        self.height = ymax - ymin
+        self.width = xmax - xmin
+        self.centre_x = xmin + self.width / 2
+        self.centre_y = ymin + self.height / 2
+
+
 class Target(object):
     """
     The targets that the RL agent must attempt to classify using the mobile robot
@@ -64,7 +80,7 @@ class Robot(object):
 
         # Set starting orientation (facing upwards)
         self.starting_angle = 90  # unit circle angles
-        self.angle = self.starting_angle # unit circle angles
+        self.angle = self.starting_angle  # unit circle angles
 
         # Set move speeds
         self.turn_rate = 5
@@ -77,101 +93,25 @@ class Robot(object):
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
 
-    def reset(self):
-        # Reset position
-        self.x = self.starting_x
-        self.y = self.starting_y
-        self.trail.clear()  # a trail of all past x,y coords
-        # Reset orientation
-        self.angle = 90  # unit circle angles
-    
     def turn_left(self):
-        # print("turn_left")
         self.angle += self.turn_rate
         if self.angle >= 360:
-            self.angle = self.angle - 360 # wrap angle back around
-
-        # self.x -= 10
-        # self.handle_boundary_collisions()
+            self.angle = self.angle - 360  # wrap angle back around
 
     def turn_right(self):
-        # print("turn_right")
         self.angle -= self.turn_rate
         if self.angle < 0:
-            self.angle = self.angle + 360 # wrap angle back around
-
-        # self.x += 10
-        # self.handle_boundary_collisions()
+            self.angle = self.angle + 360  # wrap angle back around
 
     def move_forward(self):
         self.x += math.cos(math.radians(self.angle)) * self.move_rate
         self.y -= math.sin(math.radians(self.angle)) * self.move_rate
         self.trail.append((self.x, self.y))
 
-        # self.y -= 10
-        self.handle_boundary_collisions()
-
     def move_backward(self):
         self.x -= math.cos(math.radians(self.angle)) * self.move_rate
         self.y += math.sin(math.radians(self.angle)) * self.move_rate
         self.trail.append((self.x, self.y))
-
-        # self.y += 10
-        self.handle_boundary_collisions()
-
-    def handle_boundary_collisions(self):
-        """
-        Stops player from going off screen
-        """
-        if self.x > self.env_size - (self.size / 2):
-            self.x = self.env_size - (self.size / 2)
-        elif self.x < 0 + (self.size / 2):
-            self.x = 0 + (self.size / 2)
-        elif self.y > self.env_size - (self.size / 2):
-            self.y = self.env_size - (self.size / 2)
-        elif self.y < 0 + (self.size / 2):
-            self.y = 0 + (self.size / 2)
-
-    def can_see(self, target: Target):
-        """
-        Checks if the robot can see this target
-
-        Note: Everything in this function is done in cartesian coordinates not
-        screen pixel coordinates (bottom left = (0,0), angles measuresd
-        anti-clockwise from right).
-        """
-
-        # Convert pixel coordinated to cartesian coordinates
-        robot_x_cart = self.x
-        robot_y_cart = self.env_size - self.y
-        target_x_cart = target.x
-        target_y_cart = self.env_size - target.y
-
-        left_angle = (self.angle + (self.fov / 2)) % 360
-        right_angle = (self.angle - (self.fov / 2)) % 360
-        target_dy = target_y_cart - robot_y_cart
-        target_dx = target_x_cart - robot_x_cart
-
-        target_angle = np.degrees(
-            np.arctan2(target_dy, target_dx)
-        )  # angle of ray to target
-        target_angle = target_angle + 360 if (target_angle < 0) else target_angle
-
-        if (target_angle <= left_angle) and (target_angle >= right_angle):
-            #  Normal case
-            return True
-        elif (left_angle < self.fov) and (right_angle > 360 - self.fov):
-            #  Angle-zero-crossing case
-            if (target_angle <= left_angle) and (target_angle + 360 >= right_angle):
-                # Target angle after 0 crossover and inside
-                return True
-            elif (target_angle <= left_angle + 360) and (target_angle >= right_angle):
-                # Target angle before 0 crossover and inside
-                return True
-            else:
-                return False
-        else:
-            return False
 
     def get_confidence(self, target: Target):
         """
@@ -229,7 +169,14 @@ class SimpleSim(object):
     A class to handle all of the data structures and logic of the game
     """
 
-    def __init__(self, starting_budget, num_targets, player_fov, render_mode=None, render_fps=None):
+    def __init__(
+        self,
+        starting_budget,
+        num_targets,
+        player_fov,
+        render_mode=None,
+        render_fps=None,
+    ):
         """
         Initialises a SimpleSim instance
 
@@ -261,8 +208,8 @@ class SimpleSim(object):
         self.count = 0
         self.scoreboard_items = {}
 
-        self.robot = Robot(player_fov, self.player_size, self.window_size//2, self.window_size//2, self.window_size)
         self.targets = []
+        self.walls = []
         # 1D array of confidences on each object at current timestep
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         # 2D array of confidences on each object at each timestep
@@ -272,9 +219,75 @@ class SimpleSim(object):
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
-        self.curriculum = 1 # no limit unless this member variable is set manually
-        self.min_target_dist = 0 # was 80
+        self.curriculum = 1  # no limit unless this member variable is set manually
+        self.min_target_dist = 0  # was 80
+        self.num_walls = 2
+        self.spawn_walls(self.num_walls)
+        self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
+
+    def spawn_walls(self, num_to_spawn):
+        """
+        Spawns wall obstacles
+        """
+
+        min_size = 50
+        max_size = 200
+
+        for _ in range(0, num_to_spawn):
+            xmin, ymin = (
+                random.randrange(0, self.window_size - min_size),
+                random.randrange(0, self.window_size - min_size),
+            )
+            xmax, ymax = (
+                random.randrange(
+                    xmin + min_size, min(self.window_size, xmin + max_size)
+                ),
+                random.randrange(
+                    ymin + min_size, min(self.window_size, ymin + max_size)
+                ),
+            )
+
+            self.walls.append(Wall(xmin, ymin, xmax, ymax))
+
+    def spawn_robot(self, player_fov):
+        """
+        Spawns robot / player
+        """
+
+        x, y = (0, 0)
+        while True:
+            x, y = (
+                random.randrange(
+                    0 + self.player_size // 2, self.window_size - self.player_size // 2
+                ),
+                random.randrange(
+                    0 + self.player_size // 2, self.window_size - self.player_size // 2
+                ),
+            )
+
+            valid = True
+            for wall in self.walls:
+                # If any part of robot is inside wall
+                if (
+                    (x + (self.player_size / 2) > wall.xmin)
+                    and (y + (self.player_size / 2) > wall.ymin)
+                    and (x - (self.player_size / 2) < wall.xmax)
+                    and (y - (self.player_size / 2) < wall.ymax)
+                ):
+                    # Point is inside wall
+                    valid = False
+
+            if valid:
+                break
+
+        self.robot = Robot(
+            player_fov,
+            self.player_size,
+            x,
+            y,
+            self.window_size,
+        )
 
     def spawn_targets(self, num_to_spawn):
         """
@@ -285,30 +298,154 @@ class SimpleSim(object):
         Returns:
             None
         """
+        # print("\n\n\n")
         for _ in range(0, num_to_spawn):
             # rank = random.choice([1, 1, 1, 2, 2, 3])
             rank = 1
             size = self.target_size * rank
 
             # If target is within allowable distance to robot, break
-            max_band_gap = (math.sqrt(2*(self.window_size)**2) - self.min_target_dist) # the max width of the band between the min and max spawn limits
-            current_max_target_dist = self.min_target_dist + (self.curriculum * max_band_gap)
+            max_band_gap = (
+                math.sqrt(2 * (self.window_size) ** 2) - self.min_target_dist
+            )  # the max width of the band between the min and max spawn limits
+            current_max_target_dist = self.min_target_dist + (
+                self.curriculum * max_band_gap
+            )
             if current_max_target_dist == self.min_target_dist:
-                current_max_target_dist += 5 # avoid infinite or very long loops
+                current_max_target_dist += 5  # avoid infinite or very long loops
 
+            # print("Attempting spawn:")
             while True:
                 x, y = (
-                    random.randrange(0 + size//2, self.window_size - size//2),
-                    random.randrange(0 + size//2, self.window_size - size//2),
+                    random.randrange(0 + size // 2, self.window_size - size // 2),
+                    random.randrange(0 + size // 2, self.window_size - size // 2),
                 )
-                dS = math.sqrt((x - self.robot.x)**2 + (y - self.robot.y)**2)
-                
+
+                # CHeck its within the curriculum zone 
+                dS = math.sqrt((x - self.robot.x) ** 2 + (y - self.robot.y) ** 2)
                 if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
-                    break
 
+                    # Check target is not inside wall
+                    valid = True
+                    for wall in self.walls:
+                        if (
+                            (x + (size / 2) > wall.xmin)
+                            and (y + (size / 2) > wall.ymin)
+                            and (x - (size / 2) < wall.xmax)
+                            and (y - (size / 2) < wall.ymax)
+                        ):
+                            # Inside wall
+                            # print("invalid :(")
+                            valid = False
+                    if valid:
+                        # print(f"valid!, {x}, {y}")
+                        # If target spawn wasnt inside and walls
+                        break
+            
             # print(f"current_max_target_dist: {current_max_target_dist}")
-
             self.targets.append(Target(rank, x, y))
+
+    def can_see(self, target: Target):
+        """
+        Checks if the robot can see this target
+
+        Note: Everything in this function is done in cartesian coordinates not
+        screen pixel coordinates (bottom left = (0,0), angles measuresd
+        anti-clockwise from right).
+        """
+
+        # Convert pixel coordinated to cartesian coordinates
+        robot_x_cart = self.robot.x
+        robot_y_cart = self.window_size - self.robot.y
+        target_x_cart = target.x
+        target_y_cart = self.window_size - target.y
+
+        # First check if the view is obscured by a wall
+        if self.is_obscured(target):
+            return False
+
+        left_angle = (self.robot.angle + (self.robot.fov / 2)) % 360
+        right_angle = (self.robot.angle - (self.robot.fov / 2)) % 360
+        target_dy = target_y_cart - robot_y_cart
+        target_dx = target_x_cart - robot_x_cart
+
+        target_angle = np.degrees(
+            np.arctan2(target_dy, target_dx)
+        )  # angle of ray to target
+        target_angle = target_angle + 360 if (target_angle < 0) else target_angle
+
+        if (target_angle <= left_angle) and (target_angle >= right_angle):
+            #  Normal case
+            return True
+        elif (left_angle < self.robot.fov) and (right_angle > 360 - self.robot.fov):
+            #  Angle-zero-crossing case
+            if (target_angle <= left_angle) and (target_angle + 360 >= right_angle):
+                # Target angle after 0 crossover and inside
+                return True
+            elif (target_angle <= left_angle + 360) and (target_angle >= right_angle):
+                # Target angle before 0 crossover and inside
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def is_obscured(self, target: Target):
+        """
+        Checks if target is obscured from robot by wall
+        """
+
+        # First check if the view is obscured by a wall
+        blocked = False
+        wall: Wall
+        for wall in self.walls:
+            point_a1 = (self.robot.x, self.robot.y)
+            point_a2 = (target.x, target.y)
+            # Get the wall sight blocking line (either top-L bot-R or bot-L top-R)
+            point_b1 = (wall.xmin, wall.ymax)
+            point_b2 = (wall.xmax, wall.ymin)
+            point_c1 = (wall.xmin, wall.ymin)
+            point_c2 = (wall.xmax, wall.ymax)
+
+            # Check is sight line is blocked by blocking line
+            blocked_1 = self.lines_intersect(point_a1, point_a2, point_b1, point_b2)
+            # print(f"blocked_fwdslash: {blocked_1}")
+            blocked_2 = self.lines_intersect(point_a1, point_a2, point_c1, point_c2)
+            # print(f"blocked_backslash: {blocked_2}")
+            blocked = blocked or blocked_1 or blocked_2
+
+        return blocked
+
+    def lines_intersect(self, point_a1, point_a2, point_b1, point_b2):
+        """
+        Check if line segments a1-a2 and b1-b2 intersect
+        """
+        # print(f"LINE A:    {point_a1}    {point_a2}")
+        x00, y00 = point_a1
+        x01, y01 = point_a2
+
+        # print(f"LINE B:    {point_b1}    {point_b2}")
+        x10, y10 = point_b1
+        x11, y11 = point_b2
+
+        # d = x11*y01 - x01*y11
+        d = (x11 - x10) * (y01 - y00) - (x01 - x00) * (y11 - y10)
+        if d == 0:
+            # Lines are parallel therefore don't intersect
+            return False
+
+        # s = (1/d) * ((x00 - x10)*y01 - (y00 - y10)*x01)
+        # t = (1/d) * -(-(x00 - x10)*y11 + (y00 - y10)*x11)
+        s = (1 / d) * ((x00 - x10) * (y01 - y00) - (y00 - y10) * (x01 - x00))
+        t = (1 / d) * -(-(x00 - x10) * (y11 - y10) + (y00 - y10) * (x11 - x10))
+
+        # print(s, t)
+        if (s > 0 and s < 1) and (t > 0 and t < 1):
+            # Lines intersect
+            # print("s and t in range!")
+            return True
+        else:
+            return False
 
     def detect_targets(self):
         """
@@ -322,10 +459,8 @@ class SimpleSim(object):
         numSeen = 0
 
         # Get which of the objects are in the FOV
-        for i in range(0, len(self.targets)):
-            target = self.targets[i]
-
-            if self.robot.can_see(target):
+        for i, target in enumerate(self.targets):
+            if self.can_see(target):
                 numSeen += 1
                 # Assign a non-zero confidence for those in view
                 confidence = self.robot.get_confidence(target)
@@ -345,12 +480,57 @@ class SimpleSim(object):
         ) / (self.count + 1)
 
         # Add the current timestep confidences to the comprehensive all timesteps list
-        np.append(self.confidences, self.current_confidences, axis=1)
+        self.confidences = np.append(self.confidences, self.current_confidences, axis=1)
 
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
         if self.render_mode == "human":
             self._render_frame()
+
+    def handle_boundary_collisions(self):
+        """
+        Stops player from going off screen or going into walls
+        """
+        # Handle off-screen
+        if self.robot.x > self.window_size - (self.robot.size / 2):
+            self.robot.x = self.window_size - (self.robot.size / 2)
+        elif self.robot.x < 0 + (self.robot.size / 2):
+            self.robot.x = 0 + (self.robot.size / 2)
+        elif self.robot.y > self.window_size - (self.robot.size / 2):
+            self.robot.y = self.window_size - (self.robot.size / 2)
+        elif self.robot.y < 0 + (self.robot.size / 2):
+            self.robot.y = 0 + (self.robot.size / 2)
+
+        # Handle wall collisions
+        wall: Wall
+        for wall in self.walls:
+            # If part of the robot is inside wall
+            if (
+                (self.robot.x + (self.robot.size / 2) > wall.xmin)
+                and (self.robot.y + (self.robot.size / 2) > wall.ymin)
+                and (self.robot.x - (self.robot.size / 2) < wall.xmax)
+                and (self.robot.y - (self.robot.size / 2) < wall.ymax)
+            ):
+                dx = self.robot.x - wall.centre_x
+                dy = self.robot.y - wall.centre_y
+
+                # Bump the robot back out towards the closest wall
+                if abs(dx) > abs(dy):
+                    # Bump in x direction
+                    if dx < 0:
+                        # Bump x to -ve direction
+                        self.robot.x = wall.xmin - (self.robot.size / 2)
+                    else:
+                        # Bump x to +ve direction
+                        self.robot.x = wall.xmax + (self.robot.size / 2)
+                else:
+                    # Bumpy in y direction
+                    if dy < 0:
+                        # Bump y to -ve direction
+                        self.robot.y = wall.ymin - (self.robot.size / 2)
+                    else:
+                        # Bump y to +ve direction
+                        self.robot.y = wall.ymax + (self.robot.size / 2)
 
     def perform_action(self, action):
         """
@@ -372,6 +552,9 @@ class SimpleSim(object):
         elif action == 4:
             self.robot.move_backward()
 
+        # Stop the robot going off the screen or inside walls
+        self.handle_boundary_collisions()
+
     def get_action_interactive(self):
         """
         Get player commands from keyboard and return the relevant action vector.
@@ -379,7 +562,7 @@ class SimpleSim(object):
 
         # Handle player controls and movement
         while True:
-            # event = pygame.event.wait()
+            event = pygame.event.wait()
             if (not self.paused) and (not self.gameover):
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RIGHT]:
@@ -390,7 +573,7 @@ class SimpleSim(object):
                     return 3
                 if keys[pygame.K_DOWN]:
                     return 4
-                else:
+                elif keys[pygame.K_SPACE]:
                     return 0
 
     def get_state(self):
@@ -419,14 +602,11 @@ class SimpleSim(object):
             # self.clock.tick(600)
             self.count += 1
 
-            # Peform the given action
+            # Peform the given action and pdate the player positions
             self.perform_action(action)
 
             # Decrement the budget over time
             self.budget -= 1
-
-            # Update the player positions
-            self.robot.handle_boundary_collisions()
 
             # Get the detection confidences on the environment
             self.detect_targets()
@@ -451,15 +631,14 @@ class SimpleSim(object):
                         # Set the screen to black
                         self.render_black_screen()
 
-            while (self.paused):
+            while self.paused:
                 # Do nothing, pause until key pressed again
                 for event in pygame.event.get():
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                         self.paused = not self.paused
                         break
-            
-            self._render_frame()
 
+            self._render_frame()
 
     def reset(self):
         """
@@ -472,9 +651,12 @@ class SimpleSim(object):
         """
         self.gameover = False
         self.budget = self.starting_budget
+        
+        self.walls.clear()
+        self.spawn_walls(self.num_walls)
+        self.spawn_robot(self.robot.fov)
         self.targets.clear()
         self.spawn_targets(self.num_targets)
-        self.robot.reset()
 
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
@@ -497,11 +679,8 @@ class SimpleSim(object):
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
-        
         # ------------------ Create the base canvas and load assets ------------------ #
         canvas = pygame.Surface((self.window_size, self.window_size))
-        player_size = 50 # was 100
-        player_height = 50 # was 100
 
         # if os.path.dirname(__file__) != "":
         #     sprites_dir = os.path.dirname(__file__) + "/sprites/"
@@ -509,9 +688,13 @@ class SimpleSim(object):
         #     sprites_dir = "sprites/"
         sprites_dir = ""
 
-        bg = pygame.transform.scale(pygame.image.load(sprites_dir + "roombg.jpg"), (self.window_size, self.window_size))
+        bg = pygame.transform.scale(
+            pygame.image.load(sprites_dir + "roombg.jpg"),
+            (self.window_size, self.window_size),
+        )
         player_robot = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "robot.png"), (self.player_size, self.player_size)
+            pygame.image.load(sprites_dir + "robot.png"),
+            (self.player_size, self.player_size),
         )
         target50 = pygame.transform.scale(
             pygame.image.load(sprites_dir + "apple.png"), (50, 50)
@@ -526,12 +709,9 @@ class SimpleSim(object):
         fov_line_length = 500
         fov_line_thickness = 10
 
-
         # --------------------------- Draw all the entities -------------------------- #
         # Draw the background image
         canvas.blit(bg, (0, 0))
-
-
 
         # Draw the robot
         # Make a surface with a line on it
@@ -571,7 +751,9 @@ class SimpleSim(object):
 
         # Update player sprite position
         # 90deg rotated version of the sprite surf image
-        rotated_player_surf = pygame.transform.rotate(player_robot, self.robot.angle - 90)
+        rotated_player_surf = pygame.transform.rotate(
+            player_robot, self.robot.angle - 90
+        )
         # The rectangle bounding box of the surf
         rotated_player_rect = rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
@@ -585,8 +767,7 @@ class SimpleSim(object):
         canvas.blit(rotated_player_surf, rotated_player_rect)
         # Redraw the fov indicator surfs
         canvas.blit(rotated_fov_surf, rotated_fov_rect)
-
-
+        # pygame.draw.circle(canvas, (0, 255, 0), (self.robot.x, self.robot.y), 5) # robot centre
 
         # Draw the targets
         for target in self.targets:
@@ -602,26 +783,35 @@ class SimpleSim(object):
             rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
             rotated_target_rect = rotated_target_surf.get_rect()
             rotated_target_rect.center = (target.x, target.y)
+            canvas.blit(rotated_target_surf, rotated_target_rect)
+            # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
 
-            canvas.blit(rotated_target_surf, rotated_target_rect)        
-        
+        # Draw the walls
+        wall: Wall
+        for wall in self.walls:
+            # Setup Render Surfs
+            pygame.draw.rect(
+                canvas,
+                (0, 0, 0),
+                pygame.Rect(wall.xmin, wall.ymin, wall.width, wall.height),
+            )
+            # Draw corner points
+            # pygame.draw.circle(canvas, (255, 0, 255), (wall.xmin, wall.ymax), 5)
+            # pygame.draw.circle(canvas, (255, 0, 255), (wall.xmax, wall.ymin), 5)
+            # pygame.draw.circle(canvas, (0, 0, 255), (wall.xmin, wall.ymin), 5)
+            # pygame.draw.circle(canvas, (0, 0, 255), (wall.xmax, wall.ymax), 5)
 
-
-        
         # Draw the robot's trail
         for point in self.robot.trail:
             pygame.draw.circle(canvas, (255, 0, 0), point, 2)
 
-
-
-
         # Draw the onscreen menu text
         # font = pygame.font.SysFont("arial", 30)
         font = pygame.font.Font(None, 25)
-        
+
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
         canvas.blit(budget_text, (25, 25))
-        
+
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
             canvas.blit(
@@ -631,7 +821,7 @@ class SimpleSim(object):
                     self.window_size // 2 - play_again_text.get_height() // 2,
                 ),
             )
-        
+
         pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
         if self.paused:
             canvas.blit(
@@ -645,19 +835,18 @@ class SimpleSim(object):
         metric_count = 0
         for metric_name in self.scoreboard_items.keys():
             metric_text = font.render(
-                f"{metric_name}: "
-                + str(self.scoreboard_items[metric_name]),
+                f"{metric_name}: " + str(self.scoreboard_items[metric_name]),
                 1,
                 (0, 255, 0),
             )
             canvas.blit(
                 metric_text,
-                (self.window_size - metric_text.get_width() - 25, (metric_count * 35) + metric_text.get_height()),
+                (
+                    self.window_size - metric_text.get_width() - 25,
+                    (metric_count * 35) + metric_text.get_height(),
+                ),
             )
             metric_count += 1
-
-
-
 
         # --------------- Send the rendered view to the relevant viewer -------------- #
 
@@ -676,7 +865,6 @@ class SimpleSim(object):
             )
 
 
-
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
 # ---------------------------------------------------------------------------- #
@@ -686,11 +874,13 @@ if __name__ == "__main__":
     NUM_TARGETS = 8
     PLAYER_FOV = 60
 
-    game = SimpleSim(starting_budget=STARTING_BUDGET, 
-                     num_targets=NUM_TARGETS, 
-                     player_fov=PLAYER_FOV, 
-                     render_mode="human", 
-                     render_fps=30)
+    game = SimpleSim(
+        starting_budget=STARTING_BUDGET,
+        num_targets=NUM_TARGETS,
+        player_fov=PLAYER_FOV,
+        render_mode="human",
+        render_fps=30,
+    )
     game._render_frame()
 
     state = {}

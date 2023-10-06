@@ -3,8 +3,6 @@ test/
 .vscode/
 .DS_Store
 __pycache__/
-logs/
-out/
 .ipynb_checkpoints/
 *.py[cod]
 *$py.class
@@ -12,3 +10,6 @@ saved_models*
 very_special_saved_models*
 reload/objectdetection/runs/
 *.pt
+out/
+logs/
+videos/
