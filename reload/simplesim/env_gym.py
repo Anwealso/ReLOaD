@@ -136,7 +136,7 @@ class SimpleSimGym(gym.Env):
             reward -= self.action_cost
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(verbose=0) * self.game.starting_budget
+        reward += self.get_entropy_reward(verbose=0)
 
         return reward    
     
@@ -228,6 +228,9 @@ class SimpleSimGym(gym.Env):
                 
                 # TODO: Test which of these strategies results in the best training (out of: diff or max(0,diff))
                 entropy_reward += max(entropy_diff, 0)
+        self.current_entropies = entropies
+        
+        entropy_reward = entropy_reward * ((self.game.starting_budget * 2) / self.game.num_targets)
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
@@ -249,9 +252,6 @@ class SimpleSimGym(gym.Env):
             print(f"new_entropy: {new_entropy}")
             print(f"====================== entropy_reward: {entropy_reward} ======================")
             print("\n")
-
-        self.current_entropies = entropies
-        # print(f"Entropies: {self.current_entropies}")
 
         return entropy_reward
 
