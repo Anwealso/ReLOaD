@@ -221,8 +221,8 @@ class SimpleSim(object):
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
-        self.num_walls = 2
-        self.spawn_walls(self.num_walls)
+        self.num_walls = 0
+        # self.spawn_walls(self.num_walls)
         self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
 
