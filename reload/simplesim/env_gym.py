@@ -45,23 +45,19 @@ class SimpleSimGym(gym.Env):
         # Observations (visible state):
         self.observation_space_unflattened = spaces.Dict(
             {
-                # "agent": spaces.Box(
-                #     np.array([0, 0, 0]).astype(np.float32),
-                #     np.array([self.game.sw, self.game.sw, 359]).astype(np.float32),
-                # ), # agent x,y,angle
-                # "agent": spaces.Box(
-                #     np.array([0]).astype(np.float32),
-                #     np.array([359]).astype(np.float32),
-                # ), # agent angle
+                "agent": spaces.Box(
+                    np.array([0, 0, 0]).astype(np.float32),
+                    np.array([self.game.window_size, self.game.window_size, 359]).astype(np.float32),
+                ), # agent x,y,angle
                 "targets": spaces.Box(
                     low=-max_dist,
                     high=max_dist,
                     shape=(3, num_targets),
                     dtype=np.float32,
-                ),  # target relative positions (x,y)
+                ),  # target position (x, y, target_entropy)
                 # "current_conf": spaces.Box(
                 #     low=0, high=1, shape=(num_targets, 1), dtype=np.float32
-                # ), # confidences on each object
+                # ),  # target entropies
             }
         )
         self.observation_space = spaces.utils.flatten_space(
@@ -74,31 +70,6 @@ class SimpleSimGym(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        # Get seen or not
-
-        # Get the the set of all correct observations for each target
-        correct_obs_confidences = np.zeros_like(self.game.confidences)
-        correct_obs_confidences = np.add(
-            correct_obs_confidences, 
-            self.game.confidences,
-            where=(self.game.confidences > 0.5), 
-            out=np.zeros_like(self.game.confidences)
-        )
-        # The sum confidences of each target over all time
-        target_sum_confidences = np.sum(
-            correct_obs_confidences,
-            axis=1,
-        )
-        # The sum confidences of each target over all time
-        targets_seen_status = np.zeros_like(target_sum_confidences)
-        targets_seen_status = np.add(
-            targets_seen_status,
-            1,
-            where=(target_sum_confidences > 0), 
-            out=np.zeros_like(target_sum_confidences)
-        )
-        # print(targets_seen_status, "\n")
-
         # Target relative positions (dx,dy)
         target_info = np.zeros(
             shape=(3, len(self.game.targets)), dtype=np.float32
@@ -106,28 +77,36 @@ class SimpleSimGym(gym.Env):
         for i, target in enumerate(self.game.targets):
             target_x_cart = target.x
             target_y_cart = self.game.window_size - target.y
-            robot_x_cart = self.game.robot.x
-            robot_y_cart = self.game.window_size - self.game.robot.y
-            dx = target_x_cart - robot_x_cart
-            dy = target_y_cart - robot_y_cart
-            (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
+            # Add target absolute positions
+            target_info[0][i] = target_x_cart
+            target_info[1][i] = target_y_cart
+
+            # robot_x_cart = self.game.robot.x
+            # robot_y_cart = self.game.window_size - self.game.robot.y
+            # dx = target_x_cart - robot_x_cart
+            # dy = target_y_cart - robot_y_cart
+            # (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
+
             # Add target relative positions
-            target_info[0][i] = dx
-            target_info[1][i] = dy
+            # target_info[0][i] = dx
+            # target_info[1][i] = dy
+
             # Add current object confidences
-            target_info[2][i] = self.game.current_confidences[i]
+            # print(target_info[2][i]) = self.game.current_confidences[i]
+            # print(self.game.current_confidences[i])
+            # print(int(self.game.current_confidences[i]))
+            target_info[2][i] = self.game.current_confidences[i, 0] 
             # Add target seen status
-            target_info[2][i] = targets_seen_status[i]
+            # target_info[2][i] = targets_seen_status[i]
 
         # Agent x,y,angle
-        # agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
+        agent = np.array([self.game.robot.x, self.game.robot.y, self.game.robot.angle]).astype(np.float32)
         # agent = np.array([self.game.robot.angle]).astype(np.float32)
 
-
-        # observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_rel_positions})
-        observation = spaces.utils.flatten(
-            self.observation_space_unflattened, {"targets": target_info}
-        )
+        observation =  spaces.utils.flatten(self.observation_space_unflattened, {"agent": agent, "targets": target_info})
+        # observation = spaces.utils.flatten(
+        #     self.observation_space_unflattened, {"targets": target_info}
+        # )
         
         return observation
 
@@ -160,14 +139,73 @@ class SimpleSimGym(gym.Env):
         reward += self.get_entropy_reward(verbose=0) * self.game.starting_budget
 
         return reward    
+    
+    def get_target_entropy(self, target_confidence_history):
+        """
+        Get the current entropy on a target, given an array of its observation 
+        confidence history
+
+        # TODO: Fix this entropy calc so that the entropy starts at 0.5???
+
+        Args:
+            target_confidence_history: A 1D array of dim (1,num_timesteps)
+        Returns:
+            The entropy of the target
+        """
+
+        # Num observations:
+        num_observations = np.count_nonzero(target_confidence_history)
+
+        occurrence_prob = target_confidence_history
+
+        # Get the experimental probability of each event:
+        reciprocal_positive = np.reciprocal(
+            target_confidence_history, 
+            where=(target_confidence_history > 0), 
+            out=np.zeros_like(target_confidence_history)
+        )
+        suprises_positive = np.log2(
+            reciprocal_positive,
+            where=(target_confidence_history > 0),
+            out=np.zeros_like(target_confidence_history)
+        )
+
+        occurrence_prob_negative = 1 - target_confidence_history
+        reciprocal_negative = np.reciprocal(
+            occurrence_prob_negative,
+            where=(occurrence_prob_negative > 0),
+            out=np.zeros_like(target_confidence_history)
+        )
+        suprises_negative = np.log2(
+            reciprocal_negative,
+            where=(reciprocal_negative > 0),
+            out=np.zeros_like(target_confidence_history)
+        )
+
+        entropy_positive = np.multiply(occurrence_prob, suprises_positive)
+        entropy_negative = np.multiply(occurrence_prob_negative, suprises_negative)
+
+        entropy_unnormalised = np.sum(
+            entropy_positive + entropy_negative,
+        )
+        entropy = np.divide(
+            entropy_unnormalised,
+            num_observations,
+            where=(num_observations>0),
+            out=np.zeros_like(entropy_unnormalised)
+        )
+        # Set entropy to 1 for objects that do not have any observations
+        entropy[entropy == 0] = 0.5
+        
+        return entropy
 
     def get_entropy_reward(self, verbose=0):
         """
         An entropy / information gain based reward feedback for the agent.
         Essentially we want to implement an exploit vs explore (epsilon greedy
         type) tradeoff into the reward mechanism by giving the the agent:
-        - High reward for looking at an object that it has surveyed relativel
-          little
+        - High reward for looking at an object that it has surveyed relatively
+          little.
         - But then decreasing that reward over time as the agent observes the
           object more and more.
 
@@ -177,91 +215,44 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
         """
-        entropy_reward = 0
 
-        # Num observations:
-        num_observations = np.count_nonzero(self.game.confidences, axis=1)
-
-        occurrence_prob = self.game.confidences
-        # Get the experimental probability of each event:
-
-        reciprocal_positive = np.reciprocal(
-            self.game.confidences, 
-            where=(self.game.confidences > 0), 
-            out=np.zeros_like(self.game.confidences)
-        )
-        suprises_positive = np.log2(
-            reciprocal_positive,
-            where=(self.game.confidences > 0),
-            out=np.zeros_like(self.game.confidences)
-        )
-
-        occurrence_prob_negative = 1 - self.game.confidences
-        reciprocal_negative = np.reciprocal(
-            occurrence_prob_negative,
-            where=(occurrence_prob_negative > 0),
-            out=np.zeros_like(self.game.confidences)
-        )
-        suprises_negative = np.log2(
-            reciprocal_negative,
-            where=(reciprocal_negative > 0),
-            out=np.zeros_like(self.game.confidences)
-        )
-
-        entropy_positive = np.multiply(occurrence_prob, suprises_positive)
-        entropy_negative = np.multiply(occurrence_prob_negative, suprises_negative)
-
-        entropy_unnormalised = np.sum(
-            entropy_positive + entropy_negative,
-            axis=1,
-        )
-        new_entropy = np.divide(
-            entropy_unnormalised,
-            num_observations,
-            where=(num_observations>0),
-            out=np.zeros_like(entropy_unnormalised)
-        )
-        # Set entropy to 1 for objects that do not have any observations
-        new_entropy[new_entropy == 0] = 1
-        
+        entropies = np.zeros_like(self.game.current_confidences)
         entropy_reward = 0
         for i, target in enumerate(self.game.targets):
-            if self.game.robot.can_see(target):
-                if self.entropy[i] == 0:
-                    self.entropy[i] = 1
+            if self.game.can_see(target):
+                old_entropy = self.get_target_entropy(self.game.confidences[i,:-1]) # all timesteps up until and excluding last
+                new_entropy = self.get_target_entropy(self.game.confidences[i,:]) # all timesteps
+                entropies[i, 0] = new_entropy
+
+                entropy_diff = float(old_entropy - new_entropy)
                 
-                # The reduction in entropy achieved by this new observation
-                entropy_diff = float(self.entropy[i] - new_entropy[i])
-                
-                # TODO: Test which of thes strategies results in the best training
-                # entropy_reward = entropy_diff
-                # The reward is either the entropy_diff if we made a reduction 
-                # or 0 otherwise.
+                # TODO: Test which of these strategies results in the best training (out of: diff or max(0,diff))
                 entropy_reward += max(entropy_diff, 0)
 
         if verbose > 0:
-            print(f"FIXED")
             print(f"self.game.confidences: {self.game.confidences}")
 
-            print(f"num_observations: {num_observations}")
-            print(f"occurrence_prob: {occurrence_prob}")
-            print(f"occurrence_prob_negative: {occurrence_prob_negative}")
+            # print(f"num_observations: {num_observations}")
+            # print(f"occurrence_prob: {occurrence_prob}")
+            # print(f"occurrence_prob_negative: {occurrence_prob_negative}")
             
-            print(f"reciprocal_positive: {reciprocal_positive}")
-            print(f"reciprocal_negative: {reciprocal_negative}")
+            # print(f"reciprocal_positive: {reciprocal_positive}")
+            # print(f"reciprocal_negative: {reciprocal_negative}")
 
-            print(f"suprises_positive: {suprises_positive}")
-            print(f"suprises_negative: {suprises_negative}")
+            # print(f"suprises_positive: {suprises_positive}")
+            # print(f"suprises_negative: {suprises_negative}")
 
-            print(f"entropy_positive: {entropy_positive}")
-            print(f"entropy_negative: {entropy_negative}")
+            # print(f"entropy_positive: {entropy_positive}")
+            # print(f"entropy_negative: {entropy_negative}")
 
-            print(f"old_entropy: {self.entropy}")
+            print(f"old_entropy: {old_entropy}")
             print(f"new_entropy: {new_entropy}")
             print(f"====================== entropy_reward: {entropy_reward} ======================")
             print("\n")
 
-        self.entropy = new_entropy
+        self.current_entropies = entropies
+        # print(f"Entropies: {self.current_entropies}")
+
         return entropy_reward
 
     def get_goal_reward(self):
@@ -426,6 +417,7 @@ class SimpleSimGym(gym.Env):
                     "Confidence": format(np.sum(self.game.current_confidences), ".2f"),
                     "Variance": format(variance, ".2f"),
                     "Reward": format(reward, ".2f"),
+                    "Curr Entropies": format(self.current_entropies),
                     "Observation": np.round(obs, 2),
                 }
             )
