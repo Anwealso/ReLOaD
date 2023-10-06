@@ -10,3 +10,5 @@ out/
 *$py.class
 saved_models*
 very_special_saved_models*
+reload/objectdetection/runs/
+*.pt
