@@ -1,3 +1,5 @@
+# !pip install -U ultralytics
+
 import torch
 import time
 

@@ -1,5 +1,5 @@
 # Library Imports
-from env import SimpleSim
+from .env import SimpleSim
 # from env import SimpleSim
 import math
 import numpy as np
