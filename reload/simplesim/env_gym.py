@@ -50,28 +50,39 @@ class SimpleSimGym(gym.Env):
                     np.array(
                         [self.game.window_size, self.game.window_size, 359]
                     ).astype(np.float32),
-                ),  # agent x,y,angle
+                ),  # agent (x, y, angle)
                 "targets": spaces.Box(
                     low=-max_dist,
                     high=max_dist,
                     shape=(3, num_targets),
                     dtype=np.float32,
-                ),  # target position (x, y, target_entropy)
-                # "current_conf": spaces.Box(
-                #     low=0, high=1, shape=(num_targets, 1), dtype=np.float32
-                # ),  # target entropies
+                ),  # target position (world_x, world_y, target_entropy)
+                "environment": spaces.Box(
+                    np.array([0]).astype(np.float32),
+                    np.array([self.game.starting_budget]).astype(np.float32),
+                ),  # environment remaining budget
             }
         )
         self.observation_space = spaces.utils.flatten_space(
             self.observation_space_unflattened
         )
 
-        self.entropy = np.zeros((self.game.num_targets, 1), dtype=np.float32)
+        self.current_entropies = np.zeros((self.game.num_targets, 1), dtype=np.float32)
 
         self.window = None
         self.clock = None
 
     def _get_obs(self):
+        # ----------------------------------- AGENT ---------------------------------- #
+        # Agent x,y,angle
+        agent_x_cart = self.game.robot.x
+        agent_y_cart = self.game.window_size - self.game.robot.x
+        agent_info = np.array(
+            [agent_x_cart, agent_y_cart, self.game.robot.angle]
+        ).astype(np.float32)
+        # agent = np.array([self.game.robot.angle]).astype(np.float32)
+
+        # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)
         target_info = np.zeros(shape=(3, len(self.game.targets)), dtype=np.float32)
         for i, target in enumerate(self.game.targets):
@@ -95,22 +106,25 @@ class SimpleSimGym(gym.Env):
             # print(target_info[2][i]) = self.game.current_confidences[i]
             # print(self.game.current_confidences[i])
             # print(int(self.game.current_confidences[i]))
-            target_info[2][i] = self.game.current_confidences[i, 0]
+            target_info[2][i] = self.current_entropies[i, 0]
             # Add target seen status
             # target_info[2][i] = targets_seen_status[i]
 
-        # Agent x,y,angle
-        agent = np.array(
-            [self.game.robot.x, self.game.robot.y, self.game.robot.angle]
-        ).astype(np.float32)
-        # agent = np.array([self.game.robot.angle]).astype(np.float32)
+        # print({
+        #         "agent": agent_info,
+        #         "targets": target_info,
+        #         "environment": self.game.budget,
+        #     })
+        
 
         observation = spaces.utils.flatten(
-            self.observation_space_unflattened, {"agent": agent, "targets": target_info}
+            self.observation_space_unflattened,
+            {
+                "agent": agent_info,
+                "targets": target_info,
+                "environment": self.game.budget,
+            },
         )
-        # observation = spaces.utils.flatten(
-        #     self.observation_space_unflattened, {"targets": target_info}
-        # )
 
         return observation
 

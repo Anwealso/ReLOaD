@@ -491,12 +491,14 @@ class SimpleSim(object):
         """
         Stops player from going off screen or going into walls
         """
-        # Handle off-screen
+        # Handle off-screen left/right
         if self.robot.x > self.window_size - (self.robot.size / 2):
             self.robot.x = self.window_size - (self.robot.size / 2)
         elif self.robot.x < 0 + (self.robot.size / 2):
             self.robot.x = 0 + (self.robot.size / 2)
-        elif self.robot.y > self.window_size - (self.robot.size / 2):
+
+        # Handle off-screen up/down
+        if self.robot.y > self.window_size - (self.robot.size / 2):
             self.robot.y = self.window_size - (self.robot.size / 2)
         elif self.robot.y < 0 + (self.robot.size / 2):
             self.robot.y = 0 + (self.robot.size / 2)
@@ -832,24 +834,10 @@ class SimpleSim(object):
                 ),
             )
 
-        metric_count = 0
-        for metric_name in self.scoreboard_items.keys():
-            metric_text = font.render(
-                f"{metric_name}: " + str(self.scoreboard_items[metric_name]),
-                1,
-                (0, 255, 0),
-            )
-            canvas.blit(
-                metric_text,
-                (
-                    self.window_size - metric_text.get_width() - 25,
-                    (metric_count * 35) + metric_text.get_height(),
-                ),
-            )
-            metric_count += 1
+        # Render the socreboard info
+        self.render_scoreboard(canvas)
 
         # --------------- Send the rendered view to the relevant viewer -------------- #
-
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
@@ -864,6 +852,31 @@ class SimpleSim(object):
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
 
+    def render_scoreboard(self, canvas):
+        font = pygame.font.Font(None, 20)
+
+        metric_count = 0
+        for metric_name in self.scoreboard_items.keys():
+            item = self.scoreboard_items[metric_name]
+            
+            if type(item) == type(dict()):
+                for key in item.keys():
+                    if type(item[key]) == type(int(1)):
+                        item[key] = round(item[key], 2)
+
+            metric_text = font.render(
+                f"{metric_name}: " + str(item),
+                1,
+                (0, 255, 0),
+            )
+            canvas.blit(
+                metric_text,
+                (
+                    self.window_size - metric_text.get_width() - 25,
+                    (metric_count * 35) + metric_text.get_height(),
+                ),
+            )
+            metric_count += 1
 
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
