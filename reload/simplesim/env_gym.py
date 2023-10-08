@@ -158,63 +158,62 @@ class SimpleSimGym(gym.Env):
 
         return reward
 
-    def get_target_entropy(self, target_confidence_history):
+    def get_target_entropy(self, target_confidence_history, verbose=0):
         """
         Get the current entropy on a target, given an array of its observation
         confidence history
 
-        # TODO: Fix this entropy calc so that the entropy starts at 0.5???
-
         Args:
-            target_confidence_history: A 1D array of dim (1,num_timesteps)
+            target_confidence_history: A 1D array of the confidences observed
+            on the target over all time (dims: (1,num_timesteps))
         Returns:
             The entropy of the target
         """
-
-        # Num observations:
         num_observations = np.count_nonzero(target_confidence_history)
+        if num_observations == 0:
+            return 1
+        target_unconfidence_history = 1 - target_confidence_history
+        
+        # Get the weighted probability that the object is of the true class 
+        # or the false class gained from each observation
+        # probability_true_class = np.divide(target_confidence_history, num_observations)
+        # probability_false_class = np.divide(target_unconfidence_history, num_observations)
+        probability_true_class = target_confidence_history
+        probability_false_class = target_unconfidence_history
 
-        occurrence_prob = target_confidence_history
-
-        # Get the experimental probability of each event:
-        reciprocal_positive = np.reciprocal(
-            target_confidence_history,
-            where=(target_confidence_history > 0),
+        # Get the suprrise associated with identifying the target as its true 
+        # class or falsely as another class from an observation
+        suprise_true = np.log2(
+            probability_true_class,
+            where=(probability_true_class > 0),
             out=np.zeros_like(target_confidence_history),
         )
-        suprises_positive = np.log2(
-            reciprocal_positive,
-            where=(target_confidence_history > 0),
-            out=np.zeros_like(target_confidence_history),
-        )
-
-        occurrence_prob_negative = 1 - target_confidence_history
-        reciprocal_negative = np.reciprocal(
-            occurrence_prob_negative,
-            where=(occurrence_prob_negative > 0),
-            out=np.zeros_like(target_confidence_history),
-        )
-        suprises_negative = np.log2(
-            reciprocal_negative,
-            where=(reciprocal_negative > 0),
+        suprise_false = np.log2(
+            probability_false_class,
+            where=(probability_false_class > 0),
             out=np.zeros_like(target_confidence_history),
         )
 
-        entropy_positive = np.multiply(occurrence_prob, suprises_positive)
-        entropy_negative = np.multiply(occurrence_prob_negative, suprises_negative)
-
-        entropy_unnormalised = np.sum(
-            entropy_positive + entropy_negative,
+        # The entropy associated with identifying the target as its true class 
+        # or falsely as another class from an observation
+        entropy_true = -np.multiply(probability_true_class, suprise_true)
+        entropy_false = -np.multiply(probability_false_class, suprise_false)
+        # The total entropy of the dataset of observation on the target
+        entropy = np.sum(
+            entropy_true + entropy_false
         )
-        entropy = np.divide(
-            entropy_unnormalised,
-            num_observations,
-            where=(num_observations > 0),
-            out=np.zeros_like(entropy_unnormalised),
-        )
+        entropy = np.divide(entropy, num_observations)
         # Set entropy to 1 for objects that do not have any observations
-        entropy[entropy == 0] = 1
-        # TODO: Fix the entropy algorithm so that this can be 0.5 like it should be
+        if (entropy == 0):
+            entropy = 1
+        
+        if verbose > 0:
+            print("\n", num_observations)
+            print(f"target_confidence_history: {target_confidence_history}")
+            print(f"target_unconfidence_history: {target_unconfidence_history}")
+            print(f"entropy_true: {entropy_true}")
+            print(f"entropy_false: {entropy_false}")
+            print(f"entropy: {entropy}")
 
         return entropy
 
@@ -234,7 +233,7 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
         """
-        reward_multiplier = 10
+        # reward_multiplier = 10
 
         entropies = np.zeros_like(self.game.current_confidences)
         entropy_reward = 0
@@ -259,7 +258,7 @@ class SimpleSimGym(gym.Env):
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
         # reward even though it entails more movement cost
-        entropy_reward = entropy_reward * reward_multiplier
+        # entropy_reward = entropy_reward * reward_multiplier
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
