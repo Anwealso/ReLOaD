@@ -256,31 +256,31 @@ class SimpleSim(object):
         Spawns robot / player
         """
 
-        x, y = (0, 0)
-        while True:
-            x, y = (
-                random.randrange(
-                    0 + self.player_size // 2, self.window_size - self.player_size // 2
-                ),
-                random.randrange(
-                    0 + self.player_size // 2, self.window_size - self.player_size // 2
-                ),
-            )
+        x, y = (self.window_size//2, self.window_size//2)
+        # while True:
+        #     x, y = (
+        #         random.randrange(
+        #             0 + self.player_size // 2, self.window_size - self.player_size // 2
+        #         ),
+        #         random.randrange(
+        #             0 + self.player_size // 2, self.window_size - self.player_size // 2
+        #         ),
+        #     )
 
-            valid = True
-            for wall in self.walls:
-                # If any part of robot is inside wall
-                if (
-                    (x + (self.player_size / 2) > wall.xmin)
-                    and (y + (self.player_size / 2) > wall.ymin)
-                    and (x - (self.player_size / 2) < wall.xmax)
-                    and (y - (self.player_size / 2) < wall.ymax)
-                ):
-                    # Point is inside wall
-                    valid = False
+        #     valid = True
+        #     for wall in self.walls:
+        #         # If any part of robot is inside wall
+        #         if (
+        #             (x + (self.player_size / 2) > wall.xmin)
+        #             and (y + (self.player_size / 2) > wall.ymin)
+        #             and (x - (self.player_size / 2) < wall.xmax)
+        #             and (y - (self.player_size / 2) < wall.ymax)
+        #         ):
+        #             # Point is inside wall
+        #             valid = False
 
-            if valid:
-                break
+        #     if valid:
+        #         break
 
         self.robot = Robot(
             player_fov,

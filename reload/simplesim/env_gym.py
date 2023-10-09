@@ -53,10 +53,10 @@ class SimpleSimGym(gym.Env):
                 ),  # agent (x, y, angle)
                 "targets": spaces.Box(
                     low=-max_dist,
-                    high=max_dist,
+                    high=self.game.starting_budget*self.game.num_targets,
                     shape=(3, num_targets),
                     dtype=np.float32,
-                ),  # target position (world_x, world_y, target_entropy)
+                ),  # target position (rel_x, rel_y, target_sum_conf)
                 "environment": spaces.Box(
                     np.array([0]).astype(np.float32),
                     np.array([self.game.starting_budget]).astype(np.float32),
@@ -68,6 +68,7 @@ class SimpleSimGym(gym.Env):
         )
 
         self.current_entropies = np.zeros((self.game.num_targets, 1), dtype=np.float32)
+        self.target_rewards = [0, 0]
 
         self.window = None
         self.clock = None
@@ -88,34 +89,22 @@ class SimpleSimGym(gym.Env):
         for i, target in enumerate(self.game.targets):
             target_x_cart = target.x
             target_y_cart = self.game.window_size - target.y
-            # Add target absolute positions
-            target_info[0][i] = target_x_cart
-            target_info[1][i] = target_y_cart
-
-            # robot_x_cart = self.game.robot.x
-            # robot_y_cart = self.game.window_size - self.game.robot.y
-            # dx = target_x_cart - robot_x_cart
-            # dy = target_y_cart - robot_y_cart
-            # (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
+            
+            # # Add target absolute positions
+            # target_info[0][i] = target_x_cart
+            # target_info[1][i] = target_y_cart
 
             # Add target relative positions
-            # target_info[0][i] = dx
-            # target_info[1][i] = dy
+            robot_x_cart = self.game.robot.x
+            robot_y_cart = self.game.window_size - self.game.robot.y
+            dx = target_x_cart - robot_x_cart
+            dy = target_y_cart - robot_y_cart
+            (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
+            target_info[0][i] = dx
+            target_info[1][i] = dy
 
             # Add current object confidences
-            # print(target_info[2][i]) = self.game.current_confidences[i]
-            # print(self.game.current_confidences[i])
-            # print(int(self.game.current_confidences[i]))
-            target_info[2][i] = self.current_entropies[i, 0]
-            # Add target seen status
-            # target_info[2][i] = targets_seen_status[i]
-
-        # print({
-        #         "agent": agent_info,
-        #         "targets": target_info,
-        #         "environment": self.game.budget,
-        #     })
-        
+            target_info[2][i] = float(np.sum(self.game.confidences[i, :]))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -143,18 +132,35 @@ class SimpleSimGym(gym.Env):
         But to improve trining exploraiton we want:
         !moving && !goal <= moving && !goal < !moving && goal < !moving && goal
         """
+        self.variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
         reward = 0
 
         # Apply penalty per step to incentivise to get to goal fast
         reward -= self.step_cost
 
-        # Apply penalty per action so that it doesnt move extraneously once it
+        # Apply penalty per action so that it doesn't move extraneously once it
         # gets to the goal
         if action != 0:
             reward -= self.action_cost
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(verbose=0)
+        # reward += self.get_entropy_reward(verbose=0)
+        # reward += self.get_goal_reward(verbose=0)
+        reward += np.sum(self.game.current_confidences)
+
+        return reward
+
+    def _get_end_reward(self):
+        """
+        The end reward for the RL agent.
+        """
+        reward = 0
+
+        # Apply reward based on sum confidence variance
+        all_conf_sum = np.sum(self.game.confidences)
+        variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
+        if reward > 0:
+            reward = all_conf_sum / variance
 
         return reward
 
@@ -233,7 +239,6 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
         """
-        reward_multiplier = 10
 
         entropies = np.zeros_like(self.game.current_confidences)
         entropy_reward = 0
@@ -259,13 +264,13 @@ class SimpleSimGym(gym.Env):
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
         # reward even though it entails more movement cost
+        reward_multiplier = 1
         entropy_reward = entropy_reward * reward_multiplier
 
-
         # Apply a penalty factor for the amount of (sample) variance in target entropies
-        variance = float(np.var(self.current_entropies,ddof=1))
+        self.variance = float(np.var(self.current_entropies,ddof=1))
         # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
-        similarity_factor = 1 / (10*variance + 1)
+        similarity_factor = 1 / (10*self.variance + 1)
         entropy_reward = entropy_reward * similarity_factor
 
 
@@ -281,7 +286,7 @@ class SimpleSimGym(gym.Env):
 
         return entropy_reward
 
-    def get_goal_reward(self):
+    def get_goal_reward(self, verbose=0):
         """
         Gets the reward to give to the agent for each step that it remains in
         the goal area.
@@ -308,7 +313,24 @@ class SimpleSimGym(gym.Env):
         # print(f"step_goal_reward: {step_goal_reward}")
         # print("")
 
-        return step_goal_reward
+        reward = 0
+        for i, target in enumerate(self.game.targets):
+            if self.get_closeness(self.game.robot, target) > 0.95:
+                reward += step_goal_reward
+                self.target_rewards[i] += step_goal_reward
+
+        # Apply a penalty factor for the amount of (sample) variance in target entropies
+        self.variance = float(np.var(self.target_rewards,ddof=1))
+        # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
+        similarity_factor = 1 / ((self.variance/10) + 1)
+        reward = reward * similarity_factor
+
+        # Add a multiplier to ensure it is worth it for the robot to  seek more
+        # reward even though it entails more movement cost
+        reward_multiplier = 100
+        reward = reward * reward_multiplier
+
+        return reward
 
     def get_closeness(self, robot, target):
         """
@@ -419,13 +441,11 @@ class SimpleSimGym(gym.Env):
             reward = self._get_reward(action)
             obs = self._get_obs()
 
-            variance = float(np.var(self.current_entropies,ddof=1))
-
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
                     "Confidence": format(np.sum(self.game.current_confidences), ".2f"),
-                    "Variance": format(variance, ".2f"),
+                    "Variance": format(self.variance, ".2f"),
                     "Reward": format(reward, ".2f"),
                     "Curr Entropies": format(self.current_entropies),
                     "Observation": np.round(obs, 2),
@@ -433,15 +453,13 @@ class SimpleSimGym(gym.Env):
             )
 
             if self.game.gameover:
-                # End of episode case
+                # Reward only given at the end of the episode
                 truncated = True
-                # step_reward = -100
+                reward = self._get_reward(action)
+            else:
+                # No continuous rewards recieved at each timestep
+                reward = self._get_reward(action) + self._get_end_reward()
 
-            # Dont truncate the episode any more
-            # elif reward > 0:
-            #     terminated = True
-
-        # return spaces.utils.flatten(self.observation_space, self._get_obs()), reward, terminated, truncated, info
         return obs, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
