@@ -134,7 +134,8 @@ class Robot(object):
         # A factor representing the distance difficulty (should be between 0 and 1)
         max_dist = math.sqrt(self.env_size**2 + self.env_size**2)
         target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
-        distance_factor = 1 - (target_dist / max_dist)
+        distance_factor = 1 - (target_dist / max_dist) # linear distance factor
+        # distance_factor = np.exp(-(5*target_dist / max_dist)) # exponential distance factor
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
         angle_between = np.degrees(
