@@ -233,11 +233,11 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
         """
-        # reward_multiplier = 10
+        reward_multiplier = 10
 
         entropies = np.zeros_like(self.game.current_confidences)
         entropy_reward = 0
-        for i, target in enumerate(self.game.targets):
+        for i in range(0, len(self.game.targets)):
             # if self.game.can_see(target):
             old_entropy = self.get_target_entropy(
                 self.game.confidences[i, :-1]
@@ -248,7 +248,8 @@ class SimpleSimGym(gym.Env):
             entropies[i, 0] = new_entropy
 
             entropy_diff = float(old_entropy - new_entropy)
-            entropy_reward += max(entropy_diff, 0)
+            entropy_reward += entropy_diff
+            # entropy_reward += max(entropy_diff, 0)
         self.current_entropies = entropies
 
         # Normalise against vartying budgets and number of targets
@@ -258,7 +259,15 @@ class SimpleSimGym(gym.Env):
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
         # reward even though it entails more movement cost
-        # entropy_reward = entropy_reward * reward_multiplier
+        entropy_reward = entropy_reward * reward_multiplier
+
+
+        # Apply a penalty factor for the amount of (sample) variance in target entropies
+        variance = float(np.var(self.current_entropies,ddof=1))
+        # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
+        similarity_factor = 1 / (10*variance + 1)
+        entropy_reward = entropy_reward * similarity_factor
+
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
@@ -410,21 +419,7 @@ class SimpleSimGym(gym.Env):
             reward = self._get_reward(action)
             obs = self._get_obs()
 
-            # Get the the set of all correct observations for each target
-            correct_obs_confidences = np.zeros_like(self.game.confidences)
-            correct_obs_confidences = np.add(
-                correct_obs_confidences,
-                self.game.confidences,
-                where=(self.game.confidences > 0.5),
-                out=np.zeros_like(self.game.confidences),
-            )
-            # The sum confidences of each target over all time
-            target_sum_confidences = np.sum(
-                # correct_obs_confidences,
-                correct_obs_confidences,
-                axis=1,
-            )
-            variance = float(np.var(target_sum_confidences))
+            variance = float(np.var(self.current_entropies,ddof=1))
 
             # Show info on scoreboard
             self.game.set_scoreboard(
