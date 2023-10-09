@@ -45,12 +45,12 @@ class SimpleSimGym(gym.Env):
         # Observations (visible state):
         self.observation_space_unflattened = spaces.Dict(
             {
-                "agent": spaces.Box(
-                    np.array([0, 0, 0]).astype(np.float32),
-                    np.array(
-                        [self.game.window_size, self.game.window_size, 359]
-                    ).astype(np.float32),
-                ),  # agent (x, y, angle)
+                # "agent": spaces.Box(
+                #     np.array([0, 0, 0]).astype(np.float32),
+                #     np.array(
+                #         [self.game.window_size, self.game.window_size, 359]
+                #     ).astype(np.float32),
+                # ),  # agent (x, y, angle)
                 "targets": spaces.Box(
                     low=-max_dist,
                     high=self.game.starting_budget*self.game.num_targets,
@@ -103,13 +103,13 @@ class SimpleSimGym(gym.Env):
             target_info[0][i] = dx
             target_info[1][i] = dy
 
-            # Add current object confidences
+            # Add current object sum of confidence over all time
             target_info[2][i] = float(np.sum(self.game.confidences[i, :]))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
             {
-                "agent": agent_info,
+                # "agent": agent_info,
                 "targets": target_info,
                 "environment": self.game.budget,
             },
