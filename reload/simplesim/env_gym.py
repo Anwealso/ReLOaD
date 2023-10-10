@@ -39,7 +39,13 @@ class SimpleSimGym(gym.Env):
         # self.action_space = spaces.Discrete(4)
 
         # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
-        self.action_space = spaces.Discrete(5)
+        # self.action_space = spaces.Discrete(5)
+        self.action_space = spaces.Box(
+            low=-1,
+            high=1,
+            shape=(2, 1),
+            dtype=np.float32
+        )
 
         max_dist = math.sqrt(2 * (self.game.window_size**2))
         # Observations (visible state):
@@ -57,10 +63,10 @@ class SimpleSimGym(gym.Env):
                     shape=(3, num_targets),
                     dtype=np.float32,
                 ),  # target position (rel_x, rel_y, target_sum_conf)
-                "environment": spaces.Box(
-                    np.array([0]).astype(np.float32),
-                    np.array([self.game.starting_budget]).astype(np.float32),
-                ),  # environment remaining budget
+                # "environment": spaces.Box(
+                #     np.array([0]).astype(np.float32),
+                #     np.array([self.game.starting_budget]).astype(np.float32),
+                # ),  # environment remaining budget
             }
         )
         self.observation_space = spaces.utils.flatten_space(
@@ -76,12 +82,11 @@ class SimpleSimGym(gym.Env):
     def _get_obs(self):
         # ----------------------------------- AGENT ---------------------------------- #
         # Agent x,y,angle
-        agent_x_cart = self.game.robot.x
-        agent_y_cart = self.game.window_size - self.game.robot.x
-        agent_info = np.array(
-            [agent_x_cart, agent_y_cart, self.game.robot.angle]
-        ).astype(np.float32)
-        # agent = np.array([self.game.robot.angle]).astype(np.float32)
+        # agent_x_cart = self.game.robot.x
+        # agent_y_cart = self.game.window_size - self.game.robot.x
+        # agent_info = np.array(
+        #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
+        # ).astype(np.float32)
 
         # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)
@@ -100,18 +105,20 @@ class SimpleSimGym(gym.Env):
             dx = target_x_cart - robot_x_cart
             dy = target_y_cart - robot_y_cart
             (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-            np.put(target_info, [0, i], dx)
-            np.put(target_info, [1, i], dy)
+            target_info[0, i] = dx
+            target_info[1, i] = dy
 
             # Add current object sum of confidence over all time
-            np.put(target_info, [2, i], float(np.sum(self.game.confidences[i, :])))
+            # target_info[2, i] = float(np.sum(self.game.confidences[i, :]))                
+            # target_info[2, i] = self.get_closeness(self.game.robot, target)
+            target_info[2, i] = int(self.fully_explored(i))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
             {
                 # "agent": agent_info,
                 "targets": target_info,
-                "environment": self.game.budget,
+                # "environment": self.game.budget,
             },
         )
 
@@ -122,47 +129,48 @@ class SimpleSimGym(gym.Env):
         The reward function for the RL agent.
 
         Current Reward Format:
-        - Agent receives a -1 reward every time step in which it doesnt reach the goal
-        - Agent receives a goal reward for each timestep it spends inside the goal area (within 90% closeness).
-          The goal reward is calcuclated so that the best total reward possible over the whole episode is 0.
-
-        Essentially the goal structure we have is:
-        moving && !goal < !moving && !goal < !moving && goal < !moving && goal
-
-        But to improve trining exploraiton we want:
-        !moving && !goal <= moving && !goal < !moving && goal < !moving && goal
+        - Reward for targets that have not yet been fully explored
         """
-        self.variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
+
         reward = 0
-
-        # Apply penalty per step to incentivise to get to goal fast
-        reward -= self.step_cost
-
-        # Apply penalty per action so that it doesn't move extraneously once it
-        # gets to the goal
-        if action != 0:
-            reward -= self.action_cost
-
-        # Apply reward based on observation entropy
-        # reward += self.get_entropy_reward(verbose=0)
-        # reward += self.get_goal_reward(verbose=0)
-        reward += np.sum(self.game.current_confidences)
+        for i, target in enumerate(self.game.targets):
+            if not self.fully_explored(i):
+                reward += float(self.game.current_confidences[i])
 
         return reward
-
-    def _get_end_reward(self):
+    
+    def fully_explored(self, target_index):
         """
-        The end reward for the RL agent.
+        Check if a target has been surveyed good-enough
         """
-        reward = 0
 
-        # Apply reward based on sum confidence variance
-        all_conf_sum = np.sum(self.game.confidences)
-        variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
-        if reward > 0:
-            reward = all_conf_sum / variance
+        confidence_threshold = 10
+        
+        if np.sum(self.game.confidences[target_index, :]) > confidence_threshold:
+            return True
+        else:
+            return False
+        
+    def all_fully_explored(self):
+        for target_index in range(0, len(self.game.targets)):
+            if not self.fully_explored(target_index):
+                return False
+        
+        return True
 
-        return reward
+    # def _get_end_reward(self):
+    #     """
+    #     The end reward for the RL agent.
+    #     """
+    #     reward = 0
+
+    #     # # Apply reward based on sum confidence variance
+    #     # all_conf_sum = np.sum(self.game.confidencefs)
+    #     # variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
+    #     # if reward > 0:
+    #     #     reward = all_conf_sum / variance
+
+    #     return reward
 
     def get_target_entropy(self, target_confidence_history, verbose=0):
         """
@@ -319,11 +327,11 @@ class SimpleSimGym(gym.Env):
                 reward += step_goal_reward
                 self.target_rewards[i] += step_goal_reward
 
-        # Apply a penalty factor for the amount of (sample) variance in target entropies
-        self.variance = float(np.var(self.target_rewards,ddof=1))
-        # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
-        similarity_factor = 1 / ((self.variance/10) + 1)
-        reward = reward * similarity_factor
+        # # Apply a penalty factor for the amount of (sample) variance in target entropies
+        # self.variance = float(np.var(self.target_rewards,ddof=1))
+        # # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
+        # similarity_factor = 1 / ((self.variance/10) + 1)
+        # reward = reward * similarity_factor
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
         # reward even though it entails more movement cost
@@ -444,22 +452,23 @@ class SimpleSimGym(gym.Env):
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
-                    "Confidence": format(np.sum(self.game.current_confidences), ".2f"),
-                    "Variance": format(self.variance, ".2f"),
+                    "Confidence": format(self.game.current_confidences),
+                    # "Variance": format(self.variance, ".2f"),
                     "Reward": format(reward, ".2f"),
-                    "Curr Entropies": format(self.current_entropies),
+                    # "Curr Entropies": format(self.current_entropies),
                     "Observation": np.round(obs, 2),
                 }
             )
 
-            if self.game.gameover:
+            reward = self._get_reward(action)
+            if self.game.budget == 0:
+                terminated = True
+            if self.all_fully_explored():
                 # Reward only given at the end of the episode
                 truncated = True
-                reward = self._get_reward(action)
-            else:
-                # No continuous rewards recieved at each timestep
-                reward = self._get_reward(action) + self._get_end_reward()
-
+                # Give a 100 end reward for finishing all goals
+                reward += 100
+    
         return obs, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):

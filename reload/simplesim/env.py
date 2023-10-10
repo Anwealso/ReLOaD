@@ -83,8 +83,8 @@ class Robot(object):
         self.angle = self.starting_angle  # unit circle angles
 
         # Set move speeds
-        self.turn_rate = 5
-        self.move_rate = 6
+        self.turn_rate = 20
+        self.move_rate = 20
 
         self.trail = []  # a trail of all past x,y coords
         # Draw player fov indicator
@@ -92,6 +92,20 @@ class Robot(object):
 
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
+
+    def set_rot_velocity(self, omega):
+        # Left is +ve
+        move_angle = omega * self.turn_rate
+        self.angle += move_angle
+        if self.angle < 0:
+            self.angle = self.angle + 360  # wrap angle back around
+
+    def set_velocity(self, v):
+        # Forward is +ve
+        move_dist = v * self.move_rate
+        self.x += math.cos(math.radians(self.angle)) * move_dist
+        self.y -= math.sin(math.radians(self.angle)) * move_dist
+        self.trail.append((self.x, self.y))
 
     def turn_left(self):
         self.angle += self.turn_rate
@@ -134,8 +148,8 @@ class Robot(object):
         # A factor representing the distance difficulty (should be between 0 and 1)
         max_dist = math.sqrt(self.env_size**2 + self.env_size**2)
         target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
-        distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-        # distance_factor = np.exp(-(5*target_dist / max_dist)) # exponential distance factor
+        # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
+        distance_factor = np.exp(-(5*target_dist / max_dist)) # exponential distance factor
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
         angle_between = np.degrees(
@@ -232,26 +246,26 @@ class SimpleSim(object):
         Spawns wall obstacles
         """
 
-        self.walls.append(Wall(200, 0, 250, 400))
+        # self.walls.append(Wall(200, 0, 250, 400))
 
-        # min_size = 50
-        # max_size = 200
+        min_size = 50
+        max_size = 200
 
-        # for _ in range(0, num_to_spawn):
-        #     xmin, ymin = (
-        #         random.randrange(0, self.window_size - min_size),
-        #         random.randrange(0, self.window_size - min_size),
-        #     )
-        #     xmax, ymax = (
-        #         random.randrange(
-        #             xmin + min_size, min(self.window_size, xmin + max_size)
-        #         ),
-        #         random.randrange(
-        #             ymin + min_size, min(self.window_size, ymin + max_size)
-        #         ),
-        #     )
+        for _ in range(0, num_to_spawn):
+            xmin, ymin = (
+                random.randrange(0, self.window_size - min_size),
+                random.randrange(0, self.window_size - min_size),
+            )
+            xmax, ymax = (
+                random.randrange(
+                    xmin + min_size, min(self.window_size, xmin + max_size)
+                ),
+                random.randrange(
+                    ymin + min_size, min(self.window_size, ymin + max_size)
+                ),
+            )
 
-        #     self.walls.append(Wall(xmin, ymin, xmax, ymax))
+            self.walls.append(Wall(xmin, ymin, xmax, ymax))
 
     def spawn_robot(self, player_fov):
         """
@@ -543,19 +557,12 @@ class SimpleSim(object):
         Actions 0,1,2,3,4 - None,R,L,F,B
         """
         # Check action format
-        if action not in [0, 1, 2, 3, 4]:
-            raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
+        # if action not in [0, 1, 2, 3, 4]:
+        #     raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
         # Handle agent controls and movement (note action 0 does nothing)
-        if action == 1:
-            self.robot.turn_right()
-        elif action == 2:
-            self.robot.move_forward()
-
-        if action == 3:
-            self.robot.turn_left()
-        elif action == 4:
-            self.robot.move_backward()
+        self.robot.set_velocity(float(action[0, :]))
+        self.robot.set_rot_velocity(float(action[1, :]))
 
         # Stop the robot going off the screen or inside walls
         self.handle_boundary_collisions()
@@ -568,18 +575,22 @@ class SimpleSim(object):
         # Handle player controls and movement
         while True:
             event = pygame.event.wait()
+            action = np.zeros(shape=(2,1))
             if (not self.paused) and (not self.gameover):
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RIGHT]:
-                    return 1
+                    action[1, :] = -1
+                    break
                 if keys[pygame.K_UP]:
-                    return 2
+                    action[0, :] = 1
+                    break
                 if keys[pygame.K_LEFT]:
-                    return 3
+                    action[1, :] = 1
+                    break
                 if keys[pygame.K_DOWN]:
-                    return 4
-                elif keys[pygame.K_SPACE]:
-                    return 0
+                    action[0, :] = -1
+                    break
+        return action
 
     def get_state(self):
         """
