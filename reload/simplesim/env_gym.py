@@ -111,7 +111,7 @@ class SimpleSimGym(gym.Env):
             # Add current object sum of confidence over all time
             # target_info[2, i] = float(np.sum(self.game.confidences[i, :]))                
             # target_info[2, i] = self.get_closeness(self.game.robot, target)
-            target_info[2, i] = int(self.fully_explored(i))
+            target_info[2, i] = min(10, float(np.sum(self.game.confidences[i, :])))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -496,8 +496,8 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 2
-    PLAYER_FOV = 60
+    NUM_TARGETS = 3
+    PLAYER_FOV = 30
 
     # -------------------------------- Environment ------------------------------- #
 
