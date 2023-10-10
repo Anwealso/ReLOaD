@@ -84,6 +84,8 @@ def create_observation_vector(detections, env):
     # observation = np.zeros(shape=(2 + len(targets)*3 + 1, 1))
     observation = np.zeros(shape=(2*3,))
     
+    # TODO: Add targets to env (by yaml maybe?) and then fix this information for the case where we actually have targets 
+
     # Add all target info to the observation vector (x, y, fully_explored)
     # for i in range(0, len(targets)):
     for i in range(0, 2):
@@ -115,7 +117,7 @@ def main(selection="user", headless=False, short_exec=False):
 
     # ----------------------------- SETUP IGIBSON SIM ---------------------------- #
     # config_filename = os.path.join(igibson.configs_path, "turtlebot_static_nav.yaml")
-    config_filename = "/home/alex/Documents/METR4911/ReLOaD/turtlebot_nav_custom.yaml"
+    config_filename = "/home/alex/Documents/METR4911/ReLOaD/turtlebot_static_nav_custom.yaml"
     config_data = init_igibson(config_filename)
     env = iGibsonEnv(config_file=config_data, mode="gui_interactive" if not headless else "headless")
     # # View Env Specs
@@ -173,7 +175,7 @@ def main(selection="user", headless=False, short_exec=False):
                     # Run YOLO inference in image
                     detections = vision_model(img)
                     # Visualise YOLO output (optional)
-                    # print(f"detections: {info['detections']}")
+                    # print(f"detections: {detections}")
                     # detections.save(f"step_{i}")  # or .show()
 
                     # Combine the YOLO results and position data into the standardises observation vector format

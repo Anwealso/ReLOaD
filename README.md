@@ -4,6 +4,18 @@ Alex Nicholson, The University of Queensland, 2023
 
 ---
 
+# Integration of Agent into iGibson
+
+## Steps
+1. [DONE] Start igibson sim
+2. [DONE] Load in trained or random RL agent
+3. [DONE] Siphon off image output of igibson and run inference on it using YOLO
+4. [WIP] Process the YOLO outputs and combine with the internal position data streams and organise them into the observation vector format
+5. [DONE] Pipe the observation vector into the RL agent and run inference
+6. [DONE] Pipe the action outputs of the RL agent back into the iGibson simulator
+7. [DONE] Now loop this whole arrangement of sense-think-act and visualise the robot moving
+
+
 ## TODO
 
 ### Plan to Fix Model Convergence
