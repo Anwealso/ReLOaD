@@ -39,13 +39,7 @@ class SimpleSimGym(gym.Env):
         # self.action_space = spaces.Discrete(4)
 
         # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
-        # self.action_space = spaces.Discrete(5)
-        self.action_space = spaces.Box(
-            low=-1,
-            high=1,
-            shape=(2, 1),
-            dtype=np.float32
-        )
+        self.action_space = spaces.Discrete(5)
 
         max_dist = math.sqrt(2 * (self.game.window_size**2))
         # Observations (visible state):
