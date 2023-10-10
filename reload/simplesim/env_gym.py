@@ -100,11 +100,11 @@ class SimpleSimGym(gym.Env):
             dx = target_x_cart - robot_x_cart
             dy = target_y_cart - robot_y_cart
             (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-            target_info[0][i] = dx
-            target_info[1][i] = dy
+            np.put(target_info, [0, i], dx)
+            np.put(target_info, [1, i], dy)
 
             # Add current object sum of confidence over all time
-            target_info[2][i] = float(np.sum(self.game.confidences[i, :]))
+            np.put(target_info, [2, i], float(np.sum(self.game.confidences[i, :])))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
