@@ -735,10 +735,6 @@ class SimpleSim(object):
         #     sprites_dir = "sprites/"
         sprites_dir = ""
 
-        bg = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "roombg.jpg"),
-            (self.window_size, self.window_size),
-        )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
             (self.player_size, self.player_size),
@@ -757,8 +753,20 @@ class SimpleSim(object):
         fov_line_thickness = 10
 
         # --------------------------- Draw all the entities -------------------------- #
-        # Draw the background image
-        canvas.blit(bg, (0, 0))
+
+        # # Image background
+        # bg = pygame.transform.scale(
+        #     pygame.image.load(sprites_dir + "roombg.jpg"),
+        #     (self.window_size, self.window_size),
+        # )
+        # # Draw the background image
+        # canvas.blit(bg, (0, 0))
+        # White background
+        pygame.draw.rect(
+            canvas,
+            (255, 255, 255),
+            pygame.Rect(0, 0, self.window_size, self.window_size),
+        )
 
         # Draw the robot
         # Make a surface with a line on it
