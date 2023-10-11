@@ -52,7 +52,6 @@ class Target(object):
         # Size
         self.rank = rank
         self.size = 50 * rank
-        # self.h = 50 * rank
         # Position
         self.x = x
         self.y = y
@@ -68,7 +67,6 @@ class Robot(object):
     """
 
     def __init__(self, fov, size, starting_x, starting_y, env_size):
-        # self.image = player_robot
         self.env_size = env_size
         self.size = size
 
@@ -134,8 +132,8 @@ class Robot(object):
         # A factor representing the distance difficulty (should be between 0 and 1)
         max_dist = math.sqrt(self.env_size**2 + self.env_size**2)
         target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
-        distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-        # distance_factor = np.exp(-(5*target_dist / max_dist)) # exponential distance factor
+        # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
+        distance_factor = np.exp(-(10*target_dist / max_dist)) # exponential distance factor
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
         angle_between = np.degrees(
@@ -220,22 +218,13 @@ class SimpleSim(object):
 
         # Confidences on each object at current timestep
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-
         # Confidences on each object at each timestep
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-
-        # # Entropies of each targets confidence distribution as at current timestep
-        # self.entropies = np.zeros_like(self.current_confidences)
-
-        # # 1D array of confidences on each object avg over all past timesteps
-        # self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-
-        # Note: Using avg might cause agent to simply find the best spot with
-        # the most objects in view and camp there to farm for max score
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
         self.num_walls = 0
+
         # self.spawn_walls(self.num_walls)
         self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
@@ -269,31 +258,31 @@ class SimpleSim(object):
         Spawns robot / player
         """
 
-        x, y = (self.env_size//2, self.env_size//2)
-        # while True:
-        #     x, y = (
-        #         random.randrange(
-        #             0 + self.player_size // 2, self.window_size - self.player_size // 2
-        #         ),
-        #         random.randrange(
-        #             0 + self.player_size // 2, self.window_size - self.player_size // 2
-        #         ),
-        #     )
+        # x, y = (self.env_size//2, self.env_size//2)
+        while True:
+            x, y = (
+                random.randrange(
+                    0 + self.player_size // 2, self.window_size - self.player_size // 2
+                ),
+                random.randrange(
+                    0 + self.player_size // 2, self.window_size - self.player_size // 2
+                ),
+            )
 
-        #     valid = True
-        #     for wall in self.walls:
-        #         # If any part of robot is inside wall
-        #         if (
-        #             (x + (self.player_size / 2) > wall.xmin)
-        #             and (y + (self.player_size / 2) > wall.ymin)
-        #             and (x - (self.player_size / 2) < wall.xmax)
-        #             and (y - (self.player_size / 2) < wall.ymax)
-        #         ):
-        #             # Point is inside wall
-        #             valid = False
+            valid = True
+            for wall in self.walls:
+                # If any part of robot is inside wall
+                if (
+                    (x + (self.player_size / 2) > wall.xmin)
+                    and (y + (self.player_size / 2) > wall.ymin)
+                    and (x - (self.player_size / 2) < wall.xmax)
+                    and (y - (self.player_size / 2) < wall.ymax)
+                ):
+                    # Point is inside wall
+                    valid = False
 
-        #     if valid:
-        #         break
+            if valid:
+                break
 
         self.robot = Robot(
             player_fov,
@@ -349,14 +338,11 @@ class SimpleSim(object):
                             and (y - (size / 2) < wall.ymax)
                         ):
                             # Inside wall
-                            # print("invalid :(")
                             valid = False
                     if valid:
-                        # print(f"valid!, {x}, {y}")
                         # If target spawn wasnt inside and walls
                         break
             
-            # print(f"current_max_target_dist: {current_max_target_dist}")
             self.targets.append(Target(rank, x, y))
 
     def can_see(self, target: Target):
@@ -423,9 +409,7 @@ class SimpleSim(object):
 
             # Check is sight line is blocked by blocking line
             blocked_1 = self.lines_intersect(point_a1, point_a2, point_b1, point_b2)
-            # print(f"blocked_fwdslash: {blocked_1}")
             blocked_2 = self.lines_intersect(point_a1, point_a2, point_c1, point_c2)
-            # print(f"blocked_backslash: {blocked_2}")
             blocked = blocked or blocked_1 or blocked_2
 
         return blocked
@@ -434,29 +418,22 @@ class SimpleSim(object):
         """
         Check if line segments a1-a2 and b1-b2 intersect
         """
-        # print(f"LINE A:    {point_a1}    {point_a2}")
         x00, y00 = point_a1
         x01, y01 = point_a2
 
-        # print(f"LINE B:    {point_b1}    {point_b2}")
         x10, y10 = point_b1
         x11, y11 = point_b2
 
-        # d = x11*y01 - x01*y11
         d = (x11 - x10) * (y01 - y00) - (x01 - x00) * (y11 - y10)
         if d == 0:
             # Lines are parallel therefore don't intersect
             return False
 
-        # s = (1/d) * ((x00 - x10)*y01 - (y00 - y10)*x01)
-        # t = (1/d) * -(-(x00 - x10)*y11 + (y00 - y10)*x11)
         s = (1 / d) * ((x00 - x10) * (y01 - y00) - (y00 - y10) * (x01 - x00))
         t = (1 / d) * -(-(x00 - x10) * (y11 - y10) + (y00 - y10) * (x11 - x10))
 
-        # print(s, t)
         if (s > 0 and s < 1) and (t > 0 and t < 1):
             # Lines intersect
-            # print("s and t in range!")
             return True
         else:
             return False
@@ -483,15 +460,6 @@ class SimpleSim(object):
                 # Assign confidence of 0 for those out of view
                 confidence = 0
             self.current_confidences[i] = confidence
-
-        # current_confidences = 1xN array of confidences at current timestep
-        # avg_confidences = 1xN array of confidences averaged over all past timesteps
-        # confidences = MxN array of confidences for all past timesteps
-
-        # # Add the current observation to the past average
-        # self.avg_confidences = (
-        #     np.add(self.avg_confidences.dot(self.count), self.current_confidences)
-        # ) / (self.count + 1)
 
         # Add the current timestep confidences to the comprehensive all timesteps list
         self.confidences = np.append(self.confidences, self.current_confidences, axis=1)
@@ -676,7 +644,7 @@ class SimpleSim(object):
 
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+
         self.count = 0
 
         if self.render_mode == "human":
@@ -818,7 +786,6 @@ class SimpleSim(object):
             pygame.draw.circle(canvas, (255, 0, 0), (x*self.disply_scale, y*self.disply_scale), 2*self.disply_scale)
 
         # Draw the onscreen menu text
-        # font = pygame.font.SysFont("arial", 30)
         font = pygame.font.Font(None, int(25*self.disply_scale))
 
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))

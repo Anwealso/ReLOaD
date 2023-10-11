@@ -35,9 +35,6 @@ class SimpleSimGym(gym.Env):
             render_fps=self.metadata["render_fps"],
         )
 
-        # Actions: 0, 1, 2, 3 for do nothing, R, F, L
-        # self.action_space = spaces.Discrete(4)
-
         # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
         self.action_space = spaces.Discrete(5)
 
@@ -68,13 +65,11 @@ class SimpleSimGym(gym.Env):
 
     def _get_obs(self):
         # ----------------------------------- AGENT ---------------------------------- #
-        # Agent x,y,angle
         agent_x_cart = self.game.robot.x
         agent_y_cart = self.game.env_size - self.game.robot.x
         agent_info = np.array(
             [agent_x_cart, agent_y_cart, self.game.robot.angle]
         ).astype(np.float32)
-        # agent = np.array([self.game.robot.angle]).astype(np.float32)
 
         # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)
@@ -82,10 +77,6 @@ class SimpleSimGym(gym.Env):
         for i, target in enumerate(self.game.targets):
             target_x_cart = target.x
             target_y_cart = self.game.env_size - target.y
-            
-            # # Add target absolute positions
-            # target_info[0][i] = target_x_cart
-            # target_info[1][i] = target_y_cart
 
             # Add target relative positions
             robot_x_cart = self.game.robot.x
@@ -102,7 +93,6 @@ class SimpleSimGym(gym.Env):
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
             {
-                # "agent": agent_info,
                 "targets": target_info,
                 "environment": self.game.budget,
             },
@@ -127,18 +117,8 @@ class SimpleSimGym(gym.Env):
         """
         reward = 0
 
-        # # Apply penalty per step to incentivise to get to goal fast
-        # reward -= self.step_cost
-
-        # # Apply penalty per action so that it doesn't move extraneously once it
-        # # gets to the goal
-        # if action != 0:
-        #     reward -= self.action_cost
-
         # Apply reward based on observation entropy
         reward += self.get_entropy_reward(verbose=0)
-        # reward += self.get_goal_reward(verbose=0)
-        # reward += np.sum(self.game.current_confidences)
 
         return reward
 
@@ -220,7 +200,6 @@ class SimpleSimGym(gym.Env):
 
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
-            # if self.game.can_see(target):
             old_entropy = self.get_target_entropy(
                 self.game.confidences[i, :-1]
             )  # all timesteps up until and excluding last
@@ -249,7 +228,6 @@ class SimpleSimGym(gym.Env):
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
-
             print(f"old_entropy: {old_entropy}")
             print(f"new_entropy: {new_entropy}")
             print(
@@ -324,11 +302,10 @@ class SimpleSimGym(gym.Env):
 
     def reset(self, seed=None, options=None):
         """
-        Description,
-            Resets the ENV.
+        Resets the env
 
         Returns:
-            ([np.array size=(2,1) type=np.float32]): Random State
+            Standard return format as specified by Gymnasium API
         """
         self.game.reset()
 
@@ -337,8 +314,10 @@ class SimpleSimGym(gym.Env):
 
     def render(self):
         """
-        Description,
-            Renders the ENV.
+        Renders the env
+
+        Returns:
+            If render_mode="rgb_array", returns an rgb image of the rendered env in numpy array
         """
         return self.game.render()
 
@@ -361,46 +340,23 @@ if __name__ == "__main__":
     )
 
     # View Env Specs
-    # utils.show_env_summary(py_env)
     num_episodes = 10
     env.reset()
 
-    # curriculum = np.linspace(0, 1, num=(int(num_episodes))) # increase from 5 to farthest corner distance
-    # print(curriculum)
-
-    # env.game.curriculum = curriculum[0]
     for i in range(num_episodes):
-        # Set the level of the curriculum
-        # env.game.curriculum = curriculum[i]
-        # env.reset()
-        # print(f"curriculum: {curriculum[i]}")
-
         terminated = False
         truncated = False
         ep_reward = 0
         found = False
         j = 0
 
-        # DEBUG
-        # print(f"min_cost_to_goal: {env.min_cost_to_goal()}")
-
         while not (terminated or truncated):
             time.sleep(0.05)
             action = env.game.get_action_interactive()
 
-            # action = env.action_space.sample()  # this is where you would insert your policy
             observation, reward, terminated, truncated, info = env.step(action)
 
             j += 1
-            # print(f"Reward: {format(reward, '.2f')}, Observation: {observation}\n")
-
-            # if reward > -env.step_cost and found == False:
-            #     # print(f"Real Cost to Reach Goal: {j * env.action_cost}")
-            #     # print(f"Real Actions to Reach Goal: {j}")
-
-            #     # env.print_goal_reward()
-            #     found = True
-
             ep_reward += reward
 
             if terminated or truncated:
