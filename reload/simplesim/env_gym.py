@@ -41,22 +41,16 @@ class SimpleSimGym(gym.Env):
         # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
         self.action_space = spaces.Discrete(5)
 
-        max_dist = math.sqrt(2 * (self.game.window_size**2))
+        max_dist = math.sqrt(2 * (self.game.env_size**2))
         # Observations (visible state):
         self.observation_space_unflattened = spaces.Dict(
             {
-                # "agent": spaces.Box(
-                #     np.array([0, 0, 0]).astype(np.float32),
-                #     np.array(
-                #         [self.game.window_size, self.game.window_size, 359]
-                #     ).astype(np.float32),
-                # ),  # agent (x, y, angle)
                 "targets": spaces.Box(
                     low=-max_dist,
                     high=self.game.starting_budget*self.game.num_targets,
-                    shape=(3, num_targets),
+                    shape=(2, num_targets),
                     dtype=np.float32,
-                ),  # target position (rel_x, rel_y, target_sum_conf)
+                ),  # target position (rel_x, rel_y)
                 "environment": spaces.Box(
                     np.array([0]).astype(np.float32),
                     np.array([self.game.starting_budget]).astype(np.float32),
@@ -67,8 +61,7 @@ class SimpleSimGym(gym.Env):
             self.observation_space_unflattened
         )
 
-        self.current_entropies = np.zeros((self.game.num_targets, 1), dtype=np.float32)
-        self.target_rewards = [0, 0]
+        self.entropies = np.zeros_like(self.game.current_confidences)
 
         self.window = None
         self.clock = None
@@ -77,7 +70,7 @@ class SimpleSimGym(gym.Env):
         # ----------------------------------- AGENT ---------------------------------- #
         # Agent x,y,angle
         agent_x_cart = self.game.robot.x
-        agent_y_cart = self.game.window_size - self.game.robot.x
+        agent_y_cart = self.game.env_size - self.game.robot.x
         agent_info = np.array(
             [agent_x_cart, agent_y_cart, self.game.robot.angle]
         ).astype(np.float32)
@@ -88,7 +81,7 @@ class SimpleSimGym(gym.Env):
         target_info = np.zeros(shape=(3, len(self.game.targets)), dtype=np.float32)
         for i, target in enumerate(self.game.targets):
             target_x_cart = target.x
-            target_y_cart = self.game.window_size - target.y
+            target_y_cart = self.game.env_size - target.y
             
             # # Add target absolute positions
             # target_info[0][i] = target_x_cart
@@ -96,7 +89,7 @@ class SimpleSimGym(gym.Env):
 
             # Add target relative positions
             robot_x_cart = self.game.robot.x
-            robot_y_cart = self.game.window_size - self.game.robot.y
+            robot_y_cart = self.game.env_size - self.game.robot.y
             dx = target_x_cart - robot_x_cart
             dy = target_y_cart - robot_y_cart
             (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
@@ -132,35 +125,20 @@ class SimpleSimGym(gym.Env):
         But to improve trining exploraiton we want:
         !moving && !goal <= moving && !goal < !moving && goal < !moving && goal
         """
-        self.variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
         reward = 0
 
-        # Apply penalty per step to incentivise to get to goal fast
-        reward -= self.step_cost
+        # # Apply penalty per step to incentivise to get to goal fast
+        # reward -= self.step_cost
 
-        # Apply penalty per action so that it doesn't move extraneously once it
-        # gets to the goal
-        if action != 0:
-            reward -= self.action_cost
+        # # Apply penalty per action so that it doesn't move extraneously once it
+        # # gets to the goal
+        # if action != 0:
+        #     reward -= self.action_cost
 
         # Apply reward based on observation entropy
-        # reward += self.get_entropy_reward(verbose=0)
+        reward += self.get_entropy_reward(verbose=0)
         # reward += self.get_goal_reward(verbose=0)
-        reward += np.sum(self.game.current_confidences)
-
-        return reward
-
-    def _get_end_reward(self):
-        """
-        The end reward for the RL agent.
-        """
-        reward = 0
-
-        # Apply reward based on sum confidence variance
-        all_conf_sum = np.sum(self.game.confidences)
-        variance = np.var(np.sum(self.game.confidences, axis=1), ddof=1)
-        if reward > 0:
-            reward = all_conf_sum / variance
+        # reward += np.sum(self.game.current_confidences)
 
         return reward
 
@@ -240,7 +218,6 @@ class SimpleSimGym(gym.Env):
         view (objects out of view contribute zero reward).
         """
 
-        entropies = np.zeros_like(self.game.current_confidences)
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
             # if self.game.can_see(target):
@@ -250,12 +227,12 @@ class SimpleSimGym(gym.Env):
             new_entropy = self.get_target_entropy(
                 self.game.confidences[i, :]
             )  # all timesteps
-            entropies[i, 0] = new_entropy
 
             entropy_diff = float(old_entropy - new_entropy)
             entropy_reward += entropy_diff
             # entropy_reward += max(entropy_diff, 0)
-        self.current_entropies = entropies
+            
+            self.entropies[i, 0] = new_entropy
 
         # Normalise against vartying budgets and number of targets
         entropy_reward = entropy_reward * (
@@ -267,12 +244,8 @@ class SimpleSimGym(gym.Env):
         reward_multiplier = 1
         entropy_reward = entropy_reward * reward_multiplier
 
-        # Apply a penalty factor for the amount of (sample) variance in target entropies
-        self.variance = float(np.var(self.current_entropies,ddof=1))
-        # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
-        similarity_factor = 1 / (10*self.variance + 1)
-        entropy_reward = entropy_reward * similarity_factor
-
+        # Update variance in target entropies
+        self.variance = float(np.var(self.entropies,ddof=1))
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
@@ -285,114 +258,6 @@ class SimpleSimGym(gym.Env):
             print("\n")
 
         return entropy_reward
-
-    def get_goal_reward(self, verbose=0):
-        """
-        Gets the reward to give to the agent for each step that it remains in
-        the goal area.
-
-        Essentially the best path is if the agent expends min_cost_to_goal cost
-        to get to the coal and then stays within the goal area for the rest of
-        the episode.
-        """
-        # Get the (optimal possible) number of steps that can be spent at the goal
-        # steps_at_goal = self.game.starting_budget - (self.min_cost_to_goal()/self.action_cost)
-        steps_at_goal = self.game.starting_budget - self.min_steps_to_goal()
-        # print("")
-        # print(f"steps_at_goal: {steps_at_goal}")
-
-        # Goal reward must compensate the agent for the cost to get to the goal
-        # plus the step costs across the whole episode.
-        total_goal_reward = self.min_cost_to_goal() + (
-            self.game.starting_budget * self.step_cost
-        )
-        # print(f"total_goal_reward: {total_goal_reward}")
-
-        # The amount of the reward to give the agent for each step
-        step_goal_reward = total_goal_reward / steps_at_goal
-        # print(f"step_goal_reward: {step_goal_reward}")
-        # print("")
-
-        reward = 0
-        for i, target in enumerate(self.game.targets):
-            if self.get_closeness(self.game.robot, target) > 0.95:
-                reward += step_goal_reward
-                self.target_rewards[i] += step_goal_reward
-
-        # Apply a penalty factor for the amount of (sample) variance in target entropies
-        self.variance = float(np.var(self.target_rewards,ddof=1))
-        # A penalty factor that scales from [1, 0.5) for variance from [0, infty)
-        similarity_factor = 1 / ((self.variance/10) + 1)
-        reward = reward * similarity_factor
-
-        # Add a multiplier to ensure it is worth it for the robot to  seek more
-        # reward even though it entails more movement cost
-        reward_multiplier = 100
-        reward = reward * reward_multiplier
-
-        return reward
-
-    def get_closeness(self, robot, target):
-        """
-        Gets the closeness of a target to the robot
-        """
-        dS = math.sqrt((target.x - robot.x) ** 2 + (target.y - robot.y) ** 2)
-        farness = abs(dS) / math.sqrt(
-            self.game.window_size**2 + self.game.window_size**2
-        )  # dS as a fraction of max (scaled from 0 to 1)
-        closeness = 1 - farness  # closeness = opposite of farness (scales from 1 to 0)
-        return closeness
-
-    def min_steps_to_goal(self):
-        """
-        Gets the cost of the shortest path to the goal
-        """
-        min_farness = 1 - self.goal_reached_cutoff
-        buffer_distance = min_farness * math.sqrt(
-            self.game.window_size**2 + self.game.window_size**2
-        )
-
-        # Get cartesian coord distances
-        target_x_cart = self.game.targets[0].x
-        target_y_cart = self.game.window_size - self.game.targets[0].y
-        robot_starting_x_cart = self.game.robot.starting_x
-        robot_starting_y_cart = self.game.window_size - self.game.robot.starting_y
-
-        dy = target_y_cart - robot_starting_y_cart
-        dx = target_x_cart - robot_starting_x_cart
-        dS = math.sqrt((dx) ** 2 + (dy) ** 2)
-        min_dist = dS - buffer_distance
-        num_move_actions = math.floor(min_dist / self.game.robot.move_rate)
-
-        target_angle = math.degrees(math.atan2(dy, dx))
-        target_angle = (
-            360 + target_angle if target_angle < 0 else target_angle
-        )  # correct for ambiguous case
-        dtheta = abs(self.game.robot.starting_angle - target_angle)
-        dtheta = (
-            dtheta - 180 if dtheta > 180 else dtheta
-        )  # correct since we can go clockwise or anti-clockwise
-        # print(f"dtheta1: {dtheta}\r")
-        # dtheta = 180-dtheta if dtheta>90 else dtheta # correct since we can also reverse into the target
-        # print(f"dtheta2: {dtheta}")
-        num_turn_actions = math.floor(
-            dtheta / self.game.robot.turn_rate
-        )  # each turn action is 5deg
-
-        if (
-            num_move_actions < 1
-        ):  # we start inside the object, any movement will cause us to reach goal
-            total_num_actions = 1
-        else:
-            total_num_actions = num_turn_actions + num_move_actions
-        return total_num_actions
-
-    def min_cost_to_goal(self):
-        """
-        Gets the cost of the shortest path to the goal
-        """
-        min_cost = self.min_steps_to_goal() * self.action_cost
-        return min_cost
 
     def world_to_body_frame(self, x, y):
         """
@@ -436,18 +301,17 @@ class SimpleSimGym(gym.Env):
             truncated = False  # if the episode was cut off by timeout
             info = {}
 
-            # Return reward
-            # Mid-episode case
+            # Get game step results
             reward = self._get_reward(action)
             obs = self._get_obs()
 
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
-                    "Confidence": format(np.sum(self.game.current_confidences), ".2f"),
-                    "Variance": format(self.variance, ".2f"),
-                    "Reward": format(reward, ".2f"),
-                    "Curr Entropies": format(self.current_entropies),
+                    "Curr Confidences": np.round(self.game.current_confidences.flatten(), 2),
+                    "Curr Entropies": np.round(self.entropies.flatten(), 2),
+                    "Variance": np.round(self.variance, 2),
+                    "Reward": np.round(reward, 2),
                     "Observation": np.round(obs, 2),
                 }
             )
@@ -455,10 +319,6 @@ class SimpleSimGym(gym.Env):
             if self.game.gameover:
                 # Reward only given at the end of the episode
                 truncated = True
-                reward = self._get_reward(action)
-            else:
-                # No continuous rewards recieved at each timestep
-                reward = self._get_reward(action) + self._get_end_reward()
 
         return obs, reward, terminated, truncated, info
 

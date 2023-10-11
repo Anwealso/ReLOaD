@@ -201,10 +201,10 @@ class SimpleSim(object):
         self.player_size = 50
         self.target_size = 50
         
-        self.disply_size_multiple = 2  # display size in pixels
-        self.display_env_size = self.env_size * self.disply_size_multiple
-        self.display_player_size = self.player_size * self.disply_size_multiple
-        self.display_target_size = self.target_size * self.disply_size_multiple
+        self.disply_scale = 2.5  # display size in pixels
+        self.display_env_size = self.env_size * self.disply_scale
+        self.display_player_size = self.player_size * self.disply_scale
+        self.display_target_size = self.target_size * self.disply_scale
 
         # Game state
         self.starting_budget = starting_budget
@@ -712,17 +712,17 @@ class SimpleSim(object):
             (self.display_player_size, self.display_player_size),
         )
         target50 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (50*self.disply_size_multiple, 50*self.disply_size_multiple)
+            pygame.image.load(sprites_dir + "apple.png"), (50*self.disply_scale, 50*self.disply_scale)
         )
         target100 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (100*self.disply_size_multiple, 100*self.disply_size_multiple)
+            pygame.image.load(sprites_dir + "apple.png"), (100*self.disply_scale, 100*self.disply_scale)
         )
         target150 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (150*self.disply_size_multiple, 150*self.disply_size_multiple)
+            pygame.image.load(sprites_dir + "apple.png"), (150*self.disply_scale, 150*self.disply_scale)
         )
         fov_color = (0, 0, 255, 70)
-        fov_line_length = 500 * self.disply_size_multiple
-        fov_line_thickness = 10 * self.disply_size_multiple
+        fov_line_length = int(500 * self.disply_scale)
+        fov_line_thickness = int(10 * self.disply_scale)
 
         # --------------------------- Draw all the entities -------------------------- #
         # Draw the background image
@@ -772,11 +772,11 @@ class SimpleSim(object):
         # The rectangle bounding box of the surf
         rotated_player_rect = rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
-        rotated_player_rect.center = (self.robot.x*self.disply_size_multiple, self.robot.y*self.disply_size_multiple)
+        rotated_player_rect.center = (self.robot.x*self.disply_scale, self.robot.y*self.disply_scale)
         # Update fov indicator lines position
         rotated_fov_surf = pygame.transform.rotate(fov_surf, self.robot.angle - 90)
         rotated_fov_rect = rotated_fov_surf.get_rect()
-        rotated_fov_rect.center = (self.robot.x*self.disply_size_multiple, self.robot.y*self.disply_size_multiple)
+        rotated_fov_rect.center = (self.robot.x*self.disply_scale, self.robot.y*self.disply_scale)
 
         # Redraw the player surfs
         canvas.blit(rotated_player_surf, rotated_player_rect)
@@ -797,7 +797,7 @@ class SimpleSim(object):
             # Setup Render Surfs
             rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
             rotated_target_rect = rotated_target_surf.get_rect()
-            rotated_target_rect.center = (target.x*self.disply_size_multiple, target.y*self.disply_size_multiple)
+            rotated_target_rect.center = (target.x*self.disply_scale, target.y*self.disply_scale)
             canvas.blit(rotated_target_surf, rotated_target_rect)
             # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
 
@@ -808,18 +808,18 @@ class SimpleSim(object):
             pygame.draw.rect(
                 canvas,
                 (0, 0, 0),
-                pygame.Rect(wall.xmin*self.disply_size_multiple, wall.ymin*self.disply_size_multiple, wall.width*self.disply_size_multiple, wall.height*self.disply_size_multiple),
+                pygame.Rect(wall.xmin*self.disply_scale, wall.ymin*self.disply_scale, wall.width*self.disply_scale, wall.height*self.disply_scale),
             )
 
         # Draw the robot's trail
         for point in self.robot.trail:
             x, y = point
 
-            pygame.draw.circle(canvas, (255, 0, 0), (x*self.disply_size_multiple, y*self.disply_size_multiple), 2*self.disply_size_multiple)
+            pygame.draw.circle(canvas, (255, 0, 0), (x*self.disply_scale, y*self.disply_scale), 2*self.disply_scale)
 
         # Draw the onscreen menu text
         # font = pygame.font.SysFont("arial", 30)
-        font = pygame.font.Font(None, 50)
+        font = pygame.font.Font(None, int(25*self.disply_scale))
 
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
         canvas.blit(budget_text, (25, 25))
@@ -863,16 +863,11 @@ class SimpleSim(object):
             )
 
     def render_scoreboard(self, canvas):
-        font = pygame.font.Font(None, 40)
+        font = pygame.font.Font(None, int(20*self.disply_scale))
 
         metric_count = 0
         for metric_name in self.scoreboard_items.keys():
             item = self.scoreboard_items[metric_name]
-            
-            if type(item) == type(dict()):
-                for key in item.keys():
-                    if type(item[key]) == type(int(1)):
-                        item[key] = round(item[key], 2)
 
             metric_text = font.render(
                 f"{metric_name}: " + str(item),
@@ -882,11 +877,12 @@ class SimpleSim(object):
             canvas.blit(
                 metric_text,
                 (
-                    self.env_size*self.disply_size_multiple - metric_text.get_width() - 25,
+                    self.env_size*self.disply_scale - metric_text.get_width() - 25,
                     (metric_count * 35) + metric_text.get_height(),
                 ),
             )
             metric_count += 1
+        print()
 
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
