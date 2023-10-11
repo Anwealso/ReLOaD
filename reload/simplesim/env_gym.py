@@ -44,7 +44,7 @@ class SimpleSimGym(gym.Env):
             {
                 "targets": spaces.Box(
                     low=-max_dist,
-                    high=self.game.starting_budget*self.game.num_targets,
+                    high=self.game.starting_budget * self.game.num_targets,
                     shape=(2, num_targets),
                     dtype=np.float32,
                 ),  # target position (rel_x, rel_y)
@@ -137,15 +137,15 @@ class SimpleSimGym(gym.Env):
         if num_observations == 0:
             return 1
         target_unconfidence_history = 1 - target_confidence_history
-        
-        # Get the weighted probability that the object is of the true class 
+
+        # Get the weighted probability that the object is of the true class
         # or the false class gained from each observation
         # probability_true_class = np.divide(target_confidence_history, num_observations)
         # probability_false_class = np.divide(target_unconfidence_history, num_observations)
         probability_true_class = target_confidence_history
         probability_false_class = target_unconfidence_history
 
-        # Get the suprrise associated with identifying the target as its true 
+        # Get the suprrise associated with identifying the target as its true
         # class or falsely as another class from an observation
         suprise_true = np.log2(
             probability_true_class,
@@ -158,19 +158,17 @@ class SimpleSimGym(gym.Env):
             out=np.zeros_like(target_confidence_history),
         )
 
-        # The entropy associated with identifying the target as its true class 
+        # The entropy associated with identifying the target as its true class
         # or falsely as another class from an observation
         entropy_true = -np.multiply(probability_true_class, suprise_true)
         entropy_false = -np.multiply(probability_false_class, suprise_false)
         # The total entropy of the dataset of observation on the target
-        entropy = np.sum(
-            entropy_true + entropy_false
-        )
+        entropy = np.sum(entropy_true + entropy_false)
         entropy = np.divide(entropy, num_observations)
         # Set entropy to 1 for objects that do not have any observations
-        if (entropy == 0):
+        if entropy == 0:
             entropy = 1
-        
+
         if verbose > 0:
             print("\n", num_observations)
             print(f"target_confidence_history: {target_confidence_history}")
@@ -197,7 +195,6 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
         """
-
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
             old_entropy = self.get_target_entropy(
@@ -210,7 +207,7 @@ class SimpleSimGym(gym.Env):
             entropy_diff = float(old_entropy - new_entropy)
             entropy_reward += entropy_diff
             # entropy_reward += max(entropy_diff, 0)
-            
+
             self.entropies[i, 0] = new_entropy
 
         # Normalise against vartying budgets and number of targets
@@ -224,7 +221,7 @@ class SimpleSimGym(gym.Env):
         entropy_reward = entropy_reward * reward_multiplier
 
         # Update variance in target entropies
-        self.variance = float(np.var(self.entropies,ddof=1))
+        self.variance = float(np.var(self.entropies, ddof=1))
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
@@ -269,7 +266,6 @@ class SimpleSimGym(gym.Env):
             ([np.float32]): Reward as norm distance from '0' state
             ([np.bool: ENV]). Terminal condition.
         """
-
         if action is not None:  # First step without action, called from reset()
             # Step the game
             self.game.step(action)
@@ -286,7 +282,9 @@ class SimpleSimGym(gym.Env):
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
-                    "Curr Confidences": np.round(self.game.current_confidences.flatten(), 2),
+                    "Curr Confidences": np.round(
+                        self.game.current_confidences.flatten(), 2
+                    ),
                     "Curr Entropies": np.round(self.entropies.flatten(), 2),
                     "Variance": np.round(self.variance, 2),
                     "Reward": np.round(reward, 2),

@@ -132,8 +132,12 @@ class Robot(object):
         # A factor representing the distance difficulty (should be between 0 and 1)
         max_dist = math.sqrt(self.env_size**2 + self.env_size**2)
         target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
+
         # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-        distance_factor = np.exp(-(10*target_dist / max_dist)) # exponential distance factor
+        falloff_steepness = 5
+        distance_factor = np.exp(
+            -(falloff_steepness * target_dist / max_dist)
+        )  # exponential distance factor
 
         # A factor representing the orientation difficulty (should be between 0 and 1)
         angle_between = np.degrees(
@@ -195,10 +199,10 @@ class SimpleSim(object):
         self.window = None
         self.clock = None
 
-        self.env_size = 500 # number of coords size of the env
+        self.env_size = 500  # number of coords size of the env
         self.player_size = 50
         self.target_size = 50
-        
+
         self.disply_scale = 2.5  # display size in pixels
         self.display_env_size = self.env_size * self.disply_scale
         self.display_player_size = self.player_size * self.disply_scale
@@ -243,12 +247,8 @@ class SimpleSim(object):
                 random.randrange(0, self.env_size - min_size),
             )
             xmax, ymax = (
-                random.randrange(
-                    xmin + min_size, min(self.env_size, xmin + max_size)
-                ),
-                random.randrange(
-                    ymin + min_size, min(self.env_size, ymin + max_size)
-                ),
+                random.randrange(xmin + min_size, min(self.env_size, xmin + max_size)),
+                random.randrange(ymin + min_size, min(self.env_size, ymin + max_size)),
             )
 
             self.walls.append(Wall(xmin, ymin, xmax, ymax))
@@ -262,10 +262,10 @@ class SimpleSim(object):
         while True:
             x, y = (
                 random.randrange(
-                    0 + self.player_size // 2, self.window_size - self.player_size // 2
+                    0 + self.player_size // 2, self.env_size - self.player_size // 2
                 ),
                 random.randrange(
-                    0 + self.player_size // 2, self.window_size - self.player_size // 2
+                    0 + self.player_size // 2, self.env_size - self.player_size // 2
                 ),
             )
 
@@ -301,7 +301,6 @@ class SimpleSim(object):
         Returns:
             None
         """
-        # print("\n\n\n")
         for _ in range(0, num_to_spawn):
             # rank = random.choice([1, 1, 1, 2, 2, 3])
             rank = 1
@@ -317,17 +316,15 @@ class SimpleSim(object):
             if current_max_target_dist == self.min_target_dist:
                 current_max_target_dist += 5  # avoid infinite or very long loops
 
-            # print("Attempting spawn:")
             while True:
                 x, y = (
                     random.randrange(0 + size // 2, self.env_size - size // 2),
                     random.randrange(0 + size // 2, self.env_size - size // 2),
                 )
 
-                # CHeck its within the curriculum zone 
+                # CHeck its within the curriculum zone
                 dS = math.sqrt((x - self.robot.x) ** 2 + (y - self.robot.y) ** 2)
                 if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
-
                     # Check target is not inside wall
                     valid = True
                     for wall in self.walls:
@@ -342,7 +339,7 @@ class SimpleSim(object):
                     if valid:
                         # If target spawn wasnt inside and walls
                         break
-            
+
             self.targets.append(Target(rank, x, y))
 
     def can_see(self, target: Target):
@@ -635,7 +632,7 @@ class SimpleSim(object):
         """
         self.gameover = False
         self.budget = self.starting_budget
-        
+
         self.walls.clear()
         self.spawn_walls(self.num_walls)
         self.spawn_robot(self.robot.fov)
@@ -658,7 +655,9 @@ class SimpleSim(object):
         pygame.init()
         if self.window is None and self.render_mode == "human":
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.display_env_size, self.display_env_size))
+            self.window = pygame.display.set_mode(
+                (self.display_env_size, self.display_env_size)
+            )
             pygame.display.set_caption("ReLOaD Simulator")
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
@@ -680,13 +679,16 @@ class SimpleSim(object):
             (self.display_player_size, self.display_player_size),
         )
         target50 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (50*self.disply_scale, 50*self.disply_scale)
+            pygame.image.load(sprites_dir + "apple.png"),
+            (50 * self.disply_scale, 50 * self.disply_scale),
         )
         target100 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (100*self.disply_scale, 100*self.disply_scale)
+            pygame.image.load(sprites_dir + "apple.png"),
+            (100 * self.disply_scale, 100 * self.disply_scale),
         )
         target150 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (150*self.disply_scale, 150*self.disply_scale)
+            pygame.image.load(sprites_dir + "apple.png"),
+            (150 * self.disply_scale, 150 * self.disply_scale),
         )
         fov_color = (0, 0, 255, 70)
         fov_line_length = int(500 * self.disply_scale)
@@ -698,7 +700,9 @@ class SimpleSim(object):
 
         # Draw the robot
         # Make a surface with a line on it
-        fov_surf = pygame.Surface((self.display_env_size, self.display_env_size), pygame.SRCALPHA)
+        fov_surf = pygame.Surface(
+            (self.display_env_size, self.display_env_size), pygame.SRCALPHA
+        )
         fov_surf.set_colorkey((0, 0, 0, 0))
         rotated_fov_surf = pygame.transform.rotate(fov_surf, self.robot.angle)
         pygame.draw.line(
@@ -740,11 +744,17 @@ class SimpleSim(object):
         # The rectangle bounding box of the surf
         rotated_player_rect = rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
-        rotated_player_rect.center = (self.robot.x*self.disply_scale, self.robot.y*self.disply_scale)
+        rotated_player_rect.center = (
+            self.robot.x * self.disply_scale,
+            self.robot.y * self.disply_scale,
+        )
         # Update fov indicator lines position
         rotated_fov_surf = pygame.transform.rotate(fov_surf, self.robot.angle - 90)
         rotated_fov_rect = rotated_fov_surf.get_rect()
-        rotated_fov_rect.center = (self.robot.x*self.disply_scale, self.robot.y*self.disply_scale)
+        rotated_fov_rect.center = (
+            self.robot.x * self.disply_scale,
+            self.robot.y * self.disply_scale,
+        )
 
         # Redraw the player surfs
         canvas.blit(rotated_player_surf, rotated_player_rect)
@@ -765,7 +775,10 @@ class SimpleSim(object):
             # Setup Render Surfs
             rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
             rotated_target_rect = rotated_target_surf.get_rect()
-            rotated_target_rect.center = (target.x*self.disply_scale, target.y*self.disply_scale)
+            rotated_target_rect.center = (
+                target.x * self.disply_scale,
+                target.y * self.disply_scale,
+            )
             canvas.blit(rotated_target_surf, rotated_target_rect)
             # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
 
@@ -776,17 +789,27 @@ class SimpleSim(object):
             pygame.draw.rect(
                 canvas,
                 (0, 0, 0),
-                pygame.Rect(wall.xmin*self.disply_scale, wall.ymin*self.disply_scale, wall.width*self.disply_scale, wall.height*self.disply_scale),
+                pygame.Rect(
+                    wall.xmin * self.disply_scale,
+                    wall.ymin * self.disply_scale,
+                    wall.width * self.disply_scale,
+                    wall.height * self.disply_scale,
+                ),
             )
 
         # Draw the robot's trail
         for point in self.robot.trail:
             x, y = point
 
-            pygame.draw.circle(canvas, (255, 0, 0), (x*self.disply_scale, y*self.disply_scale), 2*self.disply_scale)
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 0),
+                (x * self.disply_scale, y * self.disply_scale),
+                2 * self.disply_scale,
+            )
 
         # Draw the onscreen menu text
-        font = pygame.font.Font(None, int(25*self.disply_scale))
+        font = pygame.font.Font(None, int(25 * self.disply_scale))
 
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
         canvas.blit(budget_text, (25, 25))
@@ -830,7 +853,7 @@ class SimpleSim(object):
             )
 
     def render_scoreboard(self, canvas):
-        font = pygame.font.Font(None, int(20*self.disply_scale))
+        font = pygame.font.Font(None, int(20 * self.disply_scale))
 
         metric_count = 0
         for metric_name in self.scoreboard_items.keys():
@@ -844,12 +867,12 @@ class SimpleSim(object):
             canvas.blit(
                 metric_text,
                 (
-                    self.env_size*self.disply_scale - metric_text.get_width() - 25,
+                    self.env_size * self.disply_scale - metric_text.get_width() - 25,
                     (metric_count * 35) + metric_text.get_height(),
                 ),
             )
             metric_count += 1
-        print()
+
 
 # ---------------------------------------------------------------------------- #
 #                                     MAIN                                     #
