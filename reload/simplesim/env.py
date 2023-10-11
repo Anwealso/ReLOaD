@@ -196,9 +196,15 @@ class SimpleSim(object):
         self.render_fps = render_fps
         self.window = None
         self.clock = None
-        self.window_size = 500
+
+        self.env_size = 500 # number of coords size of the env
         self.player_size = 50
         self.target_size = 50
+        
+        self.disply_size_multiple = 2  # display size in pixels
+        self.display_env_size = self.env_size * self.disply_size_multiple
+        self.display_player_size = self.player_size * self.disply_size_multiple
+        self.display_target_size = self.target_size * self.disply_size_multiple
 
         # Game state
         self.starting_budget = starting_budget
@@ -211,12 +217,19 @@ class SimpleSim(object):
 
         self.targets = []
         self.walls = []
-        # 1D array of confidences on each object at current timestep
+
+        # Confidences on each object at current timestep
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # 2D array of confidences on each object at each timestep
+
+        # Confidences on each object at each timestep
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # 1D array of confidences on each object avg over all past timesteps
-        self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+
+        # # Entropies of each targets confidence distribution as at current timestep
+        # self.entropies = np.zeros_like(self.current_confidences)
+
+        # # 1D array of confidences on each object avg over all past timesteps
+        # self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+
         # Note: Using avg might cause agent to simply find the best spot with
         # the most objects in view and camp there to farm for max score
 
@@ -237,15 +250,15 @@ class SimpleSim(object):
 
         for _ in range(0, num_to_spawn):
             xmin, ymin = (
-                random.randrange(0, self.window_size - min_size),
-                random.randrange(0, self.window_size - min_size),
+                random.randrange(0, self.env_size - min_size),
+                random.randrange(0, self.env_size - min_size),
             )
             xmax, ymax = (
                 random.randrange(
-                    xmin + min_size, min(self.window_size, xmin + max_size)
+                    xmin + min_size, min(self.env_size, xmin + max_size)
                 ),
                 random.randrange(
-                    ymin + min_size, min(self.window_size, ymin + max_size)
+                    ymin + min_size, min(self.env_size, ymin + max_size)
                 ),
             )
 
@@ -256,7 +269,7 @@ class SimpleSim(object):
         Spawns robot / player
         """
 
-        x, y = (self.window_size//2, self.window_size//2)
+        x, y = (self.env_size//2, self.env_size//2)
         # while True:
         #     x, y = (
         #         random.randrange(
@@ -287,7 +300,7 @@ class SimpleSim(object):
             self.player_size,
             x,
             y,
-            self.window_size,
+            self.env_size,
         )
 
     def spawn_targets(self, num_to_spawn):
@@ -307,7 +320,7 @@ class SimpleSim(object):
 
             # If target is within allowable distance to robot, break
             max_band_gap = (
-                math.sqrt(2 * (self.window_size) ** 2) - self.min_target_dist
+                math.sqrt(2 * (self.env_size) ** 2) - self.min_target_dist
             )  # the max width of the band between the min and max spawn limits
             current_max_target_dist = self.min_target_dist + (
                 self.curriculum * max_band_gap
@@ -318,8 +331,8 @@ class SimpleSim(object):
             # print("Attempting spawn:")
             while True:
                 x, y = (
-                    random.randrange(0 + size // 2, self.window_size - size // 2),
-                    random.randrange(0 + size // 2, self.window_size - size // 2),
+                    random.randrange(0 + size // 2, self.env_size - size // 2),
+                    random.randrange(0 + size // 2, self.env_size - size // 2),
                 )
 
                 # CHeck its within the curriculum zone 
@@ -357,9 +370,9 @@ class SimpleSim(object):
 
         # Convert pixel coordinated to cartesian coordinates
         robot_x_cart = self.robot.x
-        robot_y_cart = self.window_size - self.robot.y
+        robot_y_cart = self.env_size - self.robot.y
         target_x_cart = target.x
-        target_y_cart = self.window_size - target.y
+        target_y_cart = self.env_size - target.y
 
         # First check if the view is obscured by a wall
         if self.is_obscured(target):
@@ -475,10 +488,10 @@ class SimpleSim(object):
         # avg_confidences = 1xN array of confidences averaged over all past timesteps
         # confidences = MxN array of confidences for all past timesteps
 
-        # Add the current observation to the past average
-        self.avg_confidences = (
-            np.add(self.avg_confidences.dot(self.count), self.current_confidences)
-        ) / (self.count + 1)
+        # # Add the current observation to the past average
+        # self.avg_confidences = (
+        #     np.add(self.avg_confidences.dot(self.count), self.current_confidences)
+        # ) / (self.count + 1)
 
         # Add the current timestep confidences to the comprehensive all timesteps list
         self.confidences = np.append(self.confidences, self.current_confidences, axis=1)
@@ -493,14 +506,14 @@ class SimpleSim(object):
         Stops player from going off screen or going into walls
         """
         # Handle off-screen left/right
-        if self.robot.x > self.window_size - (self.robot.size / 2):
-            self.robot.x = self.window_size - (self.robot.size / 2)
+        if self.robot.x > self.env_size - (self.robot.size / 2):
+            self.robot.x = self.env_size - (self.robot.size / 2)
         elif self.robot.x < 0 + (self.robot.size / 2):
             self.robot.x = 0 + (self.robot.size / 2)
 
         # Handle off-screen up/down
-        if self.robot.y > self.window_size - (self.robot.size / 2):
-            self.robot.y = self.window_size - (self.robot.size / 2)
+        if self.robot.y > self.env_size - (self.robot.size / 2):
+            self.robot.y = self.env_size - (self.robot.size / 2)
         elif self.robot.y < 0 + (self.robot.size / 2):
             self.robot.y = 0 + (self.robot.size / 2)
 
@@ -593,7 +606,7 @@ class SimpleSim(object):
         state_dict["budget"] = self.budget
         state_dict["current_confidences"] = self.current_confidences
         state_dict["confidences"] = self.confidences
-        state_dict["avg_confidences"] = self.avg_confidences
+        # state_dict["avg_confidences"] = self.avg_confidences
 
         return state_dict
 
@@ -663,7 +676,7 @@ class SimpleSim(object):
 
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+        # self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.count = 0
 
         if self.render_mode == "human":
@@ -677,40 +690,39 @@ class SimpleSim(object):
         pygame.init()
         if self.window is None and self.render_mode == "human":
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
+            self.window = pygame.display.set_mode((self.display_env_size, self.display_env_size))
             pygame.display.set_caption("ReLOaD Simulator")
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
         # ------------------ Create the base canvas and load assets ------------------ #
-        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas = pygame.Surface((self.display_env_size, self.display_env_size))
 
-        # if os.path.dirname(__file__) != "":
-        #     sprites_dir = os.path.dirname(__file__) + "/sprites/"
-        # else:
-        #     sprites_dir = "sprites/"
-        sprites_dir = ""
+        if os.path.dirname(__file__) != "":
+            sprites_dir = os.path.dirname(__file__) + "/sprites/"
+        else:
+            sprites_dir = "sprites/"
 
         bg = pygame.transform.scale(
             pygame.image.load(sprites_dir + "roombg.jpg"),
-            (self.window_size, self.window_size),
+            (self.display_env_size, self.display_env_size),
         )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
-            (self.player_size, self.player_size),
+            (self.display_player_size, self.display_player_size),
         )
         target50 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (50, 50)
+            pygame.image.load(sprites_dir + "apple.png"), (50*self.disply_size_multiple, 50*self.disply_size_multiple)
         )
         target100 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (100, 100)
+            pygame.image.load(sprites_dir + "apple.png"), (100*self.disply_size_multiple, 100*self.disply_size_multiple)
         )
         target150 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"), (150, 150)
+            pygame.image.load(sprites_dir + "apple.png"), (150*self.disply_size_multiple, 150*self.disply_size_multiple)
         )
         fov_color = (0, 0, 255, 70)
-        fov_line_length = 500
-        fov_line_thickness = 10
+        fov_line_length = 500 * self.disply_size_multiple
+        fov_line_thickness = 10 * self.disply_size_multiple
 
         # --------------------------- Draw all the entities -------------------------- #
         # Draw the background image
@@ -718,7 +730,7 @@ class SimpleSim(object):
 
         # Draw the robot
         # Make a surface with a line on it
-        fov_surf = pygame.Surface((self.window_size, self.window_size), pygame.SRCALPHA)
+        fov_surf = pygame.Surface((self.display_env_size, self.display_env_size), pygame.SRCALPHA)
         fov_surf.set_colorkey((0, 0, 0, 0))
         rotated_fov_surf = pygame.transform.rotate(fov_surf, self.robot.angle)
         pygame.draw.line(
@@ -760,11 +772,11 @@ class SimpleSim(object):
         # The rectangle bounding box of the surf
         rotated_player_rect = rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
-        rotated_player_rect.center = (self.robot.x, self.robot.y)
+        rotated_player_rect.center = (self.robot.x*self.disply_size_multiple, self.robot.y*self.disply_size_multiple)
         # Update fov indicator lines position
         rotated_fov_surf = pygame.transform.rotate(fov_surf, self.robot.angle - 90)
         rotated_fov_rect = rotated_fov_surf.get_rect()
-        rotated_fov_rect.center = (self.robot.x, self.robot.y)
+        rotated_fov_rect.center = (self.robot.x*self.disply_size_multiple, self.robot.y*self.disply_size_multiple)
 
         # Redraw the player surfs
         canvas.blit(rotated_player_surf, rotated_player_rect)
@@ -785,7 +797,7 @@ class SimpleSim(object):
             # Setup Render Surfs
             rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
             rotated_target_rect = rotated_target_surf.get_rect()
-            rotated_target_rect.center = (target.x, target.y)
+            rotated_target_rect.center = (target.x*self.disply_size_multiple, target.y*self.disply_size_multiple)
             canvas.blit(rotated_target_surf, rotated_target_rect)
             # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
 
@@ -796,21 +808,18 @@ class SimpleSim(object):
             pygame.draw.rect(
                 canvas,
                 (0, 0, 0),
-                pygame.Rect(wall.xmin, wall.ymin, wall.width, wall.height),
+                pygame.Rect(wall.xmin*self.disply_size_multiple, wall.ymin*self.disply_size_multiple, wall.width*self.disply_size_multiple, wall.height*self.disply_size_multiple),
             )
-            # Draw corner points
-            # pygame.draw.circle(canvas, (255, 0, 255), (wall.xmin, wall.ymax), 5)
-            # pygame.draw.circle(canvas, (255, 0, 255), (wall.xmax, wall.ymin), 5)
-            # pygame.draw.circle(canvas, (0, 0, 255), (wall.xmin, wall.ymin), 5)
-            # pygame.draw.circle(canvas, (0, 0, 255), (wall.xmax, wall.ymax), 5)
 
         # Draw the robot's trail
         for point in self.robot.trail:
-            pygame.draw.circle(canvas, (255, 0, 0), point, 2)
+            x, y = point
+
+            pygame.draw.circle(canvas, (255, 0, 0), (x*self.disply_size_multiple, y*self.disply_size_multiple), 2*self.disply_size_multiple)
 
         # Draw the onscreen menu text
         # font = pygame.font.SysFont("arial", 30)
-        font = pygame.font.Font(None, 25)
+        font = pygame.font.Font(None, 50)
 
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
         canvas.blit(budget_text, (25, 25))
@@ -820,8 +829,8 @@ class SimpleSim(object):
             canvas.blit(
                 play_again_text,
                 (
-                    self.window_size // 2 - play_again_text.get_width() // 2,
-                    self.window_size // 2 - play_again_text.get_height() // 2,
+                    self.env_size // 2 - play_again_text.get_width() // 2,
+                    self.env_size // 2 - play_again_text.get_height() // 2,
                 ),
             )
 
@@ -830,8 +839,8 @@ class SimpleSim(object):
             canvas.blit(
                 pause_text,
                 (
-                    self.window_size // 2 - pause_text.get_width() // 2,
-                    self.window_size // 2 - pause_text.get_height() // 2,
+                    self.env_size // 2 - pause_text.get_width() // 2,
+                    self.env_size // 2 - pause_text.get_height() // 2,
                 ),
             )
 
@@ -854,7 +863,7 @@ class SimpleSim(object):
             )
 
     def render_scoreboard(self, canvas):
-        font = pygame.font.Font(None, 20)
+        font = pygame.font.Font(None, 40)
 
         metric_count = 0
         for metric_name in self.scoreboard_items.keys():
@@ -873,7 +882,7 @@ class SimpleSim(object):
             canvas.blit(
                 metric_text,
                 (
-                    self.window_size - metric_text.get_width() - 25,
+                    self.env_size*self.disply_size_multiple - metric_text.get_width() - 25,
                     (metric_count * 35) + metric_text.get_height(),
                 ),
             )
