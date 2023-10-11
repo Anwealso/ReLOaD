@@ -83,8 +83,8 @@ class Robot(object):
         self.angle = self.starting_angle  # unit circle angles
 
         # Set move speeds
-        self.turn_rate = 20
-        self.move_rate = 20
+        self.turn_rate = 5
+        self.move_rate = 6
 
         self.trail = []  # a trail of all past x,y coords
         # Draw player fov indicator
@@ -560,9 +560,22 @@ class SimpleSim(object):
         # if action not in [0, 1, 2, 3, 4]:
         #     raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
+        # ----------------------------- DISCRETE ACTIONS ----------------------------- #
         # Handle agent controls and movement (note action 0 does nothing)
-        self.robot.set_velocity(float(action[0, :]))
-        self.robot.set_rot_velocity(float(action[1, :]))
+        if action == 1:
+            self.robot.turn_right()
+        elif action == 2:
+            self.robot.move_forward()
+
+        if action == 3:
+            self.robot.turn_left()
+        elif action == 4:
+            self.robot.move_backward()
+
+        # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
+        # # Handle agent controls and movement (note action 0 does nothing)
+        # self.robot.set_velocity(float(action[0, :]))
+        # self.robot.set_rot_velocity(float(action[1, :]))
 
         # Stop the robot going off the screen or inside walls
         self.handle_boundary_collisions()
@@ -572,25 +585,43 @@ class SimpleSim(object):
         Get player commands from keyboard and return the relevant action vector.
         """
 
-        # Handle player controls and movement
+        # ----------------------------- DISCRETE ACTIONS ----------------------------- #
         while True:
             event = pygame.event.wait()
-            action = np.zeros(shape=(2,1))
             if (not self.paused) and (not self.gameover):
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RIGHT]:
-                    action[1, :] = -1
-                    break
+                    return 1
                 if keys[pygame.K_UP]:
-                    action[0, :] = 1
-                    break
+                    return 2
                 if keys[pygame.K_LEFT]:
-                    action[1, :] = 1
-                    break
+                    return 3
                 if keys[pygame.K_DOWN]:
-                    action[0, :] = -1
-                    break
-        return action
+                    return 4
+                elif keys[pygame.K_SPACE]:
+                    return 0
+        
+        # # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
+        # # Handle player controls and movement
+        # while True:
+        #     event = pygame.event.wait()
+        #     action = np.zeros(shape=(2,1))
+        #     if (not self.paused) and (not self.gameover):
+        #         keys = pygame.key.get_pressed()
+        #         if keys[pygame.K_RIGHT]:
+        #             action[1, :] = -1
+        #             break
+        #         if keys[pygame.K_UP]:
+        #             action[0, :] = 1
+        #             break
+        #         if keys[pygame.K_LEFT]:
+        #             action[1, :] = 1
+        #             break
+        #         if keys[pygame.K_DOWN]:
+        #             action[0, :] = -1
+        #             break
+        
+        # return action
 
     def get_state(self):
         """
@@ -704,10 +735,6 @@ class SimpleSim(object):
         #     sprites_dir = "sprites/"
         sprites_dir = ""
 
-        bg = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "roombg.jpg"),
-            (self.window_size, self.window_size),
-        )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
             (self.player_size, self.player_size),
@@ -726,8 +753,20 @@ class SimpleSim(object):
         fov_line_thickness = 10
 
         # --------------------------- Draw all the entities -------------------------- #
-        # Draw the background image
-        canvas.blit(bg, (0, 0))
+
+        # # Image background
+        # bg = pygame.transform.scale(
+        #     pygame.image.load(sprites_dir + "roombg.jpg"),
+        #     (self.window_size, self.window_size),
+        # )
+        # # Draw the background image
+        # canvas.blit(bg, (0, 0))
+        # White background
+        pygame.draw.rect(
+            canvas,
+            (255, 255, 255),
+            pygame.Rect(0, 0, self.window_size, self.window_size),
+        )
 
         # Draw the robot
         # Make a surface with a line on it

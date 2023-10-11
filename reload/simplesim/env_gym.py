@@ -39,13 +39,7 @@ class SimpleSimGym(gym.Env):
         # self.action_space = spaces.Discrete(4)
 
         # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
-        # self.action_space = spaces.Discrete(5)
-        self.action_space = spaces.Box(
-            low=-1,
-            high=1,
-            shape=(2, 1),
-            dtype=np.float32
-        )
+        self.action_space = spaces.Discrete(5)
 
         max_dist = math.sqrt(2 * (self.game.window_size**2))
         # Observations (visible state):
@@ -111,7 +105,7 @@ class SimpleSimGym(gym.Env):
             # Add current object sum of confidence over all time
             # target_info[2, i] = float(np.sum(self.game.confidences[i, :]))                
             # target_info[2, i] = self.get_closeness(self.game.robot, target)
-            target_info[2, i] = int(self.fully_explored(i))
+            target_info[2, i] = min(10, float(np.sum(self.game.confidences[i, :])))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -496,8 +490,8 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 2
-    PLAYER_FOV = 60
+    NUM_TARGETS = 3
+    PLAYER_FOV = 30
 
     # -------------------------------- Environment ------------------------------- #
 
