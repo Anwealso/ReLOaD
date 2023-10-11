@@ -65,11 +65,11 @@ class SimpleSimGym(gym.Env):
 
     def _get_obs(self):
         # ----------------------------------- AGENT ---------------------------------- #
-        agent_x_cart = self.game.robot.x
-        agent_y_cart = self.game.env_size - self.game.robot.x
-        agent_info = np.array(
-            [agent_x_cart, agent_y_cart, self.game.robot.angle]
-        ).astype(np.float32)
+        # agent_x_cart = self.game.robot.x
+        # agent_y_cart = self.game.env_size - self.game.robot.x
+        # agent_info = np.array(
+        #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
+        # ).astype(np.float32)
 
         # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)
@@ -93,6 +93,7 @@ class SimpleSimGym(gym.Env):
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
             {
+                # "agent": agent_info,
                 "targets": target_info,
                 "environment": self.game.budget,
             },

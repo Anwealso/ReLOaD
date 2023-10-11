@@ -171,7 +171,6 @@ class SimpleSim(object):
     """
     A class to handle all of the data structures and logic of the game
     """
-
     def __init__(
         self,
         starting_budget,
@@ -212,6 +211,7 @@ class SimpleSim(object):
         self.starting_budget = starting_budget
         self.budget = self.starting_budget
         self.num_targets = num_targets
+        self.num_classes = 10
         self.gameover = False
         self.paused = False
         self.count = 0
@@ -220,10 +220,12 @@ class SimpleSim(object):
         self.targets = []
         self.walls = []
 
-        # Confidences on each object at current timestep
+        # Confidences on each object at current timestep (this matrix will be appended to)
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+        # self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
         # Confidences on each object at each timestep
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+        # self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
@@ -641,6 +643,8 @@ class SimpleSim(object):
 
         self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
         self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
+        # self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        # self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
 
         self.count = 0
 
