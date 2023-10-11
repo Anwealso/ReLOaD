@@ -5,6 +5,8 @@ import numpy as np
 import time
 import gymnasium as gym
 from gymnasium import spaces
+from matplotlib import pyplot as plt
+from PIL import Image
 
 
 class SimpleSimGym(gym.Env):
@@ -42,30 +44,43 @@ class SimpleSimGym(gym.Env):
         self.action_space = spaces.Discrete(5)
 
         max_dist = math.sqrt(2 * (self.game.window_size**2))
+
+
+        self.image_size = 84
         # Observations (visible state):
-        self.observation_space_unflattened = spaces.Dict(
-            {
-                # "agent": spaces.Box(
-                #     np.array([0, 0, 0]).astype(np.float32),
-                #     np.array(
-                #         [self.game.window_size, self.game.window_size, 359]
-                #     ).astype(np.float32),
-                # ),  # agent (x, y, angle)
-                "targets": spaces.Box(
-                    low=-max_dist,
-                    high=self.game.starting_budget*self.game.num_targets,
-                    shape=(3, num_targets),
-                    dtype=np.float32,
-                ),  # target position (rel_x, rel_y, target_sum_conf)
-                # "environment": spaces.Box(
-                #     np.array([0]).astype(np.float32),
-                #     np.array([self.game.starting_budget]).astype(np.float32),
-                # ),  # environment remaining budget
-            }
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.image_size, self.image_size, 3),
+            dtype=np.uint8
         )
-        self.observation_space = spaces.utils.flatten_space(
-            self.observation_space_unflattened
-        )
+
+
+
+        # # Observations (visible state):
+        # self.observation_space_unflattened = spaces.Dict(
+        #     {
+        #         # "agent": spaces.Box(
+        #         #     np.array([0, 0, 0]).astype(np.float32),
+        #         #     np.array(
+        #         #         [self.game.window_size, self.game.window_size, 359]
+        #         #     ).astype(np.float32),
+        #         # ),  # agent (x, y, angle)
+        #         "targets": spaces.Box(
+        #             low=-max_dist,
+        #             high=self.game.starting_budget*self.game.num_targets,
+        #             shape=(3, num_targets),
+        #             dtype=np.float32,
+        #         ),  # target position (rel_x, rel_y, target_sum_conf)
+        #         # "environment": spaces.Box(
+        #         #     np.array([0]).astype(np.float32),
+        #         #     np.array([self.game.starting_budget]).astype(np.float32),
+        #         # ),  # environment remaining budget
+        #     }
+        # )
+        # self.observation_space = spaces.utils.flatten_space(
+        #     self.observation_space_unflattened
+        # )
 
         self.current_entropies = np.zeros((self.game.num_targets, 1), dtype=np.float32)
         self.target_rewards = [0, 0]
@@ -74,49 +89,59 @@ class SimpleSimGym(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        # ----------------------------------- AGENT ---------------------------------- #
-        # Agent x,y,angle
-        # agent_x_cart = self.game.robot.x
-        # agent_y_cart = self.game.window_size - self.game.robot.x
-        # agent_info = np.array(
-        #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
-        # ).astype(np.float32)
+        # # ----------------------------------- AGENT ---------------------------------- #
+        # # Agent x,y,angle
+        # # agent_x_cart = self.game.robot.x
+        # # agent_y_cart = self.game.window_size - self.game.robot.x
+        # # agent_info = np.array(
+        # #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
+        # # ).astype(np.float32)
 
-        # ---------------------------------- TARGETS --------------------------------- #
-        # Target relative positions (dx,dy)
-        target_info = np.zeros(shape=(3, len(self.game.targets)), dtype=np.float32)
-        for i, target in enumerate(self.game.targets):
-            target_x_cart = target.x
-            target_y_cart = self.game.window_size - target.y
+        # # ---------------------------------- TARGETS --------------------------------- #
+        # # Target relative positions (dx,dy)
+        # target_info = np.zeros(shape=(3, len(self.game.targets)), dtype=np.float32)
+        # for i, target in enumerate(self.game.targets):
+        #     target_x_cart = target.x
+        #     target_y_cart = self.game.window_size - target.y
             
-            # # Add target absolute positions
-            # target_info[0][i] = target_x_cart
-            # target_info[1][i] = target_y_cart
+        #     # # Add target absolute positions
+        #     # target_info[0][i] = target_x_cart
+        #     # target_info[1][i] = target_y_cart
 
-            # Add target relative positions
-            robot_x_cart = self.game.robot.x
-            robot_y_cart = self.game.window_size - self.game.robot.y
-            dx = target_x_cart - robot_x_cart
-            dy = target_y_cart - robot_y_cart
-            (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-            target_info[0, i] = dx
-            target_info[1, i] = dy
+        #     # Add target relative positions
+        #     robot_x_cart = self.game.robot.x
+        #     robot_y_cart = self.game.window_size - self.game.robot.y
+        #     dx = target_x_cart - robot_x_cart
+        #     dy = target_y_cart - robot_y_cart
+        #     (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
+        #     target_info[0, i] = dx
+        #     target_info[1, i] = dy
 
-            # Add current object sum of confidence over all time
-            # target_info[2, i] = float(np.sum(self.game.confidences[i, :]))                
-            # target_info[2, i] = self.get_closeness(self.game.robot, target)
-            target_info[2, i] = min(10, float(np.sum(self.game.confidences[i, :])))
+        #     # Add current object sum of confidence over all time
+        #     # target_info[2, i] = float(np.sum(self.game.confidences[i, :]))                
+        #     # target_info[2, i] = self.get_closeness(self.game.robot, target)
+        #     target_info[2, i] = min(10, float(np.sum(self.game.confidences[i, :])))
 
-        observation = spaces.utils.flatten(
-            self.observation_space_unflattened,
-            {
-                # "agent": agent_info,
-                "targets": target_info,
-                # "environment": self.game.budget,
-            },
-        )
+        # observation = spaces.utils.flatten(
+        #     self.observation_space_unflattened,
+        #     {
+        #         # "agent": agent_info,
+        #         "targets": target_info,
+        #         # "environment": self.game.budget,
+        #     },
+        # )
 
-        return observation
+        img = self.game._render_frame(render_mode="rgb_array")
+        img = Image.fromarray(img)
+        img = img.resize((self.image_size, self.image_size), resample=Image.Resampling.NEAREST) 
+        img = np.asarray(img)
+
+        # plt.figure()
+        # plt.imshow(img)
+        # plt.imsave("current_frame.jpg", img)
+        # plt.close()
+
+        return img
 
     def _get_reward(self, action):
         """
@@ -128,30 +153,12 @@ class SimpleSimGym(gym.Env):
 
         reward = 0
         for i, target in enumerate(self.game.targets):
-            if not self.fully_explored(i):
+            if not self.game.fully_explored(i):
                 reward += float(self.game.current_confidences[i])
+        # print(f"confidences: {self.game.current_confidences}")
 
         return reward
     
-    def fully_explored(self, target_index):
-        """
-        Check if a target has been surveyed good-enough
-        """
-
-        confidence_threshold = 10
-        
-        if np.sum(self.game.confidences[target_index, :]) > confidence_threshold:
-            return True
-        else:
-            return False
-        
-    def all_fully_explored(self):
-        for target_index in range(0, len(self.game.targets)):
-            if not self.fully_explored(target_index):
-                return False
-        
-        return True
-
     # def _get_end_reward(self):
     #     """
     #     The end reward for the RL agent.
@@ -300,20 +307,15 @@ class SimpleSimGym(gym.Env):
         # Get the (optimal possible) number of steps that can be spent at the goal
         # steps_at_goal = self.game.starting_budget - (self.min_cost_to_goal()/self.action_cost)
         steps_at_goal = self.game.starting_budget - self.min_steps_to_goal()
-        # print("")
-        # print(f"steps_at_goal: {steps_at_goal}")
 
         # Goal reward must compensate the agent for the cost to get to the goal
         # plus the step costs across the whole episode.
         total_goal_reward = self.min_cost_to_goal() + (
             self.game.starting_budget * self.step_cost
         )
-        # print(f"total_goal_reward: {total_goal_reward}")
 
         # The amount of the reward to give the agent for each step
         step_goal_reward = total_goal_reward / steps_at_goal
-        # print(f"step_goal_reward: {step_goal_reward}")
-        # print("")
 
         reward = 0
         for i, target in enumerate(self.game.targets):
@@ -374,9 +376,6 @@ class SimpleSimGym(gym.Env):
         dtheta = (
             dtheta - 180 if dtheta > 180 else dtheta
         )  # correct since we can go clockwise or anti-clockwise
-        # print(f"dtheta1: {dtheta}\r")
-        # dtheta = 180-dtheta if dtheta>90 else dtheta # correct since we can also reverse into the target
-        # print(f"dtheta2: {dtheta}")
         num_turn_actions = math.floor(
             dtheta / self.game.robot.turn_rate
         )  # each turn action is 5deg
@@ -457,11 +456,13 @@ class SimpleSimGym(gym.Env):
             reward = self._get_reward(action)
             if self.game.budget == 0:
                 terminated = True
-            if self.all_fully_explored():
+            if self.game.all_fully_explored():
                 # Reward only given at the end of the episode
                 truncated = True
                 # Give a 100 end reward for finishing all goals
                 reward += 100
+
+        # print(f"reward: {reward}")
     
         return obs, reward, terminated, truncated, info
 
@@ -504,28 +505,15 @@ if __name__ == "__main__":
     )
 
     # View Env Specs
-    # utils.show_env_summary(py_env)
     num_episodes = 10
     env.reset()
 
-    # curriculum = np.linspace(0, 1, num=(int(num_episodes))) # increase from 5 to farthest corner distance
-    # print(curriculum)
-
-    # env.game.curriculum = curriculum[0]
     for i in range(num_episodes):
-        # Set the level of the curriculum
-        # env.game.curriculum = curriculum[i]
-        # env.reset()
-        # print(f"curriculum: {curriculum[i]}")
-
         terminated = False
         truncated = False
         ep_reward = 0
         found = False
         j = 0
-
-        # DEBUG
-        # print(f"min_cost_to_goal: {env.min_cost_to_goal()}")
 
         while not (terminated or truncated):
             time.sleep(0.05)
@@ -535,15 +523,6 @@ if __name__ == "__main__":
             observation, reward, terminated, truncated, info = env.step(action)
 
             j += 1
-            # print(f"Reward: {format(reward, '.2f')}, Observation: {observation}\n")
-
-            # if reward > -env.step_cost and found == False:
-            #     # print(f"Real Cost to Reach Goal: {j * env.action_cost}")
-            #     # print(f"Real Actions to Reach Goal: {j}")
-
-            #     # env.print_goal_reward()
-            #     found = True
-
             ep_reward += reward
 
             if terminated or truncated:

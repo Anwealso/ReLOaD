@@ -236,7 +236,7 @@ class SimpleSim(object):
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
-        self.num_walls = 0
+        self.num_walls = 2
         # self.spawn_walls(self.num_walls)
         self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
@@ -641,6 +641,25 @@ class SimpleSim(object):
 
         return state_dict
 
+    def fully_explored(self, target_index):
+        """
+        Check if a target has been surveyed good-enough
+        """
+
+        confidence_threshold = 10
+        
+        if np.sum(self.confidences[target_index, :]) > confidence_threshold:
+            return True
+        else:
+            return False
+        
+    def all_fully_explored(self):
+        for target_index in range(0, len(self.targets)):
+            if not self.fully_explored(target_index):
+                return False
+        
+        return True
+
     def step(self, action):
         """
         Runs the game logic (controller)
@@ -717,13 +736,15 @@ class SimpleSim(object):
         if self.render_mode == "rgb_array":
             return self._render_frame()
 
-    def _render_frame(self):
+    def _render_frame(self, render_mode=None):
+        if render_mode == None:
+            render_mode = self.render_mode
         pygame.init()
-        if self.window is None and self.render_mode == "human":
+        if self.window is None and render_mode == "human":
             pygame.display.init()
             self.window = pygame.display.set_mode((self.window_size, self.window_size))
             pygame.display.set_caption("ReLOaD Simulator")
-        if self.clock is None and self.render_mode == "human":
+        if self.clock is None and render_mode == "human":
             self.clock = pygame.time.Clock()
 
         # ------------------ Create the base canvas and load assets ------------------ #
@@ -825,21 +846,23 @@ class SimpleSim(object):
         # pygame.draw.circle(canvas, (0, 255, 0), (self.robot.x, self.robot.y), 5) # robot centre
 
         # Draw the targets
-        for target in self.targets:
-            # Set the sprite and hitbox size
-            if target.rank == 1:
-                image = target50
-            elif target.rank == 2:
-                image = target100
-            else:
-                image = target150
+        for target_index, target in enumerate(self.targets):
+            # if render_mode == "human" or not self.fully_explored(target_index):
+            if not self.fully_explored(target_index):
+                # Set the sprite and hitbox size
+                if target.rank == 1:
+                    image = target50
+                elif target.rank == 2:
+                    image = target100
+                else:
+                    image = target150
 
-            # Setup Render Surfs
-            rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
-            rotated_target_rect = rotated_target_surf.get_rect()
-            rotated_target_rect.center = (target.x, target.y)
-            canvas.blit(rotated_target_surf, rotated_target_rect)
-            # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
+                # Setup Render Surfs
+                rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
+                rotated_target_rect = rotated_target_surf.get_rect()
+                rotated_target_rect.center = (target.x, target.y)
+                canvas.blit(rotated_target_surf, rotated_target_rect)
+                # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
 
         # Draw the walls
         wall: Wall
@@ -856,42 +879,43 @@ class SimpleSim(object):
             # pygame.draw.circle(canvas, (0, 0, 255), (wall.xmin, wall.ymin), 5)
             # pygame.draw.circle(canvas, (0, 0, 255), (wall.xmax, wall.ymax), 5)
 
-        # Draw the robot's trail
-        for point in self.robot.trail:
-            pygame.draw.circle(canvas, (255, 0, 0), point, 2)
+        if render_mode == "human":
+            # Draw the robot's trail
+            for point in self.robot.trail:
+                pygame.draw.circle(canvas, (255, 0, 0), point, 2)
 
-        # Draw the onscreen menu text
-        # font = pygame.font.SysFont("arial", 30)
-        font = pygame.font.Font(None, 25)
+            # Draw the onscreen menu text
+            # font = pygame.font.SysFont("arial", 30)
+            font = pygame.font.Font(None, 25)
 
-        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
-        canvas.blit(budget_text, (25, 25))
+            budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
+            canvas.blit(budget_text, (25, 25))
 
-        play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
-        if self.gameover:
-            canvas.blit(
-                play_again_text,
-                (
-                    self.window_size // 2 - play_again_text.get_width() // 2,
-                    self.window_size // 2 - play_again_text.get_height() // 2,
-                ),
-            )
+            play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
+            if self.gameover:
+                canvas.blit(
+                    play_again_text,
+                    (
+                        self.window_size // 2 - play_again_text.get_width() // 2,
+                        self.window_size // 2 - play_again_text.get_height() // 2,
+                    ),
+                )
 
-        pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
-        if self.paused:
-            canvas.blit(
-                pause_text,
-                (
-                    self.window_size // 2 - pause_text.get_width() // 2,
-                    self.window_size // 2 - pause_text.get_height() // 2,
-                ),
-            )
+            pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
+            if self.paused:
+                canvas.blit(
+                    pause_text,
+                    (
+                        self.window_size // 2 - pause_text.get_width() // 2,
+                        self.window_size // 2 - pause_text.get_height() // 2,
+                    ),
+                )
 
-        # Render the socreboard info
-        self.render_scoreboard(canvas)
+            # Render the socreboard info
+            self.render_scoreboard(canvas)
 
         # --------------- Send the rendered view to the relevant viewer -------------- #
-        if self.render_mode == "human":
+        if render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
