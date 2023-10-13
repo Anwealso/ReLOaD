@@ -160,9 +160,13 @@ class Robot(object):
         orientation_weighting = orientation_weighting / weighting_sum
 
         # Compute the final confidence
-        confidence = (distance_factor * distance_weighting) + (
+        true_confidence = (distance_factor * distance_weighting) + (
             orientation_factor * orientation_weighting
         )
+
+        # TODO: Add simulated confusion across the other classes
+        # TODO: The true_confidence should be weighted on a random variablem and then the remain shuld be randomly split up amongst otherds
+        confidence = true_confidence
 
         return confidence
 
@@ -202,7 +206,7 @@ class SimpleSim(object):
         self.player_size = 50
         self.target_size = 50
 
-        self.disply_scale = 2.5  # display size in pixels
+        self.disply_scale = 1.5  # display size in pixels
         self.display_env_size = self.env_size * self.disply_scale
         self.display_player_size = self.player_size * self.disply_scale
         self.display_target_size = self.target_size * self.disply_scale
@@ -221,11 +225,9 @@ class SimpleSim(object):
         self.walls = []
 
         # Confidences on each object at current timestep (this matrix will be appended to)
-        self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
         # Confidences on each object at each timestep
-        self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
@@ -573,7 +575,6 @@ class SimpleSim(object):
         state_dict["budget"] = self.budget
         state_dict["current_confidences"] = self.current_confidences
         state_dict["confidences"] = self.confidences
-        # state_dict["avg_confidences"] = self.avg_confidences
 
         return state_dict
 
@@ -641,10 +642,8 @@ class SimpleSim(object):
         self.targets.clear()
         self.spawn_targets(self.num_targets)
 
-        self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
-        # self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
 
         self.count = 0
 
@@ -814,10 +813,6 @@ class SimpleSim(object):
 
         # Draw the onscreen menu text
         font = pygame.font.Font(None, int(25 * self.disply_scale))
-
-        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
-        canvas.blit(budget_text, (25, 25))
-
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
             canvas.blit(
@@ -860,6 +855,13 @@ class SimpleSim(object):
         font = pygame.font.Font(None, int(20 * self.disply_scale))
 
         metric_count = 0
+        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
+        canvas.blit(budget_text, (
+                    self.env_size * self.disply_scale - budget_text.get_width() - 25,
+                    (metric_count * 35) + budget_text.get_height(),
+                ))
+
+        metric_count += 1
         for metric_name in self.scoreboard_items.keys():
             item = self.scoreboard_items[metric_name]
 
