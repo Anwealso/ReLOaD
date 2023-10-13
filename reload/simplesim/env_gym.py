@@ -140,8 +140,11 @@ class SimpleSimGym(gym.Env):
         num_observations = np.count_nonzero(target_confidence_history[0,:])
         
         if num_observations == 0:
-            return 4
-        
+            return 4 # TODO: Fix and figure out how this value should be calculated
+
+        # # --------------------- METHOD 1 - LOG THEN SUM OVER TIME -------------------- #
+        # # ------------- THIS IS THE: Average entropy across all timesteps ------------ #
+
 
         # # --------------------- METHOD 1 - LOG THEN SUM OVER TIME -------------------- #
         # # ------------- THIS IS THE: Average entropy across all timesteps ------------ #

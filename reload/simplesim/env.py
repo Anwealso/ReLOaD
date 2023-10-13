@@ -389,7 +389,7 @@ class SimpleSim(object):
             target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
 
             # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-            falloff_steepness = 5
+            falloff_steepness = 3 # was 5 but too steep
             distance_factor = np.exp(
                 -(falloff_steepness * target_dist / max_dist)
             )  # exponential distance factor
@@ -418,12 +418,19 @@ class SimpleSim(object):
             true_confidence = (distance_factor * distance_weighting) + (
                 orientation_factor * orientation_weighting
             )
+
+            # Add gaussian noise (simulated confusion) to the true class probability
+            std_dev = 0.1 # was 0.1
+            noisy_true_confidence = np.clip(true_confidence + np.random.normal(0, std_dev), 0, 1)
+            print(f"noisy_true_confidence: {noisy_true_confidence}")
+
             # Then split the remaining false-class probability across the other classes
             false_confidences = np.random.rand(self.num_classes-1) # random numbers
             false_confidences = (false_confidences / np.sum(false_confidences)) * (1 - true_confidence) # normalise sum to desired
-            # Combine
-            confidence = np.concatenate([false_confidences[0:target.class_id], [true_confidence], false_confidences[target.class_id:len(false_confidences)]])
-            # print(f"cansee confidence: {confidence}")
+            print(f"false_confidences: {false_confidences}")
+            # Combine into full confidence vector
+            confidence = np.concatenate([false_confidences[0:target.class_id], [noisy_true_confidence], false_confidences[target.class_id:len(false_confidences)]])
+            return confidence
 
         else:
             # Return 0 confidences if we know the target is not in view
@@ -434,21 +441,6 @@ class SimpleSim(object):
             # confidence = np.random.rand(self.num_classes) # random numbers
             # confidence = confidence / np.sum(confidence) # normalise to 1
             # # print(f"nosee confidence: {confidence}")
-
-        # Add gaussian noise (simulated confusion) to the true class probability
-        std_dev = 0.1
-        # print(f"noise: {np.random.normal(0, std_dev, self.num_classes)}")
-        noisy_confidence = confidence + np.random.normal(0, std_dev, self.num_classes)
-        # print(f"noisy_confidence: {noisy_confidence}")
-        noisy_confidence_clipped = np.clip(noisy_confidence, 0, 1)
-        # print(f"noisy_confidence_clipped: {noisy_confidence_clipped}")
-        noisy_confidence_normalised = noisy_confidence_clipped / np.sum(noisy_confidence_clipped)
-        # print(f"noisy_confidence_normalised: {noisy_confidence_normalised}")
-        # print(np.sum(noisy_confidence_normalised))
-        # print(noisy_confidence_normalised[target.class_id])
-        # print()
-
-        return noisy_confidence_normalised
 
     def lines_intersect(self, point_a1, point_a2, point_b1, point_b2):
         """
@@ -486,15 +478,10 @@ class SimpleSim(object):
 
         # Get simulated confidences
         for i, target in enumerate(self.targets):
-            confidence = self.get_confidence(target)
-            self.current_confidences[i] = confidence
+            self.current_confidences[i] = self.get_confidence(target)
 
         # Add the current timestep confidences to the comprehensive all timesteps list
-        # print(np.shape(self.confidences))
-        # print(np.shape(np.expand_dims(self.current_confidences, 2)))
-
         self.confidences = np.append(self.confidences, np.expand_dims(self.current_confidences, 2), axis=2)
-        # print(np.shape(self.confidences))
 
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
@@ -875,10 +862,12 @@ class SimpleSim(object):
 
         if self.render_mode == "human":
             # Render the histograms
-            target_index = 0
-            if (self.count > 0):
-                target_all_time_avg = np.sum(self.confidences, axis=2)[target_index, :] / np.count_nonzero(self.confidences[target_index, :, :], axis=1)
-                self.plot.update(target_all_time_avg)
+            num_confidences = np.sum(self.confidences, axis=2)
+            observations = np.count_nonzero(self.confidences, axis=2)
+            all_time_avg = np.divide(num_confidences, observations, where=(observations>0), out=np.full_like(num_confidences, 1/self.num_classes))
+            # TODO: Figure out why the all time avg confidences of the false classes keep converging to 0.1 (when their sum should relaly converge to =1-true_conf)
+            # print(all_time_avg, "\n")
+            self.plot.update(all_time_avg)
 
         # --------------- Send the rendered view to the relevant viewer -------------- #
         if self.render_mode == "human":
@@ -935,21 +924,23 @@ class Plot(object):
         plt.ion()
         self.fig = plt.figure()
         
-        self.num_subplots = num_targets
+        self.num_targets = num_targets
         self.fig_size = math.ceil(math.sqrt(num_targets))
         self.ax = []
         self.bars = []
 
         subplot_index = self.fig_size*100 + self.fig_size*10 + 1
-        for i in range(0, self.num_subplots):
+        for i in range(0, self.num_targets):
             self.ax.append(self.fig.add_subplot(subplot_index))
-            self.bars.append(self.ax[i].bar(self.x, np.linspace(0, 1, num_classes), width = 0.4)) # Returns a tuple of line objects, thus the comma
+            self.bars.append(self.ax[i].bar(self.x, np.full_like(self.x, 1/num_classes), width = 0.4)) # Returns a tuple of line objects, thus the comma
             subplot_index +=1
 
-    def update(self, data):
+    def update(self, all_data):
+
         subplot_index = self.fig_size*100 + self.fig_size*10 + 1
 
-        for i in range(0, self.num_subplots):
+        for i in range(0, self.num_targets):
+            data = all_data[i]
             # Redraw plot with given data
             self.ax[i].clear()
             # self.bars.remove()
