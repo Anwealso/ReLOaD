@@ -6,6 +6,8 @@ import time
 import gymnasium as gym
 from gymnasium import spaces
 
+from stable_baselines3 import PPO, A2C, DQN
+from stable_baselines3.common.env_util import make_vec_env
 
 class SimpleSimGym(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
@@ -353,6 +355,9 @@ if __name__ == "__main__":
     NUM_CLASSES = 10
     PLAYER_FOV = 30
 
+    # Whether to play it interactively or let the agent drive
+    INTERACTIVE = False
+
     # -------------------------------- Environment ------------------------------- #
 
     # Instantiate two environments: one for training and one for evaluation.
@@ -364,9 +369,22 @@ if __name__ == "__main__":
         render_mode="human",
     )
 
-    # View Env Specs
+    # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
+    if not INTERACTIVE:
+        config = {
+        "policy": 'MlpPolicy',
+        "total_timesteps": 8_000_000,
+        "logdir": "logs/",
+        "savedir": "saved_models/"
+        }
+        # Load the best model
+        model = PPO.load(f"{config['savedir']}/best_model.zip")
+        # Wrap the env for the model
+        env = make_vec_env(SimpleSimGym, n_envs=1, monitor_dir=config["logdir"], env_kwargs=dict(starting_budget=STARTING_BUDGET, num_targets=NUM_TARGETS, player_fov=PLAYER_FOV, render_mode="human"))
+
+    # --------------------------------- RUN EVAL --------------------------------- #
     num_episodes = 10
-    env.reset()
+    obs = env.reset()
 
     for i in range(num_episodes):
         terminated = False
@@ -376,16 +394,22 @@ if __name__ == "__main__":
         j = 0
 
         while not (terminated or truncated):
-            time.sleep(0.05)
-            action = env.game.get_action_interactive()
+            if INTERACTIVE:
+                # For human
+                action = env.game.get_action_interactive()
+            else:
+                # For agent
+                action, _ = model.predict(obs)
 
-            observation, reward, terminated, truncated, info = env.step(action)
+            obs, reward, terminated, truncated, info = env.step(action)
 
             j += 1
             ep_reward += reward
 
             if terminated or truncated:
-                observation, info = env.reset()
+                obs, info = env.reset()
+            
+            time.sleep(0.05)
 
         print(f"Total Ep Reward: {ep_reward}")
         quit()
