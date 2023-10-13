@@ -16,6 +16,7 @@ import math
 import random
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
@@ -123,6 +124,7 @@ class SimpleSim(object):
         starting_budget,
         num_targets,
         player_fov,
+        num_classes,
         render_mode=None,
         render_fps=None,
     ):
@@ -158,7 +160,7 @@ class SimpleSim(object):
         self.starting_budget = starting_budget
         self.budget = self.starting_budget
         self.num_targets = num_targets
-        self.num_classes = 10
+        self.num_classes = num_classes
         self.gameover = False
         self.paused = False
         self.count = 0
@@ -179,6 +181,9 @@ class SimpleSim(object):
         # self.spawn_walls(self.num_walls)
         self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
+
+        if self.render_mode == "human":
+            self.plot = Plot(num_targets, num_classes)
 
     def spawn_walls(self, num_to_spawn):
         """
@@ -868,6 +873,13 @@ class SimpleSim(object):
         # Render the socreboard info
         self.render_scoreboard(canvas)
 
+        if self.render_mode == "human":
+            # Render the histograms
+            target_index = 0
+            if (self.count > 0):
+                target_all_time_avg = np.sum(self.confidences, axis=2)[target_index, :] / np.count_nonzero(self.confidences[target_index, :, :], axis=1)
+                self.plot.update(target_all_time_avg)
+
         # --------------- Send the rendered view to the relevant viewer -------------- #
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
@@ -909,7 +921,45 @@ class SimpleSim(object):
                     (metric_count * 35) + metric_text.get_height(),
                 ),
             )
-            metric_count += 1
+            metric_count += 1        
+
+
+class Plot(object):
+    """
+    A plotting util class
+    """
+
+    def __init__(self, num_targets, num_classes):
+        self.x = np.linspace(0, num_classes, num_classes)
+
+        plt.ion()
+        self.fig = plt.figure()
+        
+        self.num_subplots = num_targets
+        self.fig_size = math.ceil(math.sqrt(num_targets))
+        self.ax = []
+        self.bars = []
+
+        subplot_index = self.fig_size*100 + self.fig_size*10 + 1
+        for i in range(0, self.num_subplots):
+            self.ax.append(self.fig.add_subplot(subplot_index))
+            self.bars.append(self.ax[i].bar(self.x, np.linspace(0, 1, num_classes), width = 0.4)) # Returns a tuple of line objects, thus the comma
+            subplot_index +=1
+
+    def update(self, data):
+        subplot_index = self.fig_size*100 + self.fig_size*10 + 1
+
+        for i in range(0, self.num_subplots):
+            # Redraw plot with given data
+            self.ax[i].clear()
+            # self.bars.remove()
+            self.ax[i].bar(self.x,data)
+
+            subplot_index +=1
+
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+
 
 
 # ---------------------------------------------------------------------------- #

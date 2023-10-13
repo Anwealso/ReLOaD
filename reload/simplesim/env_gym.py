@@ -11,7 +11,7 @@ class SimpleSimGym(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
     def __init__(
-        self, starting_budget=2000, num_targets=8, player_fov=60, render_mode=None
+        self, starting_budget=2000, num_targets=8, player_fov=60, num_classes=10, render_mode=None
     ):
         """
         Description,
@@ -31,6 +31,7 @@ class SimpleSimGym(gym.Env):
             starting_budget,
             num_targets,
             player_fov,
+            num_classes,
             render_mode=render_mode,
             render_fps=self.metadata["render_fps"],
         )
@@ -45,7 +46,7 @@ class SimpleSimGym(gym.Env):
                 "targets": spaces.Box(
                     low=-max_dist,
                     high=self.game.starting_budget * self.game.num_targets,
-                    shape=(2, num_targets),
+                    shape=(3, num_targets),
                     dtype=np.float32,
                 ),  # target position (rel_x, rel_y)
                 "environment": spaces.Box(
@@ -88,7 +89,7 @@ class SimpleSimGym(gym.Env):
             target_info[1][i] = dy
 
             # Add current object sum of confidence over all time
-            target_info[2][i] = float(np.sum(self.game.confidences[i, :]))
+            target_info[2][i] = float(np.sum(self.entropies[i, :]))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -137,8 +138,9 @@ class SimpleSimGym(gym.Env):
         # TODO: Resolve which entropy to use - I like method 1 since it seems to adjust faster 
         """
         num_observations = np.count_nonzero(target_confidence_history[0,:])
+        
         if num_observations == 0:
-            return 1
+            return 4
         
 
         # # --------------------- METHOD 1 - LOG THEN SUM OVER TIME -------------------- #
@@ -187,15 +189,7 @@ class SimpleSimGym(gym.Env):
         # The entropy associated with the target
         entropy = -np.multiply(probability, suprise)
         entropy = np.sum(entropy)
-        print(f"entropy2: {entropy}")
-
-
-
-
-
-        # Set entropy to 1 for objects that do not have any observations
-        if entropy == 0:
-            entropy = 1
+        # print(f"entropy2: {entropy}")
 
         if verbose > 0:
             print(f"num_observations: {num_observations}")
@@ -352,8 +346,9 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 2
-    PLAYER_FOV = 60
+    NUM_TARGETS = 3
+    NUM_CLASSES = 10
+    PLAYER_FOV = 30
 
     # -------------------------------- Environment ------------------------------- #
 
@@ -361,6 +356,7 @@ if __name__ == "__main__":
     env = SimpleSimGym(
         starting_budget=STARTING_BUDGET,
         num_targets=NUM_TARGETS,
+        num_classes=NUM_CLASSES,
         player_fov=PLAYER_FOV,
         render_mode="human",
     )
