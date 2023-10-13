@@ -421,10 +421,14 @@ class SimpleSim(object):
             # print(f"cansee confidence: {confidence}")
 
         else:
-            # Assign random low confidences when no object in view (uniform distribution between 0 and mean)
-            confidence = np.random.rand(self.num_classes) # random numbers
-            confidence = confidence / np.sum(confidence) # normalise to 1
-            # print(f"nosee confidence: {confidence}")
+            # Return 0 confidences if we know the target is not in view
+            confidence = np.zeros(shape=(self.num_classes, )) # random numbers
+            return confidence
+        
+            # # Assign random low confidences when no object in view (uniform distribution between 0 and mean)
+            # confidence = np.random.rand(self.num_classes) # random numbers
+            # confidence = confidence / np.sum(confidence) # normalise to 1
+            # # print(f"nosee confidence: {confidence}")
 
         # Add gaussian noise (simulated confusion) to the true class probability
         std_dev = 0.1
@@ -475,15 +479,17 @@ class SimpleSim(object):
             None
         """
 
-        # Get which of the objects are in the FOV
+        # Get simulated confidences
         for i, target in enumerate(self.targets):
-            # Assign a non-zero confidence for those in view
             confidence = self.get_confidence(target)
-
             self.current_confidences[i] = confidence
 
         # Add the current timestep confidences to the comprehensive all timesteps list
-        self.confidences = np.append(self.confidences, self.current_confidences, axis=1)
+        # print(np.shape(self.confidences))
+        # print(np.shape(np.expand_dims(self.current_confidences, 2)))
+
+        self.confidences = np.append(self.confidences, np.expand_dims(self.current_confidences, 2), axis=2)
+        # print(np.shape(self.confidences))
 
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
@@ -663,7 +669,7 @@ class SimpleSim(object):
         self.spawn_targets(self.num_targets)
 
         self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
-        self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.confidences = np.zeros((self.num_targets, self.num_classes, 1), dtype=np.float32)
 
         self.count = 0
 

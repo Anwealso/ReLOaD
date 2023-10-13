@@ -58,7 +58,7 @@ class SimpleSimGym(gym.Env):
             self.observation_space_unflattened
         )
 
-        self.entropies = np.zeros_like(self.game.current_confidences)
+        self.entropies = np.zeros(shape=(num_targets, 1))
 
         self.window = None
         self.clock = None
@@ -129,54 +129,79 @@ class SimpleSimGym(gym.Env):
         confidence history
 
         Args:
-            target_confidence_history: A 1D array of the confidences observed
-            on the target over all time (dims: (1,num_timesteps))
+            target_confidence_history: A 2D array of the confidences observed
+            on the target over all time (dims: (num_classes,num_timesteps))
         Returns:
             The entropy of the target
+
+        # TODO: Resolve which entropy to use - I like method 1 since it seems to adjust faster 
         """
-        num_observations = np.count_nonzero(target_confidence_history)
+        num_observations = np.count_nonzero(target_confidence_history[0,:])
         if num_observations == 0:
             return 1
-        target_unconfidence_history = 1 - target_confidence_history
+        
 
-        # Get the weighted probability that the object is of the true class
-        # or the false class gained from each observation
-        # probability_true_class = np.divide(target_confidence_history, num_observations)
-        # probability_false_class = np.divide(target_unconfidence_history, num_observations)
-        probability_true_class = target_confidence_history
-        probability_false_class = target_unconfidence_history
+        # # --------------------- METHOD 1 - LOG THEN SUM OVER TIME -------------------- #
+        # # ------------- THIS IS THE: Average entropy across all timesteps ------------ #
+
+        # # # Get the weighted probability that the object is of each class
+        # # probability = np.divide(target_confidence_history, num_observations)
+        # probability = target_confidence_history
+
+        # # Get the suprrise associated with identifying the target as its true
+        # # class or falsely as another class from an observation
+        # suprise = np.log2(
+        #     probability,
+        #     where=(probability > 0),
+        #     out=np.zeros_like(target_confidence_history),
+        # )
+
+        # # The entropy associated with the target
+        # entropy = -np.multiply(probability, suprise)
+        # entropy = np.sum(entropy)
+
+        # # Now compute the average entropy across all timesteps
+
+        # # The total entropy of the dataset of observation on the target
+        # entropy = np.divide(entropy, num_observations)
+
+
+        # --------------------- METHOD 2 - SUM OVER TIME THEN LOG -------------------- #
+        # -------------- THIS IS THE: Entropy of the average probability ------------- #
+
+        # # Get the weighted probability that the object is of each class
+        # probability = np.divide(target_confidence_history, num_observations)
+        probability_sum = np.sum(target_confidence_history, axis=1)
+        probability = np.divide(probability_sum, num_observations) # normalise
+
+        # Now compute the entropy of the average probability
 
         # Get the suprrise associated with identifying the target as its true
         # class or falsely as another class from an observation
-        suprise_true = np.log2(
-            probability_true_class,
-            where=(probability_true_class > 0),
-            out=np.zeros_like(target_confidence_history),
-        )
-        suprise_false = np.log2(
-            probability_false_class,
-            where=(probability_false_class > 0),
-            out=np.zeros_like(target_confidence_history),
+        suprise = np.log2(
+            probability,
+            where=(probability > 0),
+            out=np.zeros_like(probability),
         )
 
-        # The entropy associated with identifying the target as its true class
-        # or falsely as another class from an observation
-        entropy_true = -np.multiply(probability_true_class, suprise_true)
-        entropy_false = -np.multiply(probability_false_class, suprise_false)
-        # The total entropy of the dataset of observation on the target
-        entropy = np.sum(entropy_true + entropy_false)
-        entropy = np.divide(entropy, num_observations)
+        # The entropy associated with the target
+        entropy = -np.multiply(probability, suprise)
+        entropy = np.sum(entropy)
+        print(f"entropy2: {entropy}")
+
+
+
+
+
         # Set entropy to 1 for objects that do not have any observations
         if entropy == 0:
             entropy = 1
 
         if verbose > 0:
-            print("\n", num_observations)
+            print(f"num_observations: {num_observations}")
             print(f"target_confidence_history: {target_confidence_history}")
-            print(f"target_unconfidence_history: {target_unconfidence_history}")
-            print(f"entropy_true: {entropy_true}")
-            print(f"entropy_false: {entropy_false}")
             print(f"entropy: {entropy}")
+            print("\n")
 
         return entropy
 
@@ -198,11 +223,12 @@ class SimpleSimGym(gym.Env):
         """
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
+            class_id = self.game.targets[i].class_id
             old_entropy = self.get_target_entropy(
-                self.game.confidences[i, :-1]
+                self.game.confidences[i, :, :-1]
             )  # all timesteps up until and excluding last
             new_entropy = self.get_target_entropy(
-                self.game.confidences[i, :]
+                self.game.confidences[i, :, :]
             )  # all timesteps
 
             entropy_diff = float(old_entropy - new_entropy)
@@ -227,6 +253,7 @@ class SimpleSimGym(gym.Env):
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
             print(f"old_entropy: {old_entropy}")
+            print(f"new_entropy: {new_entropy}")
             print(f"new_entropy: {new_entropy}")
             print(
                 f"====================== entropy_reward: {entropy_reward} ======================"
