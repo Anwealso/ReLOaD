@@ -48,7 +48,9 @@ class Target(object):
     The targets that the RL agent must attempt to classify using the mobile robot
     """
 
-    def __init__(self, rank, x, y):
+    def __init__(self, rank, x, y, class_id):
+        # The class of this target
+        self.class_id = class_id
         # Size
         self.rank = rank
         self.size = 50 * rank
@@ -66,9 +68,10 @@ class Robot(object):
     The mobile robot that the RL algorithm will control
     """
 
-    def __init__(self, fov, size, starting_x, starting_y, env_size):
+    def __init__(self, fov, size, starting_x, starting_y, env_size, num_classes):
         self.env_size = env_size
         self.size = size
+        self.num_classes = num_classes
 
         # Set position
         self.starting_x = starting_x
@@ -163,10 +166,23 @@ class Robot(object):
         true_confidence = (distance_factor * distance_weighting) + (
             orientation_factor * orientation_weighting
         )
+        # print(f"true_confidence: {true_confidence}")
 
-        # TODO: Add simulated confusion across the other classes
-        # TODO: The true_confidence should be weighted on a random variablem and then the remain shuld be randomly split up amongst otherds
-        confidence = true_confidence
+        # Add gaussian noise (simulated confusion) to the true class probability
+        std_dev = 0.1
+        noisy_true_confidence = true_confidence + np.random.normal(0, std_dev)
+        # Then split the remaining false-class probability across the other classes
+        false_confidences = np.random.rand(self.num_classes-1) # random numbers
+        false_confidences = (false_confidences / np.sum(false_confidences)) * (1 - noisy_true_confidence) # normalise sum to desired
+        # print(f"false_confidences: {false_confidences}")
+
+        # print(target.class_id)
+        # print(false_confidences[0:target.class_id])
+        # print(false_confidences[target.class_id:])
+
+        confidence = np.concatenate([false_confidences[0:target.class_id], [noisy_true_confidence], false_confidences[target.class_id:len(false_confidences)]])
+        # print(f"confidence: {confidence}")
+        # print(np.sum(confidence))
 
         return confidence
 
@@ -206,7 +222,7 @@ class SimpleSim(object):
         self.player_size = 50
         self.target_size = 50
 
-        self.disply_scale = 1.5  # display size in pixels
+        self.disply_scale = 2.5  # display size in pixels
         self.display_env_size = self.env_size * self.disply_scale
         self.display_player_size = self.player_size * self.disply_scale
         self.display_target_size = self.target_size * self.disply_scale
@@ -294,6 +310,7 @@ class SimpleSim(object):
             x,
             y,
             self.env_size,
+            self.num_classes,
         )
 
     def spawn_targets(self, num_to_spawn):
@@ -309,6 +326,7 @@ class SimpleSim(object):
             # rank = random.choice([1, 1, 1, 2, 2, 3])
             rank = 1
             size = self.target_size * rank
+            target_class_id = random.randint(0, self.num_classes-1)
 
             # If target is within allowable distance to robot, break
             max_band_gap = (
@@ -344,7 +362,7 @@ class SimpleSim(object):
                         # If target spawn wasnt inside and walls
                         break
 
-            self.targets.append(Target(rank, x, y))
+            self.targets.append(Target(rank, x, y, target_class_id))
 
     def can_see(self, target: Target):
         """
@@ -673,10 +691,10 @@ class SimpleSim(object):
         else:
             sprites_dir = "sprites/"
 
-        bg = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "roombg.jpg"),
-            (self.display_env_size, self.display_env_size),
-        )
+        # bg = pygame.transform.scale(
+        #     pygame.image.load(sprites_dir + "roombg.jpg"),
+        #     (self.display_env_size, self.display_env_size),
+        # )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
             (self.display_player_size, self.display_player_size),
@@ -698,8 +716,14 @@ class SimpleSim(object):
         fov_line_thickness = int(10 * self.disply_scale)
 
         # --------------------------- Draw all the entities -------------------------- #
-        # Draw the background image
-        canvas.blit(bg, (0, 0))
+        # # Draw the background image
+        # canvas.blit(bg, (0, 0))
+        # White background
+        pygame.draw.rect(
+            canvas,
+            (255, 255, 255),
+            pygame.Rect(0, 0, self.display_env_size, self.display_env_size),
+        )
 
         # Draw the robot
         # Make a surface with a line on it
