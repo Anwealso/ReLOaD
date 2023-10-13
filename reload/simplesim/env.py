@@ -114,79 +114,6 @@ class Robot(object):
         self.y += math.sin(math.radians(self.angle)) * self.move_rate
         self.trail.append((self.x, self.y))
 
-    def get_confidence(self, target: Target):
-        """
-        Computes the simulated YOLO confidence of an object in view
-        """
-        # Convert pixel coordinated to cartesian coordinates
-        robot_x_cart = self.x
-        robot_y_cart = self.env_size - self.y
-        target_x_cart = target.x
-        target_y_cart = self.env_size - target.y
-        target_xdir_cart = target.xdir
-        target_ydir_cart = -1 * target.ydir
-
-        # Get the distances and vectors from the target to the robot
-        robot_dy = robot_y_cart - target_y_cart
-        robot_dx = robot_x_cart - target_x_cart
-        target_to_robot_vect = np.array([robot_dy, robot_dx])
-        target_orientation_vect = np.array([target_ydir_cart, target_xdir_cart])
-
-        # A factor representing the distance difficulty (should be between 0 and 1)
-        max_dist = math.sqrt(self.env_size**2 + self.env_size**2)
-        target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
-
-        # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-        falloff_steepness = 5
-        distance_factor = np.exp(
-            -(falloff_steepness * target_dist / max_dist)
-        )  # exponential distance factor
-
-        # A factor representing the orientation difficulty (should be between 0 and 1)
-        angle_between = np.degrees(
-            np.arccos(
-                target_to_robot_vect.dot(target_orientation_vect)
-                / (
-                    np.linalg.norm(target_to_robot_vect)
-                    * np.linalg.norm(target_orientation_vect)
-                )
-            )
-        )
-        orientation_factor = 1 - (angle_between / 180)
-
-        # Decide the weightings between how much the distance and orientation
-        # factors affect the confidence
-        distance_weighting = 4
-        orientation_weighting = 1
-        weighting_sum = distance_weighting + orientation_weighting
-        distance_weighting = distance_weighting / weighting_sum
-        orientation_weighting = orientation_weighting / weighting_sum
-
-        # Compute the final confidence
-        true_confidence = (distance_factor * distance_weighting) + (
-            orientation_factor * orientation_weighting
-        )
-        # print(f"true_confidence: {true_confidence}")
-
-        # Add gaussian noise (simulated confusion) to the true class probability
-        std_dev = 0.1
-        noisy_true_confidence = true_confidence + np.random.normal(0, std_dev)
-        # Then split the remaining false-class probability across the other classes
-        false_confidences = np.random.rand(self.num_classes-1) # random numbers
-        false_confidences = (false_confidences / np.sum(false_confidences)) * (1 - noisy_true_confidence) # normalise sum to desired
-        # print(f"false_confidences: {false_confidences}")
-
-        # print(target.class_id)
-        # print(false_confidences[0:target.class_id])
-        # print(false_confidences[target.class_id:])
-
-        confidence = np.concatenate([false_confidences[0:target.class_id], [noisy_true_confidence], false_confidences[target.class_id:len(false_confidences)]])
-        # print(f"confidence: {confidence}")
-        # print(np.sum(confidence))
-
-        return confidence
-
-
 class SimpleSim(object):
     """
     A class to handle all of the data structures and logic of the game
@@ -433,6 +360,87 @@ class SimpleSim(object):
 
         return blocked
 
+    def get_confidence(self, target: Target):
+        """
+        Computes the simulated YOLO confidence of an object in view
+        """
+        if self.can_see(target):
+            # Convert pixel coordinated to cartesian coordinates
+            robot_x_cart = self.robot.x
+            robot_y_cart = self.env_size - self.robot.y
+            target_x_cart = target.x
+            target_y_cart = self.env_size - target.y
+            target_xdir_cart = target.xdir
+            target_ydir_cart = -1 * target.ydir
+
+            # Get the distances and vectors from the target to the robot
+            robot_dy = robot_y_cart - target_y_cart
+            robot_dx = robot_x_cart - target_x_cart
+            target_to_robot_vect = np.array([robot_dy, robot_dx])
+            target_orientation_vect = np.array([target_ydir_cart, target_xdir_cart])
+
+            # A factor representing the distance difficulty (should be between 0 and 1)
+            max_dist = math.sqrt(self.env_size**2 + self.env_size**2)
+            target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
+
+            # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
+            falloff_steepness = 5
+            distance_factor = np.exp(
+                -(falloff_steepness * target_dist / max_dist)
+            )  # exponential distance factor
+
+            # A factor representing the orientation difficulty (should be between 0 and 1)
+            angle_between = np.degrees(
+                np.arccos(
+                    target_to_robot_vect.dot(target_orientation_vect)
+                    / (
+                        np.linalg.norm(target_to_robot_vect)
+                        * np.linalg.norm(target_orientation_vect)
+                    )
+                )
+            )
+            orientation_factor = 1 - (angle_between / 180)
+
+            # Decide the weightings between how much the distance and orientation
+            # factors affect the confidence
+            distance_weighting = 4
+            orientation_weighting = 1
+            weighting_sum = distance_weighting + orientation_weighting
+            distance_weighting = distance_weighting / weighting_sum
+            orientation_weighting = orientation_weighting / weighting_sum
+
+            # Compute the final confidence
+            true_confidence = (distance_factor * distance_weighting) + (
+                orientation_factor * orientation_weighting
+            )
+            # Then split the remaining false-class probability across the other classes
+            false_confidences = np.random.rand(self.num_classes-1) # random numbers
+            false_confidences = (false_confidences / np.sum(false_confidences)) * (1 - true_confidence) # normalise sum to desired
+            # Combine
+            confidence = np.concatenate([false_confidences[0:target.class_id], [true_confidence], false_confidences[target.class_id:len(false_confidences)]])
+            # print(f"cansee confidence: {confidence}")
+
+        else:
+            # Assign random low confidences when no object in view (uniform distribution between 0 and mean)
+            confidence = np.random.rand(self.num_classes) # random numbers
+            confidence = confidence / np.sum(confidence) # normalise to 1
+            # print(f"nosee confidence: {confidence}")
+
+        # Add gaussian noise (simulated confusion) to the true class probability
+        std_dev = 0.1
+        # print(f"noise: {np.random.normal(0, std_dev, self.num_classes)}")
+        noisy_confidence = confidence + np.random.normal(0, std_dev, self.num_classes)
+        # print(f"noisy_confidence: {noisy_confidence}")
+        noisy_confidence_clipped = np.clip(noisy_confidence, 0, 1)
+        # print(f"noisy_confidence_clipped: {noisy_confidence_clipped}")
+        noisy_confidence_normalised = noisy_confidence_clipped / np.sum(noisy_confidence_clipped)
+        # print(f"noisy_confidence_normalised: {noisy_confidence_normalised}")
+        # print(np.sum(noisy_confidence_normalised))
+        # print(noisy_confidence_normalised[target.class_id])
+        # print()
+
+        return noisy_confidence_normalised
+
     def lines_intersect(self, point_a1, point_a2, point_b1, point_b2):
         """
         Check if line segments a1-a2 and b1-b2 intersect
@@ -466,18 +474,12 @@ class SimpleSim(object):
         Returns:
             None
         """
-        numSeen = 0
 
         # Get which of the objects are in the FOV
         for i, target in enumerate(self.targets):
-            if self.can_see(target):
-                numSeen += 1
-                # Assign a non-zero confidence for those in view
-                confidence = self.robot.get_confidence(target)
+            # Assign a non-zero confidence for those in view
+            confidence = self.get_confidence(target)
 
-            else:
-                # Assign confidence of 0 for those out of view
-                confidence = 0
             self.current_confidences[i] = confidence
 
         # Add the current timestep confidences to the comprehensive all timesteps list
