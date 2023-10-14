@@ -52,8 +52,10 @@ class SimpleSimGym(gym.Env):
                     dtype=np.float32,
                 ),  # target position (rel_x, rel_y)
                 "environment": spaces.Box(
-                    np.array([0]).astype(np.float32),
-                    np.array([self.game.starting_budget]).astype(np.float32),
+                    low=0,
+                    high=self.game.starting_budget,
+                    shape=(1, 1),
+                    dtype=np.float32,
                 ),  # environment remaining budget
             }
         )
@@ -87,11 +89,11 @@ class SimpleSimGym(gym.Env):
             dx = target_x_cart - robot_x_cart
             dy = target_y_cart - robot_y_cart
             (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-            target_info[0][i] = dx
-            target_info[1][i] = dy
+            target_info[0, i] = dx
+            target_info[1, i] = dy
 
             # Add current object sum of confidence over all time
-            target_info[2][i] = float(np.sum(self.entropies[i, :]))
+            target_info[2, i] = float(np.sum(self.entropies[i, :]))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -276,7 +278,7 @@ class SimpleSimGym(gym.Env):
         )
 
         v_prime = np.matmul(rotation_matrix, v)
-        x_prime, y_prime = v_prime
+        x_prime, y_prime = v_prime[:,0]
 
         return (x_prime, y_prime)
 
@@ -356,7 +358,7 @@ if __name__ == "__main__":
     PLAYER_FOV = 30
 
     # Whether to play it interactively or let the agent drive
-    INTERACTIVE = False
+    INTERACTIVE = True
 
     # -------------------------------- Environment ------------------------------- #
 

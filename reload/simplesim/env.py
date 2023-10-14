@@ -115,10 +115,12 @@ class Robot(object):
         self.y += math.sin(math.radians(self.angle)) * self.move_rate
         self.trail.append((self.x, self.y))
 
+
 class SimpleSim(object):
     """
     A class to handle all of the data structures and logic of the game
     """
+
     def __init__(
         self,
         starting_budget,
@@ -151,7 +153,7 @@ class SimpleSim(object):
         self.player_size = 50
         self.target_size = 50
 
-        self.disply_scale = 2.5  # display size in pixels
+        self.disply_scale = 1.5  # display size in pixels
         self.display_env_size = self.env_size * self.disply_scale
         self.display_player_size = self.player_size * self.disply_scale
         self.display_target_size = self.target_size * self.disply_scale
@@ -170,9 +172,13 @@ class SimpleSim(object):
         self.walls = []
 
         # Confidences on each object at current timestep (this matrix will be appended to)
-        self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.current_confidences = np.zeros(
+            (self.num_targets, self.num_classes), dtype=np.float32
+        )
         # Confidences on each object at each timestep
-        self.confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
+        self.confidences = np.zeros(
+            (self.num_targets, self.num_classes), dtype=np.float32
+        )
 
         self.curriculum = 1  # no limit unless this member variable is set manually
         self.min_target_dist = 0  # was 80
@@ -258,7 +264,7 @@ class SimpleSim(object):
             # rank = random.choice([1, 1, 1, 2, 2, 3])
             rank = 1
             size = self.target_size * rank
-            target_class_id = random.randint(0, self.num_classes-1)
+            target_class_id = random.randint(0, self.num_classes - 1)
 
             # If target is within allowable distance to robot, break
             max_band_gap = (
@@ -389,7 +395,7 @@ class SimpleSim(object):
             target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
 
             # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-            falloff_steepness = 3 # was 5 but too steep
+            falloff_steepness = 3  # was 5 but too steep
             distance_factor = np.exp(
                 -(falloff_steepness * target_dist / max_dist)
             )  # exponential distance factor
@@ -420,23 +426,34 @@ class SimpleSim(object):
             )
 
             # Add gaussian noise (simulated confusion) to the true class probability
-            std_dev = 0.1 # was 0.1
-            noisy_true_confidence = np.clip(true_confidence + np.random.normal(0, std_dev), 0, 1)
-            print(f"noisy_true_confidence: {noisy_true_confidence}")
+            std_dev = 0.1  # was 0.1
+            noisy_true_confidence = np.clip(
+                true_confidence + np.random.normal(0, std_dev), 0, 1
+            )
+            # print(f"noisy_true_confidence: {noisy_true_confidence}")
 
             # Then split the remaining false-class probability across the other classes
-            false_confidences = np.random.rand(self.num_classes-1) # random numbers
-            false_confidences = (false_confidences / np.sum(false_confidences)) * (1 - true_confidence) # normalise sum to desired
-            print(f"false_confidences: {false_confidences}")
+            false_confidences = np.random.rand(self.num_classes - 1)  # random numbers
+            false_confidences = (false_confidences / np.sum(false_confidences)) * (
+                1 - true_confidence
+            )  # normalise sum to desired
+            # print(f"false_confidences: {false_confidences}")
+            
             # Combine into full confidence vector
-            confidence = np.concatenate([false_confidences[0:target.class_id], [noisy_true_confidence], false_confidences[target.class_id:len(false_confidences)]])
+            confidence = np.concatenate(
+                [
+                    false_confidences[0 : target.class_id],
+                    [noisy_true_confidence],
+                    false_confidences[target.class_id : len(false_confidences)],
+                ]
+            )
             return confidence
 
         else:
             # Return 0 confidences if we know the target is not in view
-            confidence = np.zeros(shape=(self.num_classes, )) # random numbers
+            confidence = np.zeros(shape=(self.num_classes,))  # random numbers
             return confidence
-        
+
             # # Assign random low confidences when no object in view (uniform distribution between 0 and mean)
             # confidence = np.random.rand(self.num_classes) # random numbers
             # confidence = confidence / np.sum(confidence) # normalise to 1
@@ -481,7 +498,9 @@ class SimpleSim(object):
             self.current_confidences[i] = self.get_confidence(target)
 
         # Add the current timestep confidences to the comprehensive all timesteps list
-        self.confidences = np.append(self.confidences, np.expand_dims(self.current_confidences, 2), axis=2)
+        self.confidences = np.append(
+            self.confidences, np.expand_dims(self.current_confidences, 2), axis=2
+        )
 
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
@@ -660,8 +679,12 @@ class SimpleSim(object):
         self.targets.clear()
         self.spawn_targets(self.num_targets)
 
-        self.current_confidences = np.zeros((self.num_targets, self.num_classes), dtype=np.float32)
-        self.confidences = np.zeros((self.num_targets, self.num_classes, 1), dtype=np.float32)
+        self.current_confidences = np.zeros(
+            (self.num_targets, self.num_classes), dtype=np.float32
+        )
+        self.confidences = np.zeros(
+            (self.num_targets, self.num_classes, 1), dtype=np.float32
+        )
 
         self.count = 0
 
@@ -864,9 +887,12 @@ class SimpleSim(object):
             # Render the histograms
             num_confidences = np.sum(self.confidences, axis=2)
             observations = np.count_nonzero(self.confidences, axis=2)
-            all_time_avg = np.divide(num_confidences, observations, where=(observations>0), out=np.full_like(num_confidences, 1/self.num_classes))
-            # TODO: Figure out why the all time avg confidences of the false classes keep converging to 0.1 (when their sum should relaly converge to =1-true_conf)
-            # print(all_time_avg, "\n")
+            all_time_avg = np.divide(
+                num_confidences,
+                observations,
+                where=(observations > 0),
+                out=np.full_like(num_confidences, 1 / self.num_classes),
+            )
             self.plot.update(all_time_avg)
 
         # --------------- Send the rendered view to the relevant viewer -------------- #
@@ -889,10 +915,13 @@ class SimpleSim(object):
 
         metric_count = 0
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
-        canvas.blit(budget_text, (
-                    self.env_size * self.disply_scale - budget_text.get_width() - 25,
-                    (metric_count * 35) + budget_text.get_height(),
-                ))
+        canvas.blit(
+            budget_text,
+            (
+                self.env_size * self.disply_scale - budget_text.get_width() - 25,
+                (metric_count * 35) + budget_text.get_height(),
+            ),
+        )
 
         metric_count += 1
         for metric_name in self.scoreboard_items.keys():
@@ -910,7 +939,7 @@ class SimpleSim(object):
                     (metric_count * 35) + metric_text.get_height(),
                 ),
             )
-            metric_count += 1        
+            metric_count += 1
 
 
 class Plot(object):
@@ -919,38 +948,48 @@ class Plot(object):
     """
 
     def __init__(self, num_targets, num_classes):
-        self.x = np.linspace(0, num_classes, num_classes)
-
-        plt.ion()
-        self.fig = plt.figure()
-        
         self.num_targets = num_targets
+        self.x = np.arange(num_classes)
         self.fig_size = math.ceil(math.sqrt(num_targets))
         self.ax = []
         self.bars = []
 
-        subplot_index = self.fig_size*100 + self.fig_size*10 + 1
+        # Create figure and customise formatting
+        plt.ion()
+        self.fig = plt.figure()
+
+        plt.rc("font", family="Helvetica")
+
+        # Create Subplots
+        subplot_index = self.fig_size * 100 + self.fig_size * 10 + 1
         for i in range(0, self.num_targets):
             self.ax.append(self.fig.add_subplot(subplot_index))
-            self.bars.append(self.ax[i].bar(self.x, np.full_like(self.x, 1/num_classes), width = 0.4)) # Returns a tuple of line objects, thus the comma
-            subplot_index +=1
+            self.bars.append(
+                self.ax[i].bar(
+                    x=self.x,
+                    height=np.full_like(self.x, 1 / num_classes),
+                    width=0.4,
+                )
+            )  # Returns a tuple of line objects, thus the comma
+            subplot_index += 1
 
     def update(self, all_data):
-
-        subplot_index = self.fig_size*100 + self.fig_size*10 + 1
+        subplot_index = self.fig_size * 100 + self.fig_size * 10 + 1
 
         for i in range(0, self.num_targets):
             data = all_data[i]
             # Redraw plot with given data
             self.ax[i].clear()
             # self.bars.remove()
-            self.ax[i].bar(self.x,data)
+            self.ax[i].bar(
+                x=self.x, 
+                height=data
+            )
 
-            subplot_index +=1
+            subplot_index += 1
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
-
 
 
 # ---------------------------------------------------------------------------- #
