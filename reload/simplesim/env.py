@@ -438,7 +438,7 @@ class SimpleSim(object):
                 1 - true_confidence
             )  # normalise sum to desired
             # print(f"false_confidences: {false_confidences}")
-            
+
             # Combine into full confidence vector
             confidence = np.concatenate(
                 [
@@ -949,44 +949,82 @@ class Plot(object):
 
     def __init__(self, num_targets, num_classes):
         self.num_targets = num_targets
+        self.num_classes = num_classes
         self.x = np.arange(num_classes)
-        self.fig_size = math.ceil(math.sqrt(num_targets))
-        self.ax = []
+        self.cols = math.ceil(math.sqrt(num_targets))
+        self.rows = math.ceil(num_targets / self.cols)
         self.bars = []
+        self.bars_text = []
 
         # Create figure and customise formatting
         plt.ion()
-        self.fig = plt.figure()
-
         plt.rc("font", family="Helvetica")
+        self.fig, self.ax = plt.subplots(self.rows, self.cols)
+        self.fig.suptitle(f'Target Confidence Distributions', color='#333333', weight='bold')
 
         # Create Subplots
-        subplot_index = self.fig_size * 100 + self.fig_size * 10 + 1
+        target_index = 0
+        for row in range(0, self.rows):
+            for col in range(0, self.cols):
+                if target_index > self.num_targets-1:
+                    self.ax[col,row].remove()
+                    break
+                
+                self.bars.append(
+                    self.ax[col,row].bar(
+                        x=self.x,
+                        height=np.full_like(self.x, 1 / num_classes),
+                        tick_label=self.x,
+                    )
+                )  # Returns a tuple of line objects, thus the comma
+
+                # Axis formatting.
+                self.ax[col,row].set_ylim(0, 1)
+                self.ax[col,row].spines['top'].set_visible(False)
+                self.ax[col,row].spines['right'].set_visible(False)
+                self.ax[col,row].spines['left'].set_visible(False)
+                self.ax[col,row].spines['bottom'].set_color('#DDDDDD')
+                self.ax[col,row].tick_params(bottom=False, left=False)
+                self.ax[col,row].set_axisbelow(True)
+                self.ax[col,row].yaxis.grid(True, color='#EEEEEE')
+                self.ax[col,row].xaxis.grid(False)
+                
+                # Add text annotations to the top of the bars.
+                bar_color = self.bars[target_index][0].get_facecolor()
+                bar_text = []
+                for bar in self.bars[target_index]:
+                    bar_text.append(self.ax[col,row].text(
+                        bar.get_x() + bar.get_width() / 2,
+                        bar.get_height() + 0.3,
+                        round(bar.get_height(), 1),
+                        horizontalalignment='center',
+                        color=bar_color,
+                        weight='bold',
+                        size=6,
+                    ))
+                self.bars_text.append(bar_text)
+
+                # Add labels and a title.
+                self.ax[col,row].set_xlabel('Class Index', labelpad=15, color='#333333')
+                self.ax[col,row].set_ylabel('Average Confidence', labelpad=15, color='#333333')
+                self.ax[col,row].set_title(f'Target {target_index} Confidence Distribution', pad=15, color='#333333',
+                            weight='bold')
+                
+                target_index += 1
+
+        self.fig.tight_layout()
+
+    def update(self, data):
         for i in range(0, self.num_targets):
-            self.ax.append(self.fig.add_subplot(subplot_index))
-            self.bars.append(
-                self.ax[i].bar(
-                    x=self.x,
-                    height=np.full_like(self.x, 1 / num_classes),
-                    width=0.4,
+            for j in range(0, self.num_classes):
+                # Update the bar height
+                self.bars[i][j].set_height(data[i][j])
+                # Update the top-of-bar value labels
+                self.bars_text[i][j].set_position(
+                    (self.bars[i][j].get_x() + self.bars[i][j].get_width() / 2,
+                    self.bars[i][j].get_height() + 0.3)
                 )
-            )  # Returns a tuple of line objects, thus the comma
-            subplot_index += 1
-
-    def update(self, all_data):
-        subplot_index = self.fig_size * 100 + self.fig_size * 10 + 1
-
-        for i in range(0, self.num_targets):
-            data = all_data[i]
-            # Redraw plot with given data
-            self.ax[i].clear()
-            # self.bars.remove()
-            self.ax[i].bar(
-                x=self.x, 
-                height=data
-            )
-
-            subplot_index += 1
+                self.bars_text[i][j].set_text(round(self.bars[i][j].get_height(), 2))
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
