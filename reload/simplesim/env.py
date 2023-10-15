@@ -127,6 +127,7 @@ class SimpleSim(object):
         num_targets,
         player_fov,
         num_classes,
+        seed=None,
         render_mode=None,
         render_fps=None,
     ):
@@ -142,6 +143,10 @@ class SimpleSim(object):
         Returns:
             None
         """
+        # Seed the RNGs
+        if seed:
+            np.random.seed(seed=seed)
+            random.seed(seed)
 
         # Rendering
         self.render_mode = render_mode
@@ -395,9 +400,9 @@ class SimpleSim(object):
             target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
 
             # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-            falloff_steepness = 5  # was 5 but too steep
+            falloff_steepness = 3  # was 5 but too steep
             distance_factor = np.exp(
-                -(falloff_steepness * target_dist / max_dist)
+                -(falloff_steepness * (target_dist / max_dist))
             )  # exponential distance factor
 
             # A factor representing the orientation difficulty (should be between 0 and 1)
@@ -918,7 +923,8 @@ class SimpleSim(object):
         canvas.blit(
             budget_text,
             (
-                self.env_size * self.disply_scale - budget_text.get_width() - 25,
+                # self.env_size * self.disply_scale - budget_text.get_width() - 25,
+                25,
                 (metric_count * 35) + budget_text.get_height(),
             ),
         )
@@ -935,7 +941,8 @@ class SimpleSim(object):
             canvas.blit(
                 metric_text,
                 (
-                    self.env_size * self.disply_scale - metric_text.get_width() - 25,
+                    # self.env_size * self.disply_scale - metric_text.get_width() - 25,
+                    25,
                     (metric_count * 35) + metric_text.get_height(),
                 ),
             )

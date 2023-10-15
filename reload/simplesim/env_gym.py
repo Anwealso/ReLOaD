@@ -63,8 +63,8 @@ class SimpleSimGym(gym.Env):
             self.observation_space_unflattened
         )
 
-        self.entropies = np.zeros(shape=(num_targets, 1))
-        self.min_entropies = np.zeros(shape=(num_targets, 1)) # the max ever entropies
+        self.entropies = np.zeros(shape=(num_targets,))
+        self.min_entropies = np.ones(shape=(num_targets,)) # the max ever entropies
 
         self.window = None
         self.clock = None
@@ -94,7 +94,7 @@ class SimpleSimGym(gym.Env):
             target_info[1, i] = dy
 
             # Add current object sum of confidence over all time
-            target_info[2, i] = float(np.sum(self.entropies[i, :]))
+            target_info[2, i] = float(np.sum(self.entropies[i,]))
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -225,28 +225,31 @@ class SimpleSimGym(gym.Env):
         The total reward will then be a sum of the reward of each object in
         view (objects out of view contribute zero reward).
         """
+        # print(self.min_entropies)
+
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
             new_entropy = self.get_target_entropy(
                 self.game.confidences[i, :, :]
             )  # confidence distribution for target over all timesteps
-            self.entropies[i, 0] = new_entropy
+            self.entropies[i] = new_entropy
 
-            if (new_entropy < self.min_entropies[i]):
-                # If better thatn the previous best
-                entropy_diff = float(self.min_entropies[i] - new_entropy)
-                entropy_reward += entropy_diff
+            # If better than the previous best
+            entropy_diff = float(new_entropy - self.min_entropies[i])
+            if (entropy_diff < 0):
+                entropy_reward += -entropy_diff
                 self.min_entropies[i] = new_entropy
+            # print(new_entropy, entropy_diff)
 
         # Normalise against varying budgets and number of targets
-        entropy_reward = entropy_reward * (
-            (self.game.starting_budget * 2) / self.game.num_targets
-        )
+        entropy_reward = entropy_reward / self.game.num_targets
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
         # reward even though it entails more movement cost
-        reward_multiplier = 1
+        reward_multiplier = 100
         entropy_reward = entropy_reward * reward_multiplier
+        # print(f"entropy_reward: {entropy_reward}")
+        # print()
 
         # Update variance in target entropies
         self.variance = float(np.var(self.entropies, ddof=1))
