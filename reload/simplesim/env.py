@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
 # ---------------------------------------------------------------------------- #
-
+font_family = "Helvetica"
 
 # ---------------------------------------------------------------------------- #
 #                                    CLASSES                                   #
@@ -69,7 +69,9 @@ class Robot(object):
     The mobile robot that the RL algorithm will control
     """
 
-    def __init__(self, fov, size, starting_x, starting_y, env_size, num_classes):
+    def __init__(
+        self, fov, size, starting_x, starting_y, starting_angle, env_size, num_classes
+    ):
         self.env_size = env_size
         self.size = size
         self.num_classes = num_classes
@@ -81,7 +83,7 @@ class Robot(object):
         self.y = self.starting_y
 
         # Set starting orientation (facing upwards)
-        self.starting_angle = 90  # unit circle angles
+        self.starting_angle = starting_angle  # 90  # unit circle angles
         self.angle = self.starting_angle  # unit circle angles
 
         # Set move speeds
@@ -247,11 +249,13 @@ class SimpleSim(object):
             if valid:
                 break
 
+        theta = random.randrange(0, 360)
         self.robot = Robot(
             player_fov,
             self.player_size,
             x,
             y,
+            theta,
             self.env_size,
             self.num_classes,
         )
@@ -864,7 +868,7 @@ class SimpleSim(object):
             )
 
         # Draw the onscreen menu text
-        font = pygame.font.Font(None, int(25 * self.disply_scale))
+        font = pygame.font.SysFont(font_family, int(15 * self.disply_scale))
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
             canvas.blit(
@@ -886,7 +890,7 @@ class SimpleSim(object):
             )
 
         # Render the socreboard info
-        self.render_scoreboard(canvas)
+        self.render_scoreboard(canvas, font)
 
         if self.render_mode == "human":
             # Render the histograms
@@ -915,9 +919,7 @@ class SimpleSim(object):
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
 
-    def render_scoreboard(self, canvas):
-        font = pygame.font.Font(None, int(20 * self.disply_scale))
-
+    def render_scoreboard(self, canvas, font):
         metric_count = 0
         budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
         canvas.blit(
@@ -966,54 +968,60 @@ class Plot(object):
 
         # Create figure and customise formatting
         plt.ion()
-        # plt.rc("font", family="Helvetica")
+        plt.rc("font", family=font_family)
         # plt.style.use('ggplot')
-        new_cmap = self.rand_cmap(100, type='bright', first_color_black=False, last_color_black=False)
+        new_cmap = self.rand_cmap(
+            100, type="bright", first_color_black=False, last_color_black=False
+        )
         self.fig, self.ax = plt.subplots(self.rows, self.cols)
-        self.fig.suptitle(f'Target Confidence Distributions', color='#333333')#, weight='bold')
+        self.fig.suptitle(
+            f"Target Confidence Distributions", color="#333333"
+        )  # , weight='bold')
 
         # Create Subplots
         target_index = 0
         for row in range(0, self.rows):
             for col in range(0, self.cols):
                 # print(f"col:{col}, row:{row}")
-                if target_index > self.num_targets-1:
-                    self.ax[row,col].remove()
+                if target_index > self.num_targets - 1:
+                    self.ax[row, col].remove()
                     break
-                
+
                 self.bars.append(
-                    self.ax[row,col].bar(
+                    self.ax[row, col].bar(
                         x=self.x,
                         height=np.full_like(self.x, 1 / num_classes),
                         tick_label=self.x,
                     )
                 )  # Returns a tuple of line objects, thus the comma
-                self.ax[row,col].set_xticklabels(self.x, rotation=45, ha='right')
+                self.ax[row, col].set_xticklabels(self.x, rotation=45, ha="right")
 
                 # Axis formatting.
-                self.ax[row,col].set_ylim(0, 1)
-                self.ax[row,col].spines['top'].set_visible(False)
-                self.ax[row,col].spines['right'].set_visible(False)
-                self.ax[row,col].spines['left'].set_visible(False)
-                self.ax[row,col].spines['bottom'].set_color('#DDDDDD')
-                self.ax[row,col].tick_params(bottom=False, left=False)
-                self.ax[row,col].set_axisbelow(True)
-                self.ax[row,col].yaxis.grid(True, color='#EEEEEE')
-                self.ax[row,col].xaxis.grid(False)
-                
+                self.ax[row, col].set_ylim(0, 1)
+                self.ax[row, col].spines["top"].set_visible(False)
+                self.ax[row, col].spines["right"].set_visible(False)
+                self.ax[row, col].spines["left"].set_visible(False)
+                self.ax[row, col].spines["bottom"].set_color("#DDDDDD")
+                self.ax[row, col].tick_params(bottom=False, left=False)
+                self.ax[row, col].set_axisbelow(True)
+                self.ax[row, col].yaxis.grid(True, color="#EEEEEE")
+                self.ax[row, col].xaxis.grid(False)
+
                 # Add text annotations to the top of the bars.
                 # bar_color = self.bars[target_index][0].get_facecolor()
                 bar_text = []
                 bar_index = 0
                 for bar in self.bars[target_index]:
-                    bar_text.append(self.ax[row,col].text(
-                        bar.get_x() + bar.get_width() / 2,
-                        bar.get_height() + 0.3,
-                        round(bar.get_height(), 1),
-                        horizontalalignment='center',
-                        weight='bold',
-                        size=6,
-                    ))
+                    bar_text.append(
+                        self.ax[row, col].text(
+                            bar.get_x() + bar.get_width() / 2,
+                            bar.get_height() + 0.3,
+                            round(bar.get_height(), 1),
+                            horizontalalignment="center",
+                            weight="bold",
+                            size=6,
+                        )
+                    )
 
                     bar.set_color(new_cmap(bar_index))
                     bar_index += 1
@@ -1021,10 +1029,16 @@ class Plot(object):
                 self.bars_text.append(bar_text)
 
                 # Add labels and a title.
-                self.ax[row,col].set_xlabel('Class Index', labelpad=15, color='#333333')
-                self.ax[row,col].set_ylabel('Average Confidence', labelpad=15, color='#333333')
-                self.ax[row,col].set_title(f'Target {target_index}', pad=15, color='#333333')#, weight='bold')
-                
+                self.ax[row, col].set_xlabel(
+                    "Class Index", labelpad=15, color="#333333"
+                )
+                self.ax[row, col].set_ylabel(
+                    "Average Confidence", labelpad=15, color="#333333"
+                )
+                self.ax[row, col].set_title(
+                    f"Target {target_index}", pad=15, color="#333333"
+                )  # , weight='bold')
+
                 target_index += 1
 
         self.fig.tight_layout()
@@ -1036,15 +1050,24 @@ class Plot(object):
                 self.bars[i][j].set_height(data[i][j])
                 # Update the top-of-bar value labels
                 self.bars_text[i][j].set_position(
-                    (self.bars[i][j].get_x() + self.bars[i][j].get_width() / 2,
-                    self.bars[i][j].get_height() + 0.3)
+                    (
+                        self.bars[i][j].get_x() + self.bars[i][j].get_width() / 2,
+                        self.bars[i][j].get_height() + 0.3,
+                    )
                 )
                 self.bars_text[i][j].set_text(round(self.bars[i][j].get_height(), 2))
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
 
-    def rand_cmap(self, nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=False):
+    def rand_cmap(
+        self,
+        nlabels,
+        type="bright",
+        first_color_black=True,
+        last_color_black=False,
+        verbose=False,
+    ):
         """
         Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks
         :param nlabels: Number of labels (size of colormap)
@@ -1058,23 +1081,30 @@ class Plot(object):
         import colorsys
         import numpy as np
 
-        if type not in ('bright', 'soft'):
-            print ('Please choose "bright" or "soft" for type')
+        if type not in ("bright", "soft"):
+            print('Please choose "bright" or "soft" for type')
             return
 
         if verbose:
-            print('Number of labels: ' + str(nlabels))
+            print("Number of labels: " + str(nlabels))
 
         # Generate color map for bright colors, based on hsv
-        if type == 'bright':
-            randHSVcolors = [(np.random.uniform(low=0.0, high=1),
-                            np.random.uniform(low=0.2, high=1),
-                            np.random.uniform(low=0.9, high=1)) for i in range(nlabels)]
+        if type == "bright":
+            randHSVcolors = [
+                (
+                    np.random.uniform(low=0.0, high=1),
+                    np.random.uniform(low=0.2, high=1),
+                    np.random.uniform(low=0.9, high=1),
+                )
+                for i in range(nlabels)
+            ]
 
             # Convert HSV list to RGB
             randRGBcolors = []
             for HSVcolor in randHSVcolors:
-                randRGBcolors.append(colorsys.hsv_to_rgb(HSVcolor[0], HSVcolor[1], HSVcolor[2]))
+                randRGBcolors.append(
+                    colorsys.hsv_to_rgb(HSVcolor[0], HSVcolor[1], HSVcolor[2])
+                )
 
             if first_color_black:
                 randRGBcolors[0] = [0, 0, 0]
@@ -1082,37 +1112,54 @@ class Plot(object):
             if last_color_black:
                 randRGBcolors[-1] = [0, 0, 0]
 
-            random_colormap = LinearSegmentedColormap.from_list('new_map', randRGBcolors, N=nlabels)
+            random_colormap = LinearSegmentedColormap.from_list(
+                "new_map", randRGBcolors, N=nlabels
+            )
 
         # Generate soft pastel colors, by limiting the RGB spectrum
-        if type == 'soft':
+        if type == "soft":
             low = 0.6
             high = 0.95
-            randRGBcolors = [(np.random.uniform(low=low, high=high),
-                            np.random.uniform(low=low, high=high),
-                            np.random.uniform(low=low, high=high)) for i in range(nlabels)]
+            randRGBcolors = [
+                (
+                    np.random.uniform(low=low, high=high),
+                    np.random.uniform(low=low, high=high),
+                    np.random.uniform(low=low, high=high),
+                )
+                for i in range(nlabels)
+            ]
 
             if first_color_black:
                 randRGBcolors[0] = [0, 0, 0]
 
             if last_color_black:
                 randRGBcolors[-1] = [0, 0, 0]
-            random_colormap = LinearSegmentedColormap.from_list('new_map', randRGBcolors, N=nlabels)
+            random_colormap = LinearSegmentedColormap.from_list(
+                "new_map", randRGBcolors, N=nlabels
+            )
 
         # Display colorbar
         if verbose:
             from matplotlib import colors, colorbar
             from matplotlib import pyplot as plt
+
             fig, ax = plt.subplots(1, 1, figsize=(15, 0.5))
 
             bounds = np.linspace(0, nlabels, nlabels + 1)
             norm = colors.BoundaryNorm(bounds, nlabels)
 
-            cb = colorbar.ColorbarBase(ax, cmap=random_colormap, norm=norm, spacing='proportional', ticks=None,
-                                    boundaries=bounds, format='%1i', orientation=u'horizontal')
+            cb = colorbar.ColorbarBase(
+                ax,
+                cmap=random_colormap,
+                norm=norm,
+                spacing="proportional",
+                ticks=None,
+                boundaries=bounds,
+                format="%1i",
+                orientation="horizontal",
+            )
 
         return random_colormap
-
 
 
 # ---------------------------------------------------------------------------- #

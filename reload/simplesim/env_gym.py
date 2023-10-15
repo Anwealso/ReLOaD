@@ -9,11 +9,17 @@ from gymnasium import spaces
 from stable_baselines3 import PPO, A2C, DQN
 from stable_baselines3.common.env_util import make_vec_env
 
+
 class SimpleSimGym(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
     def __init__(
-        self, starting_budget=2000, num_targets=8, player_fov=60, num_classes=10, render_mode=None
+        self,
+        starting_budget=2000,
+        num_targets=8,
+        player_fov=60,
+        num_classes=10,
+        render_mode=None,
     ):
         """
         Description,
@@ -63,8 +69,8 @@ class SimpleSimGym(gym.Env):
             self.observation_space_unflattened
         )
 
-        self.entropies = np.zeros(shape=(num_targets,))
-        self.min_entropies = np.ones(shape=(num_targets,)) # the max ever entropies
+        self.entropies = np.ones(shape=(num_targets,))
+        self.min_entropies = np.ones(shape=(num_targets,))  # the max ever entropies
 
         self.window = None
         self.clock = None
@@ -94,7 +100,7 @@ class SimpleSimGym(gym.Env):
             target_info[1, i] = dy
 
             # Add current object sum of confidence over all time
-            target_info[2, i] = float(np.sum(self.entropies[i,]))
+            target_info[2, i] = self.entropies[i]
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
@@ -104,7 +110,7 @@ class SimpleSimGym(gym.Env):
                 "environment": self.game.budget,
             },
         )
-
+        # print(observation, "\n")
         return observation
 
     def _get_reward(self, action):
@@ -139,7 +145,7 @@ class SimpleSimGym(gym.Env):
         Returns:
             The entropy(ies) of the probability distribution
         """
-        
+
         # Get the suprrise associated with each class in the pdf (use log base num_classes)
         suprise = np.divide(
             -np.log(
@@ -153,10 +159,7 @@ class SimpleSimGym(gym.Env):
         )
 
         # The entropy associated with the target (sum over the classes axis)
-        entropy = np.sum(
-            np.multiply(probability, suprise), 
-            axis=0
-        )
+        entropy = np.sum(np.multiply(probability, suprise), axis=0)
 
         # Set the entropies for the timesteps where all class probabilities (target not in view) to 1
         # entropy[np.where(np.count_nonzero(probability, axis=0)==0)] = 1
@@ -173,7 +176,7 @@ class SimpleSimGym(gym.Env):
         Returns:
             The cross-entropy(ies) of the probability distribution
         """
-        
+
         # The cross entropy associated with the observation
         cross_entropy = -np.log(
             probability[true_class_id],
@@ -182,51 +185,66 @@ class SimpleSimGym(gym.Env):
         )
 
         return cross_entropy
-    
-    def get_target_entropy(self, target_confidence_history, verbose=0):
+
+    def get_target_entropy(
+        self, target_confidence_history, method="avg_entropy", verbose=0
+    ):
         """
         Get the current entropy on a target, given an array of its observation
         confidence history.
 
+        - avg_entropy: Calculates the average of the entropies observed at each
+            time step
+        - entropy_of_average: Calculates the entropy of the average probability
+            distribution across all time steps
+
         Args:
-            target_confidence_history: A 2D array of the confidences observed
-            on the target over all time (dims: (num_classes,num_timesteps))
+            target_confidence_history [np.array]: A 2D array of the confidences
+                observed on the target over all time (dims:
+                (num_classes, num_timesteps))
+            method [string]: The method of entropy computing to use - either
+                "avg_entropy" or "entropy_of_average",
         Returns:
             The entropy of the target (dims: (num_timesteps,))
         """
-        num_observations = np.count_nonzero(target_confidence_history[0,:])
+        num_observations = np.count_nonzero(target_confidence_history[0, :])
         if num_observations == 0:
             return 1
 
-        # ------------------------ METHOD 1 - AVERAGE ENTROPY ------------------------ #
-        # Get the entropies of the data at each timestep
-        entropy = self.entropy(target_confidence_history)
-        # Get the average of the entropies across all timesteps where target was in view
-        entropy = np.divide(np.sum(entropy), num_observations)
+        if method == "avg_entropy":
+            # METHOD 1 - AVERAGE ENTROPY
+            # Get the entropies of the data at each timestep
+            entropy = self.entropy(target_confidence_history)
+            # Get the average of the entropies across all timesteps where target was in view
+            entropy = np.divide(np.sum(entropy), num_observations)
 
-        # # --------------- METHOD 2 - ENTROPY OF THE AVERAGE PROBABILITY -------------- #
-        # # Get the average probability distribution for this target over time
-        # probability = np.average(target_confidence_history, axis=1)
+        elif method == "entropy_of_average":
+            # METHOD 2 - ENTROPY OF THE AVERAGE PROBABILITY
+            # Get the average probability distribution for this target over time
+            avg_probability = np.average(target_confidence_history, axis=1)
+            # Get the entropy of the average probability distribution
+            entropy = self.entropy(avg_probability)
+
         return entropy
 
-    def get_entropy_reward(self, verbose=0):
+    def get_entropy_reward(self, method="differential", verbose=0):
         """
-        An entropy / information gain based reward feedback for the agent.
-        Essentially we want to implement an exploit vs explore (epsilon greedy
-        type) tradeoff into the reward mechanism by giving the the agent:
-        - High reward for looking at an object that it has surveyed relatively
-          little.
-        - But then decreasing that reward over time as the agent observes the
-          object more and more.
+        An entropy based reward for the agent. Reward can be conputed in one of
+        two ways:
 
-        Each object in view will have a relevant reward calculated for it,
-        based upon its information gain.
+        - Absolute: Reward is recieved for the amount of entropy reduction
+            achieved over all of the targets so far (sum of 1 minus the current
+            entropy)
+        - Differential: Reward is recieved each time the agent reduces the
+            entropy of a target below its previously achieved minimum
 
-        The total reward will then be a sum of the reward of each object in
-        view (objects out of view contribute zero reward).
+        Args:
+            method [string]: Sets the reward computing metod - either
+                "differential" or "absolute"
+
+        Returns:
+            [int]: The reward for the agent
         """
-        # print(self.min_entropies)
-
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
             new_entropy = self.get_target_entropy(
@@ -234,34 +252,30 @@ class SimpleSimGym(gym.Env):
             )  # confidence distribution for target over all timesteps
             self.entropies[i] = new_entropy
 
-            # If better than the previous best
-            entropy_diff = float(new_entropy - self.min_entropies[i])
-            if (entropy_diff < 0):
-                entropy_reward += -entropy_diff
-                self.min_entropies[i] = new_entropy
-            # print(new_entropy, entropy_diff)
+            if method == "differential":
+                # Get entropy diff
+                entropy_change = new_entropy - self.min_entropies[i]
+                # If better than the previous best
+                if entropy_change < 0:
+                    entropy_reward += -entropy_change
+                    self.min_entropies[i] = new_entropy
 
-        # Normalise against varying budgets and number of targets
-        entropy_reward = entropy_reward / self.game.num_targets
+        # Update variance in target entropies
+        self.variance = float(np.var(self.entropies))
+
+        if method == "differential":
+            reward_multiplier = 1000
+
+        elif method == "absolute":
+            entropy_reward = self.game.num_targets - np.sum(self.entropies)
+            reward_multiplier = 10
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
         # reward even though it entails more movement cost
-        reward_multiplier = 100
         entropy_reward = entropy_reward * reward_multiplier
-        # print(f"entropy_reward: {entropy_reward}")
-        # print()
 
-        # Update variance in target entropies
-        self.variance = float(np.var(self.entropies, ddof=1))
-
-        if verbose > 0:
-            print(f"self.game.confidences: {self.game.confidences}")
-            print(f"new_entropy: {new_entropy}")
-            print(f"new_entropy: {new_entropy}")
-            print(
-                f"====================== entropy_reward: {entropy_reward} ======================"
-            )
-            print("\n")
+        # Normalise the reward against the number of targets
+        entropy_reward = entropy_reward / self.game.num_targets
 
         return entropy_reward
 
@@ -280,22 +294,22 @@ class SimpleSimGym(gym.Env):
         )
 
         v_prime = np.matmul(rotation_matrix, v)
-        x_prime, y_prime = v_prime[:,0]
+        x_prime, y_prime = v_prime[:, 0]
 
         return (x_prime, y_prime)
 
     def step(self, action):
         """
         Description,
-            Computes the physics of cart based on action applied.
+            Steps the environment with the given action
 
         Args:
-            action ([np.float32]): Apply +ve or -ve force.
+            action ([np.float32]): The discrete action to be carried out
 
         Returns:
-            ([np.array size=(2,1) type=np.float32]): Next State
-            ([np.float32]): Reward as norm distance from '0' state
-            ([np.bool: ENV]). Terminal condition.
+            [np.array]: Next State
+            [np.float32]: Reward
+            [np.bool]: Terminal condition (is episode terminated or truncated).
         """
         if action is not None:  # First step without action, called from reset()
             # Step the game
@@ -310,16 +324,20 @@ class SimpleSimGym(gym.Env):
             reward = self._get_reward(action)
             obs = self._get_obs()
 
+            true_class_confidences = np.zeros_like(self.entropies)
+            for i, target in enumerate(self.game.targets):
+                true_class_confidences[i] = self.game.current_confidences[
+                    i, target.class_id
+                ]
+
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
-                    "Curr Confidences": np.round(
-                        self.game.current_confidences.flatten(), 2
-                    ),
-                    "Curr Entropies": np.round(self.entropies.flatten(), 2),
+                    "True Class Confidences": np.round(true_class_confidences, 2),
+                    "Entropies": np.round(self.entropies, 2),
                     "Variance": np.round(self.variance, 2),
-                    "Reward": np.round(reward, 2),
-                    "Observation": np.round(obs, 2),
+                    "Reward": np.round(reward, 6),
+                    # "Observation": np.round(obs, 2),
                 }
             )
 
@@ -376,15 +394,21 @@ if __name__ == "__main__":
 
     # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
     if not INTERACTIVE:
-        config = {
-        "policy": 'MlpPolicy',
-        "logdir": "logs/",
-        "savedir": "saved_models/"
-        }
+        config = {"policy": "MlpPolicy", "logdir": "logs/", "savedir": "saved_models/"}
         # Load the best model
         model = PPO.load(f"{config['savedir']}/best_model.zip")
         # Wrap the env for the model
-        env = make_vec_env(SimpleSimGym, n_envs=1, monitor_dir=config["logdir"], env_kwargs=dict(starting_budget=STARTING_BUDGET, num_targets=NUM_TARGETS, player_fov=PLAYER_FOV, render_mode="human"))
+        env = make_vec_env(
+            SimpleSimGym,
+            n_envs=1,
+            monitor_dir=config["logdir"],
+            env_kwargs=dict(
+                starting_budget=STARTING_BUDGET,
+                num_targets=NUM_TARGETS,
+                player_fov=PLAYER_FOV,
+                render_mode="human",
+            ),
+        )
 
     # --------------------------------- RUN EVAL --------------------------------- #
     num_episodes = 10
@@ -412,7 +436,7 @@ if __name__ == "__main__":
 
             if terminated or truncated:
                 obs, info = env.reset()
-            
+
             # time.sleep(0.01)
 
         print(f"Total Ep Reward: {ep_reward}")
