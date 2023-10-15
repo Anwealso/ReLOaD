@@ -64,6 +64,7 @@ class SimpleSimGym(gym.Env):
         )
 
         self.entropies = np.zeros(shape=(num_targets, 1))
+        self.min_entropies = np.zeros(shape=(num_targets, 1)) # the max ever entropies
 
         self.window = None
         self.clock = None
@@ -128,82 +129,84 @@ class SimpleSimGym(gym.Env):
 
         return reward
 
+    def entropy(self, probability):
+        """
+        Calculates the entropy of a given probability distribution - can do one
+        or multiple timesteps at a time.
+
+        Args:
+            probability: The (classes, observation) length distribution vector to calculate the entropy of
+        Returns:
+            The entropy(ies) of the probability distribution
+        """
+        
+        # Get the suprrise associated with each class in the pdf (use log base num_classes)
+        suprise = np.divide(
+            -np.log(
+                probability,
+                where=(probability > 0),
+                out=np.zeros_like(probability),
+            ),
+            np.log(
+                self.game.num_classes,
+            ),
+        )
+
+        # The entropy associated with the target (sum over the classes axis)
+        entropy = np.sum(
+            np.multiply(probability, suprise), 
+            axis=0
+        )
+
+        # Set the entropies for the timesteps where all class probabilities (target not in view) to 1
+        # entropy[np.where(np.count_nonzero(probability, axis=0)==0)] = 1
+
+        return entropy
+
+    def cross_entropy(self, probability, true_class_id):
+        """
+        Calculates the cross entropy (a.k.a. log loss) of a given probability distribution - can do one
+        or multiple timesteps at a time.
+
+        Args:
+            probability: The (classes, observation) length distribution vector to calculate the entropy of
+        Returns:
+            The cross-entropy(ies) of the probability distribution
+        """
+        
+        # The cross entropy associated with the observation
+        cross_entropy = -np.log(
+            probability[true_class_id],
+            where=(probability > 0),
+            out=np.zeros_like(probability),
+        )
+
+        return cross_entropy
+    
     def get_target_entropy(self, target_confidence_history, verbose=0):
         """
         Get the current entropy on a target, given an array of its observation
-        confidence history
+        confidence history.
 
         Args:
             target_confidence_history: A 2D array of the confidences observed
             on the target over all time (dims: (num_classes,num_timesteps))
         Returns:
-            The entropy of the target
-
-        # TODO: Resolve which entropy to use - I like method 1 since it seems to adjust faster 
+            The entropy of the target (dims: (num_timesteps,))
         """
         num_observations = np.count_nonzero(target_confidence_history[0,:])
-        
         if num_observations == 0:
-            return 4 # TODO: Fix and figure out how this value should be calculated
+            return 1
 
-        # # --------------------- METHOD 1 - LOG THEN SUM OVER TIME -------------------- #
-        # # ------------- THIS IS THE: Average entropy across all timesteps ------------ #
+        # ------------------------ METHOD 1 - AVERAGE ENTROPY ------------------------ #
+        # Get the entropies of the data at each timestep
+        entropy = self.entropy(target_confidence_history)
+        # Get the average of the entropies across all timesteps where target was in view
+        entropy = np.divide(np.sum(entropy), num_observations)
 
-
-        # # --------------------- METHOD 1 - LOG THEN SUM OVER TIME -------------------- #
-        # # ------------- THIS IS THE: Average entropy across all timesteps ------------ #
-
-        # # # Get the weighted probability that the object is of each class
-        # # probability = np.divide(target_confidence_history, num_observations)
-        # probability = target_confidence_history
-
-        # # Get the suprrise associated with identifying the target as its true
-        # # class or falsely as another class from an observation
-        # suprise = np.log2(
-        #     probability,
-        #     where=(probability > 0),
-        #     out=np.zeros_like(target_confidence_history),
-        # )
-
-        # # The entropy associated with the target
-        # entropy = -np.multiply(probability, suprise)
-        # entropy = np.sum(entropy)
-
-        # # Now compute the average entropy across all timesteps
-
-        # # The total entropy of the dataset of observation on the target
-        # entropy = np.divide(entropy, num_observations)
-
-
-        # --------------------- METHOD 2 - SUM OVER TIME THEN LOG -------------------- #
-        # -------------- THIS IS THE: Entropy of the average probability ------------- #
-
-        # # Get the weighted probability that the object is of each class
-        # probability = np.divide(target_confidence_history, num_observations)
-        probability_sum = np.sum(target_confidence_history, axis=1)
-        probability = np.divide(probability_sum, num_observations) # normalise
-
-        # Now compute the entropy of the average probability
-
-        # Get the suprrise associated with identifying the target as its true
-        # class or falsely as another class from an observation
-        suprise = np.log2(
-            probability,
-            where=(probability > 0),
-            out=np.zeros_like(probability),
-        )
-
-        # The entropy associated with the target
-        entropy = -np.multiply(probability, suprise)
-        entropy = np.sum(entropy)
-        # print(f"entropy2: {entropy}")
-
-        if verbose > 0:
-            print(f"num_observations: {num_observations}")
-            print(f"target_confidence_history: {target_confidence_history}")
-            print(f"entropy: {entropy}")
-            print("\n")
-
+        # # --------------- METHOD 2 - ENTROPY OF THE AVERAGE PROBABILITY -------------- #
+        # # Get the average probability distribution for this target over time
+        # probability = np.average(target_confidence_history, axis=1)
         return entropy
 
     def get_entropy_reward(self, verbose=0):
@@ -224,21 +227,18 @@ class SimpleSimGym(gym.Env):
         """
         entropy_reward = 0
         for i in range(0, len(self.game.targets)):
-            class_id = self.game.targets[i].class_id
-            old_entropy = self.get_target_entropy(
-                self.game.confidences[i, :, :-1]
-            )  # all timesteps up until and excluding last
             new_entropy = self.get_target_entropy(
                 self.game.confidences[i, :, :]
-            )  # all timesteps
-
-            entropy_diff = float(old_entropy - new_entropy)
-            entropy_reward += entropy_diff
-            # entropy_reward += max(entropy_diff, 0)
-
+            )  # confidence distribution for target over all timesteps
             self.entropies[i, 0] = new_entropy
 
-        # Normalise against vartying budgets and number of targets
+            if (new_entropy < self.min_entropies[i]):
+                # If better thatn the previous best
+                entropy_diff = float(self.min_entropies[i] - new_entropy)
+                entropy_reward += entropy_diff
+                self.min_entropies[i] = new_entropy
+
+        # Normalise against varying budgets and number of targets
         entropy_reward = entropy_reward * (
             (self.game.starting_budget * 2) / self.game.num_targets
         )
@@ -253,7 +253,6 @@ class SimpleSimGym(gym.Env):
 
         if verbose > 0:
             print(f"self.game.confidences: {self.game.confidences}")
-            print(f"old_entropy: {old_entropy}")
             print(f"new_entropy: {new_entropy}")
             print(f"new_entropy: {new_entropy}")
             print(
@@ -353,7 +352,7 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 3
+    NUM_TARGETS = 6
     NUM_CLASSES = 10
     PLAYER_FOV = 30
 
@@ -363,19 +362,19 @@ if __name__ == "__main__":
     # -------------------------------- Environment ------------------------------- #
 
     # Instantiate two environments: one for training and one for evaluation.
-    env = SimpleSimGym(
-        starting_budget=STARTING_BUDGET,
-        num_targets=NUM_TARGETS,
-        num_classes=NUM_CLASSES,
-        player_fov=PLAYER_FOV,
-        render_mode="human",
-    )
+    if INTERACTIVE:
+        env = SimpleSimGym(
+            starting_budget=STARTING_BUDGET,
+            num_targets=NUM_TARGETS,
+            num_classes=NUM_CLASSES,
+            player_fov=PLAYER_FOV,
+            render_mode="human",
+        )
 
     # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
     if not INTERACTIVE:
         config = {
         "policy": 'MlpPolicy',
-        "total_timesteps": 8_000_000,
         "logdir": "logs/",
         "savedir": "saved_models/"
         }
@@ -399,11 +398,11 @@ if __name__ == "__main__":
             if INTERACTIVE:
                 # For human
                 action = env.game.get_action_interactive()
+                obs, reward, terminated, truncated, info = env.step(action)
             else:
                 # For agent
                 action, _ = model.predict(obs)
-
-            obs, reward, terminated, truncated, info = env.step(action)
+                obs, reward, dones, info = env.step(action)
 
             j += 1
             ep_reward += reward
@@ -411,7 +410,7 @@ if __name__ == "__main__":
             if terminated or truncated:
                 obs, info = env.reset()
             
-            time.sleep(0.05)
+            # time.sleep(0.01)
 
         print(f"Total Ep Reward: {ep_reward}")
         quit()

@@ -395,7 +395,7 @@ class SimpleSim(object):
             target_dist = math.sqrt(robot_dy**2 + robot_dx**2)
 
             # distance_factor = 1 - (target_dist / max_dist) # linear distance factor
-            falloff_steepness = 3  # was 5 but too steep
+            falloff_steepness = 5  # was 5 but too steep
             distance_factor = np.exp(
                 -(falloff_steepness * target_dist / max_dist)
             )  # exponential distance factor
@@ -953,62 +953,70 @@ class Plot(object):
         self.x = np.arange(num_classes)
         self.cols = math.ceil(math.sqrt(num_targets))
         self.rows = math.ceil(num_targets / self.cols)
+        # print(f"cols:{self.cols}, rows:{self.rows}")
         self.bars = []
         self.bars_text = []
 
         # Create figure and customise formatting
         plt.ion()
-        plt.rc("font", family="Helvetica")
+        # plt.rc("font", family="Helvetica")
+        # plt.style.use('ggplot')
+        new_cmap = self.rand_cmap(100, type='bright', first_color_black=False, last_color_black=False)
         self.fig, self.ax = plt.subplots(self.rows, self.cols)
-        self.fig.suptitle(f'Target Confidence Distributions', color='#333333', weight='bold')
+        self.fig.suptitle(f'Target Confidence Distributions', color='#333333')#, weight='bold')
 
         # Create Subplots
         target_index = 0
         for row in range(0, self.rows):
             for col in range(0, self.cols):
+                # print(f"col:{col}, row:{row}")
                 if target_index > self.num_targets-1:
-                    self.ax[col,row].remove()
+                    self.ax[row,col].remove()
                     break
                 
                 self.bars.append(
-                    self.ax[col,row].bar(
+                    self.ax[row,col].bar(
                         x=self.x,
                         height=np.full_like(self.x, 1 / num_classes),
                         tick_label=self.x,
                     )
                 )  # Returns a tuple of line objects, thus the comma
+                self.ax[row,col].set_xticklabels(self.x, rotation=45, ha='right')
 
                 # Axis formatting.
-                self.ax[col,row].set_ylim(0, 1)
-                self.ax[col,row].spines['top'].set_visible(False)
-                self.ax[col,row].spines['right'].set_visible(False)
-                self.ax[col,row].spines['left'].set_visible(False)
-                self.ax[col,row].spines['bottom'].set_color('#DDDDDD')
-                self.ax[col,row].tick_params(bottom=False, left=False)
-                self.ax[col,row].set_axisbelow(True)
-                self.ax[col,row].yaxis.grid(True, color='#EEEEEE')
-                self.ax[col,row].xaxis.grid(False)
+                self.ax[row,col].set_ylim(0, 1)
+                self.ax[row,col].spines['top'].set_visible(False)
+                self.ax[row,col].spines['right'].set_visible(False)
+                self.ax[row,col].spines['left'].set_visible(False)
+                self.ax[row,col].spines['bottom'].set_color('#DDDDDD')
+                self.ax[row,col].tick_params(bottom=False, left=False)
+                self.ax[row,col].set_axisbelow(True)
+                self.ax[row,col].yaxis.grid(True, color='#EEEEEE')
+                self.ax[row,col].xaxis.grid(False)
                 
                 # Add text annotations to the top of the bars.
-                bar_color = self.bars[target_index][0].get_facecolor()
+                # bar_color = self.bars[target_index][0].get_facecolor()
                 bar_text = []
+                bar_index = 0
                 for bar in self.bars[target_index]:
-                    bar_text.append(self.ax[col,row].text(
+                    bar_text.append(self.ax[row,col].text(
                         bar.get_x() + bar.get_width() / 2,
                         bar.get_height() + 0.3,
                         round(bar.get_height(), 1),
                         horizontalalignment='center',
-                        color=bar_color,
                         weight='bold',
                         size=6,
                     ))
+
+                    bar.set_color(new_cmap(bar_index))
+                    bar_index += 1
+
                 self.bars_text.append(bar_text)
 
                 # Add labels and a title.
-                self.ax[col,row].set_xlabel('Class Index', labelpad=15, color='#333333')
-                self.ax[col,row].set_ylabel('Average Confidence', labelpad=15, color='#333333')
-                self.ax[col,row].set_title(f'Target {target_index} Confidence Distribution', pad=15, color='#333333',
-                            weight='bold')
+                self.ax[row,col].set_xlabel('Class Index', labelpad=15, color='#333333')
+                self.ax[row,col].set_ylabel('Average Confidence', labelpad=15, color='#333333')
+                self.ax[row,col].set_title(f'Target {target_index}', pad=15, color='#333333')#, weight='bold')
                 
                 target_index += 1
 
@@ -1028,6 +1036,76 @@ class Plot(object):
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
+
+    def rand_cmap(self, nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=False):
+        """
+        Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks
+        :param nlabels: Number of labels (size of colormap)
+        :param type: 'bright' for strong colors, 'soft' for pastel colors
+        :param first_color_black: Option to use first color as black, True or False
+        :param last_color_black: Option to use last color as black, True or False
+        :param verbose: Prints the number of labels and shows the colormap. True or False
+        :return: colormap for matplotlib
+        """
+        from matplotlib.colors import LinearSegmentedColormap
+        import colorsys
+        import numpy as np
+
+        if type not in ('bright', 'soft'):
+            print ('Please choose "bright" or "soft" for type')
+            return
+
+        if verbose:
+            print('Number of labels: ' + str(nlabels))
+
+        # Generate color map for bright colors, based on hsv
+        if type == 'bright':
+            randHSVcolors = [(np.random.uniform(low=0.0, high=1),
+                            np.random.uniform(low=0.2, high=1),
+                            np.random.uniform(low=0.9, high=1)) for i in range(nlabels)]
+
+            # Convert HSV list to RGB
+            randRGBcolors = []
+            for HSVcolor in randHSVcolors:
+                randRGBcolors.append(colorsys.hsv_to_rgb(HSVcolor[0], HSVcolor[1], HSVcolor[2]))
+
+            if first_color_black:
+                randRGBcolors[0] = [0, 0, 0]
+
+            if last_color_black:
+                randRGBcolors[-1] = [0, 0, 0]
+
+            random_colormap = LinearSegmentedColormap.from_list('new_map', randRGBcolors, N=nlabels)
+
+        # Generate soft pastel colors, by limiting the RGB spectrum
+        if type == 'soft':
+            low = 0.6
+            high = 0.95
+            randRGBcolors = [(np.random.uniform(low=low, high=high),
+                            np.random.uniform(low=low, high=high),
+                            np.random.uniform(low=low, high=high)) for i in range(nlabels)]
+
+            if first_color_black:
+                randRGBcolors[0] = [0, 0, 0]
+
+            if last_color_black:
+                randRGBcolors[-1] = [0, 0, 0]
+            random_colormap = LinearSegmentedColormap.from_list('new_map', randRGBcolors, N=nlabels)
+
+        # Display colorbar
+        if verbose:
+            from matplotlib import colors, colorbar
+            from matplotlib import pyplot as plt
+            fig, ax = plt.subplots(1, 1, figsize=(15, 0.5))
+
+            bounds = np.linspace(0, nlabels, nlabels + 1)
+            norm = colors.BoundaryNorm(bounds, nlabels)
+
+            cb = colorbar.ColorbarBase(ax, cmap=random_colormap, norm=norm, spacing='proportional', ticks=None,
+                                    boundaries=bounds, format='%1i', orientation=u'horizontal')
+
+        return random_colormap
+
 
 
 # ---------------------------------------------------------------------------- #
