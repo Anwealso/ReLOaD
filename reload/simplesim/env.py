@@ -607,22 +607,22 @@ class SimpleSim(object):
                 elif keys[pygame.K_SPACE]:
                     return 0
 
-    def get_state(self):
-        """
-        Gets the current state of the game
+    # def get_state(self):
+    #     """
+    #     Gets the current state of the game
 
-        Args:
-            None
-        Returns:
-            (dict) a dictionary containing all the state variables
-        """
-        state_dict = {}
-        state_dict["count"] = self.count
-        state_dict["budget"] = self.budget
-        state_dict["current_confidences"] = self.current_confidences
-        state_dict["confidences"] = self.confidences
+    #     Args:
+    #         None
+    #     Returns:
+    #         (dict) a dictionary containing all the state variables
+    #     """
+    #     state_dict = {}
+    #     state_dict["count"] = self.count
+    #     state_dict["budget"] = self.budget
+    #     state_dict["current_confidences"] = self.current_confidences
+    #     state_dict["confidences"] = self.confidences
 
-        return state_dict
+    #     return state_dict
 
     def step(self, action):
         """
