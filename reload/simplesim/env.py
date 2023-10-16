@@ -167,34 +167,32 @@ class SimpleSim(object):
             np.random.seed(seed=seed)
             random.seed(seed)
 
-        # Rendering
-        self.render_mode = render_mode
-        self.render_fps = render_fps
-        self.window = None
-        self.clock = None
-        self.action_format = action_format
-
+        # Game state info
         self.env_size = 500  # number of coords size of the env
         self.player_size = 50
         self.target_size = 50
-
-        self.disply_scale = 1.5  # display size in pixels
-        self.display_env_size = self.env_size * self.disply_scale
-        self.display_player_size = self.player_size * self.disply_scale
-        self.display_target_size = self.target_size * self.disply_scale
-
-        # Game state
         self.starting_budget = starting_budget
         self.budget = self.starting_budget
         self.num_targets = num_targets
         self.num_classes = num_classes
+        self.num_walls = 0
+        self.action_format = action_format
         self.gameover = False
         self.paused = False
         self.count = 0
-        self.scoreboard_items = {}
-
         self.targets = []
         self.walls = []
+
+        # Rendering info
+        self.render_mode = render_mode
+        self.render_fps = render_fps
+        self.window = None
+        self.clock = None
+        self.disply_scale = 1.5  # display size in pixels
+        self.display_env_size = self.env_size * self.disply_scale
+        self.display_player_size = self.player_size * self.disply_scale
+        self.display_target_size = self.target_size * self.disply_scale
+        self.scoreboard_items = {}
 
         # Confidences on each object at current timestep (this matrix will be appended to)
         self.current_confidences = np.zeros(
@@ -205,14 +203,16 @@ class SimpleSim(object):
             (self.num_targets, self.num_classes), dtype=np.float32
         )
 
-        self.curriculum = 1  # no limit unless this member variable is set manually
+        # Setup learning curriculum
+        self.curriculum_level = 1  # 1 = no limit (100%) unless this member variable is set manually
         self.min_target_dist = 0  # was 80
-        self.num_walls = 0
 
-        # self.spawn_walls(self.num_walls)
+        # Spawn in entites
         self.spawn_robot(player_fov)
         self.spawn_targets(self.num_targets)
+        # self.spawn_walls(self.num_walls)
 
+        # Setup confidence histograms
         if self.render_mode == "human":
             self.plot = Plot(num_targets, num_classes)
 
@@ -220,8 +220,6 @@ class SimpleSim(object):
         """
         Spawns wall obstacles
         """
-
-        # self.walls.append(Wall(200, 0, 250, 400))
 
         min_size = 50
         max_size = 200
@@ -240,10 +238,12 @@ class SimpleSim(object):
 
     def spawn_robot(self, player_fov):
         """
-        Spawns robot / player
+        Spawns the robot / player
         """
-
+        # Spawn robot at centre
         # x, y = (self.env_size//2, self.env_size//2)
+
+        # Spawn robot at random position and orientation
         while True:
             x, y = (
                 random.randrange(
@@ -300,7 +300,7 @@ class SimpleSim(object):
                 math.sqrt(2 * (self.env_size) ** 2) - self.min_target_dist
             )  # the max width of the band between the min and max spawn limits
             current_max_target_dist = self.min_target_dist + (
-                self.curriculum * max_band_gap
+                self.curriculum_level * max_band_gap
             )
             if current_max_target_dist == self.min_target_dist:
                 current_max_target_dist += 5  # avoid infinite or very long loops
@@ -387,7 +387,8 @@ class SimpleSim(object):
         for wall in self.walls:
             point_a1 = (self.robot.x, self.robot.y)
             point_a2 = (target.x, target.y)
-            # Get the wall sight blocking line (either top-L bot-R or bot-L top-R)
+            # Get the wall's sight-blocking-lines (the diagonals either
+            # top-L to bot-R or bot-L to top-R)
             point_b1 = (wall.xmin, wall.ymax)
             point_b2 = (wall.xmax, wall.ymin)
             point_c1 = (wall.xmin, wall.ymin)
@@ -459,14 +460,12 @@ class SimpleSim(object):
             noisy_true_confidence = np.clip(
                 true_confidence + np.random.normal(0, std_dev), 0, 1
             )
-            # print(f"noisy_true_confidence: {noisy_true_confidence}")
 
             # Then split the remaining false-class probability across the other classes
             false_confidences = np.random.rand(self.num_classes - 1)  # random numbers
             false_confidences = (false_confidences / np.sum(false_confidences)) * (
                 1 - true_confidence
             )  # normalise sum to desired
-            # print(f"false_confidences: {false_confidences}")
 
             # Combine into full confidence vector
             confidence = np.concatenate(
@@ -480,13 +479,8 @@ class SimpleSim(object):
 
         else:
             # Return 0 confidences if we know the target is not in view
-            confidence = np.zeros(shape=(self.num_classes,))  # random numbers
+            confidence = np.zeros(shape=(self.num_classes,))
             return confidence
-
-            # # Assign random low confidences when no object in view (uniform distribution between 0 and mean)
-            # confidence = np.random.rand(self.num_classes) # random numbers
-            # confidence = confidence / np.sum(confidence) # normalise to 1
-            # # print(f"nosee confidence: {confidence}")
 
     def lines_intersect(self, point_a1, point_a2, point_b1, point_b2):
         """
@@ -588,33 +582,24 @@ class SimpleSim(object):
         Given an action tuple, execute the action in the environment.
         Actions 0,1,2,3,4 - None,R,L,F,B
         """
-        # Check action format
-        # if action not in [0, 1, 2, 3, 4]:
-        #     raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
-        # ----------------------------- DISCRETE ACTIONS ----------------------------- #
+        # Discrete actions
         if self.action_format == "discrete":
             # Handle agent controls and movement (note action 0 does nothing)
             if action == 1:
                 self.robot.turn_right()
             elif action == 2:
                 self.robot.move_forward()
-
             if action == 3:
                 self.robot.turn_left()
             elif action == 4:
                 self.robot.move_backward()
 
-        # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
+        # Continuous actions
         elif self.action_format == "continuous":
             # Handle agent controls and movement (note action 0 does nothing)
             self.robot.set_velocity(float(action[0]))
             self.robot.set_rot_velocity(float(action[1]))
-
-        # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
-        # # Handle agent controls and movement (note action 0 does nothing)
-        # self.robot.set_velocity(float(action[0, :]))
-        # self.robot.set_rot_velocity(float(action[1, :]))
 
         # Stop the robot going off the screen or inside walls
         self.handle_boundary_collisions()
@@ -626,7 +611,7 @@ class SimpleSim(object):
 
         # Handle player controls and movement
         if self.action_format == "discrete":
-            # ----------------------------- DISCRETE ACTIONS ----------------------------- #
+            # Discrete actions
             while True:
                 event = pygame.event.wait()
                 if (not self.paused) and (not self.gameover):
@@ -643,10 +628,10 @@ class SimpleSim(object):
                         return 0
 
         elif self.action_format == "continuous":
-            # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
+            # Continuous actions
             while True:
                 event = pygame.event.wait()
-                action = np.zeros(shape=(2,1))
+                action = np.zeros(shape=(2, 1))
                 if (not self.paused) and (not self.gameover):
                     keys = pygame.key.get_pressed()
                     if keys[pygame.K_RIGHT]:
@@ -664,23 +649,6 @@ class SimpleSim(object):
                     if keys[pygame.K_SPACE]:
                         break
             return action
-
-    # def get_state(self):
-    #     """
-    #     Gets the current state of the game
-
-    #     Args:
-    #         None
-    #     Returns:
-    #         (dict) a dictionary containing all the state variables
-    #     """
-    #     state_dict = {}
-    #     state_dict["count"] = self.count
-    #     state_dict["budget"] = self.budget
-    #     state_dict["current_confidences"] = self.current_confidences
-    #     state_dict["confidences"] = self.confidences
-
-    #     return state_dict
 
     def step(self, action):
         """
@@ -806,6 +774,8 @@ class SimpleSim(object):
         fov_color = (0, 0, 255, 70)
         fov_line_length = int(500 * self.disply_scale)
         fov_line_thickness = int(10 * self.disply_scale)
+        font = pygame.font.SysFont(font_family, int(15 * self.disply_scale))
+        bold_font = pygame.font.SysFont(font_family, int(15 * self.disply_scale), bold=True)
 
         # --------------------------- Draw all the entities -------------------------- #
         # # Draw the background image
@@ -882,7 +852,7 @@ class SimpleSim(object):
         # pygame.draw.circle(canvas, (0, 255, 0), (self.robot.x, self.robot.y), 5) # robot centre
 
         # Draw the targets
-        for target in self.targets:
+        for i, target in enumerate(self.targets):
             # Set the sprite and hitbox size
             if target.rank == 1:
                 image = target50
@@ -899,7 +869,14 @@ class SimpleSim(object):
                 target.y * self.disply_scale,
             )
             canvas.blit(rotated_target_surf, rotated_target_rect)
-            # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
+            # pygame.draw.circle(
+            #     canvas, (255, 255, 255), (target.x*self.disply_scale, target.y*self.disply_scale), 5
+            # )  # target centre
+            target_text = bold_font.render(str(i), 2, (255, 255, 255))
+            canvas.blit(
+                target_text,
+                (target.x*self.disply_scale - target_text.get_width() // 2, target.y*self.disply_scale - target_text.get_width() // 2)
+            )
 
         # Draw the walls
         wall: Wall
@@ -928,7 +905,6 @@ class SimpleSim(object):
             )
 
         # Draw the onscreen menu text
-        font = pygame.font.SysFont(font_family, int(15 * self.disply_scale))
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
             canvas.blit(
@@ -974,7 +950,7 @@ class SimpleSim(object):
             # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.render_fps)
 
-        else:  # rgb_array
+        else: # rgb_array
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
@@ -1072,7 +1048,6 @@ class Plot(object):
                 self.ax[row, col].xaxis.grid(False)
 
                 # Add text annotations to the top of the bars.
-                # bar_color = self.bars[target_index][0].get_facecolor()
                 bar_text = []
                 bar_index = 0
                 for bar in self.bars[target_index]:
@@ -1101,7 +1076,7 @@ class Plot(object):
                 )
                 self.ax[row, col].set_title(
                     f"Target {target_index}", pad=15, color="#333333"
-                )  # , weight='bold')
+                )
 
                 target_index += 1
 
@@ -1245,15 +1220,8 @@ if __name__ == "__main__":
     game._render_frame()
 
     state = {}
-    # last_reward = []
 
     while game.run:
-        # Get the games state
-        state = game.get_state()
-
-        # # Get the reward
-        # last_reward = game.get_reward()
-
         # Step the game engine
         game.step(game.get_action_interactive())
         game._render_frame()
