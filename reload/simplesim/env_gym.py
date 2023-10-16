@@ -118,7 +118,7 @@ class SimpleSimGym(gym.Env):
             {
                 # "agent": agent_info,
                 "targets": target_info,
-                # "environment": self.game.budget,
+                "environment": self.game.budget,
             },
         )
         # print(observation, "\n")
@@ -345,8 +345,6 @@ class SimpleSimGym(gym.Env):
 
             reward = self._get_reward(action)
             if self.game.budget == 0:
-                terminated = True
-            if self.all_fully_explored():
                 # Reward only given at the end of the episode
                 truncated = True
 
