@@ -3,6 +3,7 @@ from env import SimpleSim
 import math
 import numpy as np
 import time
+import random
 import gymnasium as gym
 from gymnasium import spaces
 
@@ -376,13 +377,13 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 3
+    NUM_TARGETS = 5
     NUM_CLASSES = 10
     PLAYER_FOV = 30
     ACTION_FORMAT = "continuous"
 
     # Whether to play it interactively or let the agent drive
-    INTERACTIVE = False
+    INTERACTIVE = True
 
     # -------------------------------- Environment ------------------------------- #
 

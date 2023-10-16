@@ -172,7 +172,7 @@ class SimpleSim(object):
         self.player_size = 50
         self.target_size = 50
         self.starting_budget = starting_budget
-        self.budget = self.starting_budget
+        self.budget = round(random.random() * self.starting_budget) # Randomise the budget between 0 and max of starting_budget
         self.num_targets = num_targets
         self.num_classes = num_classes
         self.num_walls = 0
@@ -713,7 +713,7 @@ class SimpleSim(object):
             None
         """
         self.gameover = False
-        self.budget = self.starting_budget
+        self.budget = round(random.random() * self.starting_budget) # Randomise the budget between 0 and max of starting_budget
 
         self.walls.clear()
         self.spawn_walls(self.num_walls)
@@ -793,7 +793,7 @@ class SimpleSim(object):
 
         fov_color = (0, 0, 255, 70)
         fov_line_length = int(500 * self.display_scale)
-        fov_line_thickness = int(10 * self.display_scale)
+        fov_line_thickness = int(5 * self.display_scale)
         font = pygame.font.SysFont(font_family, int(15 * self.display_scale))
         bold_font = pygame.font.SysFont(
             font_family, int(10 * self.display_scale), bold=True
