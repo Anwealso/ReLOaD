@@ -44,8 +44,15 @@ class SimpleSimGym(gym.Env):
             render_fps=self.metadata["render_fps"],
         )
 
-        # # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
-        self.action_space = spaces.Discrete(5)
+        # Discrete action space
+        # self.action_space = spaces.Discrete(5) # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
+        # Continuous action space
+        self.action_space = spaces.Box( # Actions: twist vector
+            low=-1,
+            high=1,
+            shape=(2,),
+            dtype=np.float32,
+        )
 
         max_dist = math.sqrt(2 * (self.game.env_size**2))
         # Observations (visible state):
@@ -373,7 +380,7 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 6
+    NUM_TARGETS = 4
     NUM_CLASSES = 10
     PLAYER_FOV = 30
 

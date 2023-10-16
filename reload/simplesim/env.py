@@ -97,6 +97,20 @@ class Robot(object):
         if self.fov > 180:
             raise ValueError("FOV must be <= 180 (required by can_see())")
 
+    def set_rot_velocity(self, omega):
+        # Left is +ve
+        move_angle = omega * self.turn_rate
+        self.angle += move_angle
+        if self.angle < 0:
+            self.angle = self.angle + 360  # wrap angle back around
+
+    def set_velocity(self, v):
+        # Forward is +ve
+        move_dist = v * self.move_rate
+        self.x += math.cos(math.radians(self.angle)) * move_dist
+        self.y -= math.sin(math.radians(self.angle)) * move_dist
+        self.trail.append((self.x, self.y))
+
     def turn_left(self):
         self.angle += self.turn_rate
         if self.angle >= 360:
@@ -569,19 +583,25 @@ class SimpleSim(object):
         Actions 0,1,2,3,4 - None,R,L,F,B
         """
         # Check action format
-        if action not in [0, 1, 2, 3, 4]:
-            raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
+        # if action not in [0, 1, 2, 3, 4]:
+        #     raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
+        # # ----------------------------- DISCRETE ACTIONS ----------------------------- #
+        # # Handle agent controls and movement (note action 0 does nothing)
+        # if action == 1:
+        #     self.robot.turn_right()
+        # elif action == 2:
+        #     self.robot.move_forward()
+
+        # if action == 3:
+        #     self.robot.turn_left()
+        # elif action == 4:
+        #     self.robot.move_backward()
+
+        # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
         # Handle agent controls and movement (note action 0 does nothing)
-        if action == 1:
-            self.robot.turn_right()
-        elif action == 2:
-            self.robot.move_forward()
-
-        if action == 3:
-            self.robot.turn_left()
-        elif action == 4:
-            self.robot.move_backward()
+        self.robot.set_velocity(float(action[0]))
+        self.robot.set_rot_velocity(float(action[1]))
 
         # Stop the robot going off the screen or inside walls
         self.handle_boundary_collisions()
@@ -592,20 +612,44 @@ class SimpleSim(object):
         """
 
         # Handle player controls and movement
+        # # ----------------------------- DISCRETE ACTIONS ----------------------------- #
+        # while True:
+        #     event = pygame.event.wait()
+        #     if (not self.paused) and (not self.gameover):
+        #         keys = pygame.key.get_pressed()
+        #         if keys[pygame.K_RIGHT]:
+        #             return 1
+        #         elif keys[pygame.K_UP]:
+        #             return 2
+        #         elif keys[pygame.K_LEFT]:
+        #             return 3
+        #         elif keys[pygame.K_DOWN]:
+        #             return 4
+        #         elif keys[pygame.K_SPACE]:
+        #             return 0
+        
+        # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
+        # Handle player controls and movement
         while True:
             event = pygame.event.wait()
+            action = np.zeros(shape=(2,1))
             if (not self.paused) and (not self.gameover):
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RIGHT]:
-                    return 1
+                    action[1] = -1
+                    break
                 if keys[pygame.K_UP]:
-                    return 2
+                    action[0] = 1
+                    break
                 if keys[pygame.K_LEFT]:
-                    return 3
+                    action[1] = 1
+                    break
                 if keys[pygame.K_DOWN]:
-                    return 4
-                elif keys[pygame.K_SPACE]:
-                    return 0
+                    action[0] = -1
+                    break
+                if keys[pygame.K_SPACE]:
+                    break
+        return action
 
     # def get_state(self):
     #     """
@@ -697,23 +741,25 @@ class SimpleSim(object):
 
         self.count = 0
 
-        if self.render_mode == "human":
-            self._render_frame()
+        self.render()
 
     def render(self):
-        if self.render_mode == "rgb_array":
-            return self._render_frame()
+        if self.render_mode != None:
+            frame = self._render_frame()
+            if self.render_mode == "rgb_array":
+                return frame
 
     def _render_frame(self):
         pygame.init()
-        if self.window is None and self.render_mode == "human":
-            pygame.display.init()
-            self.window = pygame.display.set_mode(
-                (self.display_env_size, self.display_env_size)
-            )
-            pygame.display.set_caption("ReLOaD Simulator")
-        if self.clock is None and self.render_mode == "human":
-            self.clock = pygame.time.Clock()
+        if self.render_mode == "human":
+            if self.window is None:
+                pygame.display.init()
+                self.window = pygame.display.set_mode(
+                    (self.display_env_size, self.display_env_size)
+                )
+                pygame.display.set_caption("ReLOaD Simulator")
+            if self.clock is None:
+                self.clock = pygame.time.Clock()
 
         # ------------------ Create the base canvas and load assets ------------------ #
         canvas = pygame.Surface((self.display_env_size, self.display_env_size))
@@ -893,7 +939,7 @@ class SimpleSim(object):
         self.render_scoreboard(canvas, font)
 
         if self.render_mode == "human":
-            # Render the histograms
+            # Render the matplotlib histograms
             num_confidences = np.sum(self.confidences, axis=2)
             observations = np.count_nonzero(self.confidences, axis=2)
             all_time_avg = np.divide(
@@ -904,8 +950,7 @@ class SimpleSim(object):
             )
             self.plot.update(all_time_avg)
 
-        # --------------- Send the rendered view to the relevant viewer -------------- #
-        if self.render_mode == "human":
+            # --------------- Send the rendered view to the relevant viewer -------------- #
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
@@ -914,6 +959,7 @@ class SimpleSim(object):
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.render_fps)
+
         else:  # rgb_array
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
@@ -977,6 +1023,10 @@ class Plot(object):
         self.fig.suptitle(
             f"Target Confidence Distributions", color="#333333"
         )  # , weight='bold')
+        if self.rows == 1:
+            self.ax = np.expand_dims(self.ax, axis=0)
+            if self.cols == 1:
+                self.ax = np.expand_dims(self.ax, axis=1)
 
         # Create Subplots
         target_index = 0
@@ -1015,7 +1065,7 @@ class Plot(object):
                     bar_text.append(
                         self.ax[row, col].text(
                             bar.get_x() + bar.get_width() / 2,
-                            bar.get_height() + 0.3,
+                            bar.get_height() + 0.1,
                             round(bar.get_height(), 1),
                             horizontalalignment="center",
                             weight="bold",
@@ -1052,7 +1102,7 @@ class Plot(object):
                 self.bars_text[i][j].set_position(
                     (
                         self.bars[i][j].get_x() + self.bars[i][j].get_width() / 2,
-                        self.bars[i][j].get_height() + 0.3,
+                        self.bars[i][j].get_height() + 0.1,
                     )
                 )
                 self.bars_text[i][j].set_text(round(self.bars[i][j].get_height(), 2))
