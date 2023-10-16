@@ -6,7 +6,7 @@ import time
 import gymnasium as gym
 from gymnasium import spaces
 
-from stable_baselines3 import PPO, A2C, DQN
+from stable_baselines3 import DQN, PPO, SAC, TD3
 from stable_baselines3.common.env_util import make_vec_env
 
 
@@ -382,7 +382,7 @@ if __name__ == "__main__":
     ACTION_FORMAT = "continuous"
 
     # Whether to play it interactively or let the agent drive
-    INTERACTIVE = True
+    INTERACTIVE = False
 
     # -------------------------------- Environment ------------------------------- #
 
@@ -401,7 +401,7 @@ if __name__ == "__main__":
     if not INTERACTIVE:
         config = {"policy": "MlpPolicy", "logdir": "logs/", "savedir": "saved_models/"}
         # Load the best model
-        model = PPO.load(f"{config['savedir']}/best_model.zip")
+        model = SAC.load(f"{config['savedir']}/best_sac.zip")
         # Wrap the env for the model
         env = make_vec_env(
             SimpleSimGym,

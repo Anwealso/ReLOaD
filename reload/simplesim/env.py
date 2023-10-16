@@ -188,10 +188,10 @@ class SimpleSim(object):
         self.render_fps = render_fps
         self.window = None
         self.clock = None
-        self.disply_scale = 1.5  # display size in pixels
-        self.display_env_size = self.env_size * self.disply_scale
-        self.display_player_size = self.player_size * self.disply_scale
-        self.display_target_size = self.target_size * self.disply_scale
+        self.display_scale = 1.5  # display size in pixels
+        self.display_env_size = self.env_size * self.display_scale
+        self.display_player_size = self.player_size * self.display_scale
+        self.display_target_size = self.target_size * self.display_scale
         self.scoreboard_items = {}
 
         # Confidences on each object at current timestep (this matrix will be appended to)
@@ -204,8 +204,15 @@ class SimpleSim(object):
         )
 
         # Setup learning curriculum
-        self.curriculum_level = 1  # 1 = no limit (100%) unless this member variable is set manually
+        self.curriculum_level = (
+            1  # 1 = no limit (100%) unless this member variable is set manually
+        )
         self.min_target_dist = 0  # was 80
+
+        # Get class names
+        text_file = open("classlist.txt", "r")
+        self.class_names = [line.strip() for line in text_file.readlines()]
+        text_file.close()
 
         # Spawn in entites
         self.spawn_robot(player_fov)
@@ -214,7 +221,7 @@ class SimpleSim(object):
 
         # Setup confidence histograms
         if self.render_mode == "human":
-            self.plot = Plot(num_targets, num_classes)
+            self.plot = Plot(num_targets, num_classes, self.class_names)
 
     def spawn_walls(self, num_to_spawn):
         """
@@ -759,23 +766,39 @@ class SimpleSim(object):
             pygame.image.load(sprites_dir + "robot.png"),
             (self.display_player_size, self.display_player_size),
         )
-        target50 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"),
-            (50 * self.disply_scale, 50 * self.disply_scale),
-        )
-        target100 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"),
-            (100 * self.disply_scale, 100 * self.disply_scale),
-        )
-        target150 = pygame.transform.scale(
-            pygame.image.load(sprites_dir + "apple.png"),
-            (150 * self.disply_scale, 150 * self.disply_scale),
-        )
+
+        target_size = 50
+        # target50 = pygame.transform.scale(
+        #     pygame.image.load(sprites_dir + "apple.png"),
+        #     (target_size * self.disply_scale, target_size * self.disply_scale),
+        # )
+        # target100 = pygame.transform.scale(
+        #     pygame.image.load(sprites_dir + "apple.png"),
+        #     (target_size * self.disply_scale, target_size * self.disply_scale),
+        # )
+        # target150 = pygame.transform.scale(
+        #     pygame.image.load(sprites_dir + "apple.png"),
+        #     (target_size * self.disply_scale, target_size * self.disply_scale),
+        # )
+
+        # Load class sprites
+        class_sprites = []
+        for class_id in range(0, self.num_classes):
+            class_sprites.append(
+                pygame.transform.scale(
+                    pygame.image.load(sprites_dir + f"{self.class_names[class_id]}.png"),
+                    (target_size * self.display_scale, target_size * self.display_scale),
+                )
+            )
+
         fov_color = (0, 0, 255, 70)
-        fov_line_length = int(500 * self.disply_scale)
-        fov_line_thickness = int(10 * self.disply_scale)
-        font = pygame.font.SysFont(font_family, int(15 * self.disply_scale))
-        bold_font = pygame.font.SysFont(font_family, int(15 * self.disply_scale), bold=True)
+        fov_line_length = int(500 * self.display_scale)
+        fov_line_thickness = int(10 * self.display_scale)
+        font = pygame.font.SysFont(font_family, int(15 * self.display_scale))
+        bold_font = pygame.font.SysFont(
+            font_family, int(10 * self.display_scale), bold=True
+        )
+        
 
         # --------------------------- Draw all the entities -------------------------- #
         # # Draw the background image
@@ -834,15 +857,15 @@ class SimpleSim(object):
         rotated_player_rect = rotated_player_surf.get_rect()
         # Set the centre position of the surf to the player position vars
         rotated_player_rect.center = (
-            self.robot.x * self.disply_scale,
-            self.robot.y * self.disply_scale,
+            self.robot.x * self.display_scale,
+            self.robot.y * self.display_scale,
         )
         # Update fov indicator lines position
         rotated_fov_surf = pygame.transform.rotate(fov_surf, self.robot.angle - 90)
         rotated_fov_rect = rotated_fov_surf.get_rect()
         rotated_fov_rect.center = (
-            self.robot.x * self.disply_scale,
-            self.robot.y * self.disply_scale,
+            self.robot.x * self.display_scale,
+            self.robot.y * self.display_scale,
         )
 
         # Redraw the player surfs
@@ -854,28 +877,34 @@ class SimpleSim(object):
         # Draw the targets
         for i, target in enumerate(self.targets):
             # Set the sprite and hitbox size
-            if target.rank == 1:
-                image = target50
-            elif target.rank == 2:
-                image = target100
-            else:
-                image = target150
+            # if target.rank == 1:
+            #     image = target50
+            # elif target.rank == 2:
+            #     image = target100
+            # else:
+            #     image = target150
 
             # Setup Render Surfs
-            rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
+            rotated_target_surf = pygame.transform.rotate(class_sprites[target.class_id], target.angle - 90)
             rotated_target_rect = rotated_target_surf.get_rect()
             rotated_target_rect.center = (
-                target.x * self.disply_scale,
-                target.y * self.disply_scale,
+                target.x * self.display_scale,
+                target.y * self.display_scale,
             )
             canvas.blit(rotated_target_surf, rotated_target_rect)
-            # pygame.draw.circle(
-            #     canvas, (255, 255, 255), (target.x*self.disply_scale, target.y*self.disply_scale), 5
-            # )  # target centre
-            target_text = bold_font.render(str(i), 2, (255, 255, 255))
+            # Draw target centre
+            circle_width = 7*self.display_scale
+            pygame.draw.circle(
+                canvas, (255, 255, 255), (target.x*self.display_scale, target.y*self.display_scale), circle_width
+            )
+            # Draw target number
+            target_text = bold_font.render(str(i), 2, (0, 0, 0))
             canvas.blit(
                 target_text,
-                (target.x*self.disply_scale - target_text.get_width() // 2, target.y*self.disply_scale - target_text.get_width() // 2)
+                (
+                    target.x * self.display_scale - target_text.get_width() // 2,
+                    target.y * self.display_scale - target_text.get_width() // 2 - 3,
+                ),
             )
 
         # Draw the walls
@@ -886,10 +915,10 @@ class SimpleSim(object):
                 canvas,
                 (0, 0, 0),
                 pygame.Rect(
-                    wall.xmin * self.disply_scale,
-                    wall.ymin * self.disply_scale,
-                    wall.width * self.disply_scale,
-                    wall.height * self.disply_scale,
+                    wall.xmin * self.display_scale,
+                    wall.ymin * self.display_scale,
+                    wall.width * self.display_scale,
+                    wall.height * self.display_scale,
                 ),
             )
 
@@ -900,8 +929,8 @@ class SimpleSim(object):
             pygame.draw.circle(
                 canvas,
                 (255, 0, 0),
-                (x * self.disply_scale, y * self.disply_scale),
-                2 * self.disply_scale,
+                (x * self.display_scale, y * self.display_scale),
+                2 * self.display_scale,
             )
 
         # Draw the onscreen menu text
@@ -950,7 +979,7 @@ class SimpleSim(object):
             # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.render_fps)
 
-        else: # rgb_array
+        else:  # rgb_array
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
@@ -992,7 +1021,7 @@ class Plot(object):
     A plotting util class
     """
 
-    def __init__(self, num_targets, num_classes):
+    def __init__(self, num_targets, num_classes, class_names):
         self.num_targets = num_targets
         self.num_classes = num_classes
         self.x = np.arange(num_classes)
@@ -1031,7 +1060,7 @@ class Plot(object):
                     self.ax[row, col].bar(
                         x=self.x,
                         height=np.full_like(self.x, 1 / num_classes),
-                        tick_label=self.x,
+                        tick_label=class_names,
                     )
                 )  # Returns a tuple of line objects, thus the comma
                 self.ax[row, col].set_xticklabels(self.x, rotation=45, ha="right")
