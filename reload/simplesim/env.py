@@ -1024,7 +1024,7 @@ class Plot(object):
     def __init__(self, num_targets, num_classes, class_names):
         self.num_targets = num_targets
         self.num_classes = num_classes
-        self.x = np.arange(num_classes)
+        self.x = class_names
         self.cols = math.ceil(math.sqrt(num_targets))
         self.rows = math.ceil(num_targets / self.cols)
         # print(f"cols:{self.cols}, rows:{self.rows}")
@@ -1063,7 +1063,7 @@ class Plot(object):
                         tick_label=class_names,
                     )
                 )  # Returns a tuple of line objects, thus the comma
-                self.ax[row, col].set_xticklabels(self.x, rotation=45, ha="right")
+                self.ax[row, col].set_xticklabels(self.x, rotation=90, ha="right")
 
                 # Axis formatting.
                 self.ax[row, col].set_ylim(0, 1)
