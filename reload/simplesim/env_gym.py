@@ -446,7 +446,7 @@ class SimpleSimGym(gym.Env):
             # Show info on scoreboard
             self.game.set_scoreboard(
                 {
-                    "Confidence": format(self.game.current_confidences),
+                    "Confidence": format(self.game.current_confidences.flatten()),
                     # "Variance": format(self.variance, ".2f"),
                     "Reward": format(reward, ".2f"),
                     # "Curr Entropies": format(self.current_entropies),
