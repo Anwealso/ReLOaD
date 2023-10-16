@@ -376,7 +376,7 @@ if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     STARTING_BUDGET = 500
-    NUM_TARGETS = 4
+    NUM_TARGETS = 3
     NUM_CLASSES = 10
     PLAYER_FOV = 30
     ACTION_FORMAT = "continuous"
