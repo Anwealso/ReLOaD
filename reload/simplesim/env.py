@@ -87,8 +87,10 @@ class Robot(object):
         self.angle = self.starting_angle  # unit circle angles
 
         # Set move speeds
-        self.turn_rate = 5
-        self.move_rate = 6
+        self.turn_rate_discrete = 5
+        self.move_rate_discrete = 6
+        self.turn_rate_continuous = 20
+        self.move_rate_continuous = 20
 
         self.trail = []  # a trail of all past x,y coords
         # Draw player fov indicator
@@ -99,36 +101,36 @@ class Robot(object):
 
     def set_rot_velocity(self, omega):
         # Left is +ve
-        move_angle = omega * self.turn_rate
+        move_angle = omega * self.turn_rate_continuous
         self.angle += move_angle
         if self.angle < 0:
             self.angle = self.angle + 360  # wrap angle back around
 
     def set_velocity(self, v):
         # Forward is +ve
-        move_dist = v * self.move_rate
+        move_dist = v * self.move_rate_continuous
         self.x += math.cos(math.radians(self.angle)) * move_dist
         self.y -= math.sin(math.radians(self.angle)) * move_dist
         self.trail.append((self.x, self.y))
 
     def turn_left(self):
-        self.angle += self.turn_rate
+        self.angle += self.turn_rate_discrete
         if self.angle >= 360:
             self.angle = self.angle - 360  # wrap angle back around
 
     def turn_right(self):
-        self.angle -= self.turn_rate
+        self.angle -= self.turn_rate_discrete
         if self.angle < 0:
             self.angle = self.angle + 360  # wrap angle back around
 
     def move_forward(self):
-        self.x += math.cos(math.radians(self.angle)) * self.move_rate
-        self.y -= math.sin(math.radians(self.angle)) * self.move_rate
+        self.x += math.cos(math.radians(self.angle)) * self.move_rate_discrete
+        self.y -= math.sin(math.radians(self.angle)) * self.move_rate_discrete
         self.trail.append((self.x, self.y))
 
     def move_backward(self):
-        self.x -= math.cos(math.radians(self.angle)) * self.move_rate
-        self.y += math.sin(math.radians(self.angle)) * self.move_rate
+        self.x -= math.cos(math.radians(self.angle)) * self.move_rate_discrete
+        self.y += math.sin(math.radians(self.angle)) * self.move_rate_discrete
         self.trail.append((self.x, self.y))
 
 
@@ -143,6 +145,7 @@ class SimpleSim(object):
         num_targets,
         player_fov,
         num_classes,
+        action_format,
         seed=None,
         render_mode=None,
         render_fps=None,
@@ -169,6 +172,7 @@ class SimpleSim(object):
         self.render_fps = render_fps
         self.window = None
         self.clock = None
+        self.action_format = action_format
 
         self.env_size = 500  # number of coords size of the env
         self.player_size = 50
@@ -586,22 +590,24 @@ class SimpleSim(object):
         # if action not in [0, 1, 2, 3, 4]:
         #     raise ValueError("`action` should be None, 0, 1, 2, 3, or 4.")
 
-        # # ----------------------------- DISCRETE ACTIONS ----------------------------- #
-        # # Handle agent controls and movement (note action 0 does nothing)
-        # if action == 1:
-        #     self.robot.turn_right()
-        # elif action == 2:
-        #     self.robot.move_forward()
+        # ----------------------------- DISCRETE ACTIONS ----------------------------- #
+        if self.action_format == "discrete":
+            # Handle agent controls and movement (note action 0 does nothing)
+            if action == 1:
+                self.robot.turn_right()
+            elif action == 2:
+                self.robot.move_forward()
 
-        # if action == 3:
-        #     self.robot.turn_left()
-        # elif action == 4:
-        #     self.robot.move_backward()
+            if action == 3:
+                self.robot.turn_left()
+            elif action == 4:
+                self.robot.move_backward()
 
         # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
-        # Handle agent controls and movement (note action 0 does nothing)
-        self.robot.set_velocity(float(action[0]))
-        self.robot.set_rot_velocity(float(action[1]))
+        elif self.action_format == "continuous":
+            # Handle agent controls and movement (note action 0 does nothing)
+            self.robot.set_velocity(float(action[0]))
+            self.robot.set_rot_velocity(float(action[1]))
 
         # Stop the robot going off the screen or inside walls
         self.handle_boundary_collisions()
@@ -612,44 +618,47 @@ class SimpleSim(object):
         """
 
         # Handle player controls and movement
-        # # ----------------------------- DISCRETE ACTIONS ----------------------------- #
-        # while True:
-        #     event = pygame.event.wait()
-        #     if (not self.paused) and (not self.gameover):
-        #         keys = pygame.key.get_pressed()
-        #         if keys[pygame.K_RIGHT]:
-        #             return 1
-        #         elif keys[pygame.K_UP]:
-        #             return 2
-        #         elif keys[pygame.K_LEFT]:
-        #             return 3
-        #         elif keys[pygame.K_DOWN]:
-        #             return 4
-        #         elif keys[pygame.K_SPACE]:
-        #             return 0
+
+        if self.action_format == "discrete":
+            # ----------------------------- DISCRETE ACTIONS ----------------------------- #
+            while True:
+                event = pygame.event.wait()
+                if (not self.paused) and (not self.gameover):
+                    keys = pygame.key.get_pressed()
+                    if keys[pygame.K_RIGHT]:
+                        return 1
+                    elif keys[pygame.K_UP]:
+                        return 2
+                    elif keys[pygame.K_LEFT]:
+                        return 3
+                    elif keys[pygame.K_DOWN]:
+                        return 4
+                    elif keys[pygame.K_SPACE]:
+                        return 0
         
-        # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
-        # Handle player controls and movement
-        while True:
-            event = pygame.event.wait()
-            action = np.zeros(shape=(2,1))
-            if (not self.paused) and (not self.gameover):
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_RIGHT]:
-                    action[1] = -1
-                    break
-                if keys[pygame.K_UP]:
-                    action[0] = 1
-                    break
-                if keys[pygame.K_LEFT]:
-                    action[1] = 1
-                    break
-                if keys[pygame.K_DOWN]:
-                    action[0] = -1
-                    break
-                if keys[pygame.K_SPACE]:
-                    break
-        return action
+
+        elif self.action_format == "continuous":
+            # ---------------------------- CONTINUOUS ACTIONS ---------------------------- #
+            while True:
+                event = pygame.event.wait()
+                action = np.zeros(shape=(2,1))
+                if (not self.paused) and (not self.gameover):
+                    keys = pygame.key.get_pressed()
+                    if keys[pygame.K_RIGHT]:
+                        action[1] = -1
+                        break
+                    if keys[pygame.K_UP]:
+                        action[0] = 1
+                        break
+                    if keys[pygame.K_LEFT]:
+                        action[1] = 1
+                        break
+                    if keys[pygame.K_DOWN]:
+                        action[0] = -1
+                        break
+                    if keys[pygame.K_SPACE]:
+                        break
+            return action
 
     # def get_state(self):
     #     """

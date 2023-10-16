@@ -19,16 +19,13 @@ class SimpleSimGym(gym.Env):
         num_targets=8,
         player_fov=60,
         num_classes=10,
+        action_format="discrete",
         render_mode=None,
     ):
         """
         Description,
             Initializes the openai-gym environment with it's features.
         """
-
-        self.step_cost = 1
-        self.action_cost = 1  # was 1
-        self.goal_reached_cutoff = 0.9
 
         # Init. Renders
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -40,19 +37,22 @@ class SimpleSimGym(gym.Env):
             num_targets,
             player_fov,
             num_classes,
+            action_format,
             render_mode=render_mode,
             render_fps=self.metadata["render_fps"],
         )
 
-        # Discrete action space
-        # self.action_space = spaces.Discrete(5) # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
-        # Continuous action space
-        self.action_space = spaces.Box( # Actions: twist vector
-            low=-1,
-            high=1,
-            shape=(2,),
-            dtype=np.float32,
-        )
+        if action_format == "discrete":
+            # Discrete action space
+            self.action_space = spaces.Discrete(5) # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
+        elif action_format == "continuous":
+            # Continuous action space
+            self.action_space = spaces.Box( # Actions: twist vector
+                low=-1,
+                high=1,
+                shape=(2,),
+                dtype=np.float32,
+            )
 
         max_dist = math.sqrt(2 * (self.game.env_size**2))
         # Observations (visible state):
@@ -138,7 +138,7 @@ class SimpleSimGym(gym.Env):
         reward = 0
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(verbose=0)
+        reward += self.get_entropy_reward(method="absolute", verbose=0)
 
         return reward
 
@@ -234,7 +234,7 @@ class SimpleSimGym(gym.Env):
 
         return entropy
 
-    def get_entropy_reward(self, method="differential", verbose=0):
+    def get_entropy_reward(self, method="absolute", verbose=0):
         """
         An entropy based reward for the agent. Reward can be conputed in one of
         two ways:
@@ -283,7 +283,6 @@ class SimpleSimGym(gym.Env):
 
         # Normalise the reward against the number of targets
         entropy_reward = entropy_reward / self.game.num_targets
-
         return entropy_reward
 
     def world_to_body_frame(self, x, y):
@@ -342,7 +341,7 @@ class SimpleSimGym(gym.Env):
                 {
                     "True Class Confidences": np.round(true_class_confidences, 2),
                     "Entropies": np.round(self.entropies, 2),
-                    "Variance": np.round(self.variance, 2),
+                    "Entropy Variance": np.round(self.variance, 2),
                     "Reward": np.round(reward, 6),
                     # "Observation": np.round(obs, 2),
                 }
@@ -383,6 +382,7 @@ if __name__ == "__main__":
     NUM_TARGETS = 4
     NUM_CLASSES = 10
     PLAYER_FOV = 30
+    ACTION_FORMAT = "continuous"
 
     # Whether to play it interactively or let the agent drive
     INTERACTIVE = True
@@ -396,6 +396,7 @@ if __name__ == "__main__":
             num_targets=NUM_TARGETS,
             num_classes=NUM_CLASSES,
             player_fov=PLAYER_FOV,
+            action_format=ACTION_FORMAT,
             render_mode="human",
         )
 
@@ -413,6 +414,7 @@ if __name__ == "__main__":
                 starting_budget=STARTING_BUDGET,
                 num_targets=NUM_TARGETS,
                 player_fov=PLAYER_FOV,
+                action_format=ACTION_FORMAT,
                 render_mode="human",
             ),
         )
