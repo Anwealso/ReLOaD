@@ -55,7 +55,7 @@ $$reward = R_{s} = \frac{1}{M}\sum_{m=0}^{M-1}{{IG}_m}$$
 
 where: $M$ = number of targets
 
-$${IG}_m = \frac{1}{T}\sum_{t=0}^{T-1}{\left(  1 - \sum_{n=0}^{N-1}{-p_n log(p_n)}   \right)}$$
+$${IG}_m = \frac{1}{T} \sum_{t=0}^{T-1}{\left(   1 - \sum_{n=0}^{N-1}{-p_n log \left(p_n\right)}   \right)}$$
 
 where: $N$ = number of classes, $T$ = number of timesteps so far, and $p_n$ is the probability of target $m$ being of class $n$ (as returned by the object detection algorithm at timestep $t$)
 
