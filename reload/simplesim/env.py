@@ -59,9 +59,9 @@ class Target(object):
         self.x = x
         self.y = y
         # Orientation
-        self.angle = 90  # unit circle angle format
-        self.xdir = int(math.cos(math.radians(self.angle)))
-        self.ydir = int(math.sin(math.radians(self.angle)))
+        self.angle = random.randint(0, 359)  # unit circle angle format
+        self.xdir = math.cos(math.radians(self.angle))
+        self.ydir = math.sin(math.radians(self.angle))
 
 
 class Robot(object):
