@@ -54,6 +54,7 @@ class SimpleSimGym(gym.Env):
                 shape=(2,),
                 dtype=np.float32,
             )
+            
 
         max_dist = math.sqrt(2 * (self.game.env_size**2))
         # Observations (visible state):
@@ -61,16 +62,16 @@ class SimpleSimGym(gym.Env):
             {
                 "targets": spaces.Box(
                     low=-max_dist,
-                    high=self.game.max_budget * self.game.max_targets,
-                    shape=(3, max_targets),
+                    high=max_dist,
+                    shape=(3, self.game.max_targets),
                     dtype=np.float32,
-                ),  # target position (rel_x, rel_y)
+                ),  # target position (rel_x, rel_y, entropy)
                 "environment": spaces.Box(
                     low=0,
                     high=self.game.max_budget,
-                    shape=(1, 1),
+                    shape=(2, 1),
                     dtype=np.float32,
-                ),  # environment remaining budget
+                ),  # environment (remaining budget, num_targets)
             }
         )
         self.observation_space = spaces.utils.flatten_space(
@@ -94,35 +95,42 @@ class SimpleSimGym(gym.Env):
 
         # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)
-        target_info = np.zeros(shape=(3, len(self.game.targets)), dtype=np.float32)
-        for i, target in enumerate(self.game.targets):
-            target_x_cart = target.x
-            target_y_cart = self.game.env_size - target.y
+        target_info = np.zeros(shape=(3, self.game.max_targets), dtype=np.float32)
+        for i in range(0, self.game.max_targets):
+            # If this is a target
+            if i < self.game.num_targets:
+                target = self.game.targets[i]
 
-            # Add target relative positions
-            robot_x_cart = self.game.robot.x
-            robot_y_cart = self.game.env_size - self.game.robot.y
-            dx = target_x_cart - robot_x_cart
-            dy = target_y_cart - robot_y_cart
-            (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-            target_info[0, i] = dx
-            target_info[1, i] = dy
+                target_x_cart = target.x
+                target_y_cart = self.game.env_size - target.y
 
-            # Add current object sum of confidence over all time
-            # target_info[2, i] = float(np.sum(self.game.confidences[i, :]))                
-            # target_info[2, i] = self.get_closeness(self.game.robot, target)
-            # target_info[2, i] = min(10, float(np.sum(self.game.confidences[i, :])))
-            target_info[2, i] = self.entropies[i]
+                # Add target relative positions
+                robot_x_cart = self.game.robot.x
+                robot_y_cart = self.game.env_size - self.game.robot.y
+                dx = target_x_cart - robot_x_cart
+                dy = target_y_cart - robot_y_cart
+                (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
+                target_info[0, i] = dx
+                target_info[1, i] = dy
+
+                # Add current object sum of confidence over all time
+                target_info[2, i] = self.entropies[i]
+
+            else:
+                # Fill the rest of the target information with zeros if there are no more targets
+                target_info[0, i] = 0
+                target_info[1, i] = 0
+                target_info[2, i] = 0
+
 
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
             {
                 # "agent": agent_info,
                 "targets": target_info,
-                "environment": self.game.budget,
+                "environment": [self.game.budget, self.game.num_targets],
             },
         )
-        # print(observation, "\n")
         return observation
 
     def _get_reward(self, action):
@@ -279,7 +287,7 @@ class SimpleSimGym(gym.Env):
         entropy_reward = entropy_reward * reward_multiplier
 
         # Normalise the reward against the number of targets
-        entropy_reward = entropy_reward / self.game.max_targets
+        entropy_reward = entropy_reward / self.game.num_targets
         return entropy_reward
 
     def world_to_body_frame(self, x, y):

@@ -58,7 +58,9 @@ class Target(object):
         # Position
         self.x = x
         self.y = y
-        # Orientation
+        # # Orientation
+        # self.angle = 90 # unit circle angle format
+        # Randomise orientation
         self.angle = random.randint(0, 359)  # unit circle angle format
         self.xdir = math.cos(math.radians(self.angle))
         self.ydir = math.sin(math.radians(self.angle))
@@ -174,7 +176,6 @@ class SimpleSim(object):
 
         self.max_budget = max_budget
         self.max_targets = max_targets
-        self.num_targets = 1 * self.max_targets
         self.num_classes = num_classes
         self.num_walls = 0
         self.player_fov = player_fov
@@ -688,11 +689,10 @@ class SimpleSim(object):
         # Reset and re-randomise environment conditions
         self.count = 0
         self.gameover = False
-        self.budget = (
-            random.random() * self.max_budget
-        )  # Randomise the budget between 0 and max of max_budget
-        self.num_targets = 1 * self.max_targets
-        # self.num_targets = round(random.random() * self.max_targets)
+        # Randomise the budget between 0 and a max of max_budget
+        self.budget = 1 + round((self.max_budget-1) * random.random())
+        # Randomise the number of targets between 0 and a max of max_budget
+        self.num_targets = 1 + round((self.max_targets-1) * random.random())
 
         # Re-spawn entites
         self.walls = self.spawn_walls(self.num_walls)
