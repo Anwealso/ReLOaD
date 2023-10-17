@@ -408,7 +408,7 @@ if __name__ == "__main__":
             n_envs=1,
             monitor_dir=config["logdir"],
             env_kwargs=dict(
-                max_budget=max_budget,
+                max_budget=MAX_BUDGET,
                 max_targets=MAX_TARGETS,
                 num_classes=NUM_CLASSES,
                 player_fov=PLAYER_FOV,
