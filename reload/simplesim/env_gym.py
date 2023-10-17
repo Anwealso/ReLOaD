@@ -16,10 +16,10 @@ class SimpleSimGym(gym.Env):
 
     def __init__(
         self,
-        starting_budget=2000,
-        num_targets=8,
-        player_fov=60,
+        max_budget=2000,
+        max_targets=8,
         num_classes=10,
+        player_fov=60,
         action_format="discrete",
         render_mode=None,
     ):
@@ -34,10 +34,10 @@ class SimpleSimGym(gym.Env):
 
         # Internal State:
         self.game = SimpleSim(
-            starting_budget,
-            num_targets,
-            player_fov,
+            max_budget,
+            max_targets,
             num_classes,
+            player_fov,
             action_format,
             render_mode=render_mode,
             render_fps=self.metadata["render_fps"],
@@ -61,13 +61,13 @@ class SimpleSimGym(gym.Env):
             {
                 "targets": spaces.Box(
                     low=-max_dist,
-                    high=self.game.starting_budget * self.game.num_targets,
-                    shape=(3, num_targets),
+                    high=self.game.max_budget * self.game.max_targets,
+                    shape=(3, max_targets),
                     dtype=np.float32,
                 ),  # target position (rel_x, rel_y)
                 "environment": spaces.Box(
                     low=0,
-                    high=self.game.starting_budget,
+                    high=self.game.max_budget,
                     shape=(1, 1),
                     dtype=np.float32,
                 ),  # environment remaining budget
@@ -77,8 +77,8 @@ class SimpleSimGym(gym.Env):
             self.observation_space_unflattened
         )
 
-        self.entropies = np.ones(shape=(num_targets,))
-        self.min_entropies = np.ones(shape=(num_targets,))  # the max ever entropies
+        self.entropies = np.ones(shape=(max_targets,))
+        self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
 
         self.window = None
         self.clock = None
@@ -271,7 +271,7 @@ class SimpleSimGym(gym.Env):
             reward_multiplier = 1000
 
         elif method == "absolute":
-            entropy_reward = self.game.num_targets - np.sum(self.entropies)
+            entropy_reward = self.game.max_targets - np.sum(self.entropies)
             reward_multiplier = 10
 
         # Add a multiplier to ensure it is worth it for the robot to  seek more
@@ -279,7 +279,7 @@ class SimpleSimGym(gym.Env):
         entropy_reward = entropy_reward * reward_multiplier
 
         # Normalise the reward against the number of targets
-        entropy_reward = entropy_reward / self.game.num_targets
+        entropy_reward = entropy_reward / self.game.max_targets
         return entropy_reward
 
     def world_to_body_frame(self, x, y):
@@ -376,8 +376,8 @@ class SimpleSimGym(gym.Env):
 if __name__ == "__main__":
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
-    STARTING_BUDGET = 500
-    NUM_TARGETS = 5
+    MAX_BUDGET = 500
+    MAX_TARGETS = 5
     NUM_CLASSES = 10
     PLAYER_FOV = 30
     ACTION_FORMAT = "continuous"
@@ -386,12 +386,11 @@ if __name__ == "__main__":
     INTERACTIVE = True
 
     # -------------------------------- Environment ------------------------------- #
-
     # Instantiate two environments: one for training and one for evaluation.
     if INTERACTIVE:
         env = SimpleSimGym(
-            starting_budget=STARTING_BUDGET,
-            num_targets=NUM_TARGETS,
+            max_budget=MAX_BUDGET,
+            max_targets=MAX_TARGETS,
             num_classes=NUM_CLASSES,
             player_fov=PLAYER_FOV,
             action_format=ACTION_FORMAT,
@@ -409,8 +408,9 @@ if __name__ == "__main__":
             n_envs=1,
             monitor_dir=config["logdir"],
             env_kwargs=dict(
-                starting_budget=STARTING_BUDGET,
-                num_targets=NUM_TARGETS,
+                max_budget=max_budget,
+                max_targets=MAX_TARGETS,
+                num_classes=NUM_CLASSES,
                 player_fov=PLAYER_FOV,
                 action_format=ACTION_FORMAT,
                 render_mode="human",

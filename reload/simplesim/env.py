@@ -141,10 +141,10 @@ class SimpleSim(object):
 
     def __init__(
         self,
-        starting_budget,
-        num_targets,
-        player_fov,
+        max_budget,
+        max_targets,
         num_classes,
+        player_fov,
         action_format,
         seed=None,
         render_mode=None,
@@ -154,10 +154,10 @@ class SimpleSim(object):
         Initialises a SimpleSim instance
 
         Args:
-            starting_budget (int): The budget the agent will start each episode
-                of the game with.
-            num_targets (int): The number of targets in the game for the agent
-                to identify.
+            max_budget (int): The maximum budget the agent will start each
+                episode of the game with.
+            max_targets (int): The maximum number of targets in the game for
+                the agent to identify.
             player_fov (int): The FOV of the robot (in degrees)
         Returns:
             None
@@ -171,57 +171,38 @@ class SimpleSim(object):
         self.env_size = 500  # number of coords size of the env
         self.player_size = 50
         self.target_size = 50
-        self.starting_budget = starting_budget
-        self.budget = round(random.random() * self.starting_budget) # Randomise the budget between 0 and max of starting_budget
-        self.num_targets = num_targets
+
+        self.max_budget = max_budget
+        self.max_targets = max_targets
+        self.num_targets = 1 * self.max_targets
         self.num_classes = num_classes
         self.num_walls = 0
+        self.player_fov = player_fov
+
         self.action_format = action_format
-        self.gameover = False
-        self.paused = False
-        self.count = 0
-        self.targets = []
-        self.walls = []
 
         # Rendering info
         self.render_mode = render_mode
         self.render_fps = render_fps
         self.window = None
         self.clock = None
+        self.paused = False
         self.display_scale = 1.5  # display size in pixels
         self.display_env_size = self.env_size * self.display_scale
         self.display_player_size = self.player_size * self.display_scale
         self.display_target_size = self.target_size * self.display_scale
         self.scoreboard_items = {}
 
-        # Confidences on each object at current timestep (this matrix will be appended to)
-        self.current_confidences = np.zeros(
-            (self.num_targets, self.num_classes), dtype=np.float32
-        )
-        # Confidences on each object at each timestep
-        self.confidences = np.zeros(
-            (self.num_targets, self.num_classes), dtype=np.float32
-        )
-
-        # Setup learning curriculum
-        self.curriculum_level = (
-            1  # 1 = no limit (100%) unless this member variable is set manually
-        )
-        self.min_target_dist = 0  # was 80
-
         # Get class names
         text_file = open("classlist.txt", "r")
         self.class_names = [line.strip() for line in text_file.readlines()]
         text_file.close()
+        self.class_names = self.class_names[
+            0 : self.num_classes
+        ]  # truncate to however many classes we have
 
-        # Spawn in entites
-        self.spawn_robot(player_fov)
-        self.spawn_targets(self.num_targets)
-        # self.spawn_walls(self.num_walls)
-
-        # Setup confidence histograms
-        if self.render_mode == "human":
-            self.plot = Plot(num_targets, num_classes, self.class_names)
+        # Reset game state to initial
+        self.reset()
 
     def spawn_walls(self, num_to_spawn):
         """
@@ -231,6 +212,7 @@ class SimpleSim(object):
         min_size = 50
         max_size = 200
 
+        walls = []
         for _ in range(0, num_to_spawn):
             xmin, ymin = (
                 random.randrange(0, self.env_size - min_size),
@@ -241,7 +223,9 @@ class SimpleSim(object):
                 random.randrange(ymin + min_size, min(self.env_size, ymin + max_size)),
             )
 
-            self.walls.append(Wall(xmin, ymin, xmax, ymax))
+            walls.append(Wall(xmin, ymin, xmax, ymax))
+
+        return walls
 
     def spawn_robot(self, player_fov):
         """
@@ -277,7 +261,8 @@ class SimpleSim(object):
                 break
 
         theta = random.randrange(0, 360)
-        self.robot = Robot(
+
+        return Robot(
             player_fov,
             self.player_size,
             x,
@@ -296,21 +281,12 @@ class SimpleSim(object):
         Returns:
             None
         """
+        targets = []
         for _ in range(0, num_to_spawn):
             # rank = random.choice([1, 1, 1, 2, 2, 3])
             rank = 1
             size = self.target_size * rank
             target_class_id = random.randint(0, self.num_classes - 1)
-
-            # If target is within allowable distance to robot, break
-            max_band_gap = (
-                math.sqrt(2 * (self.env_size) ** 2) - self.min_target_dist
-            )  # the max width of the band between the min and max spawn limits
-            current_max_target_dist = self.min_target_dist + (
-                self.curriculum_level * max_band_gap
-            )
-            if current_max_target_dist == self.min_target_dist:
-                current_max_target_dist += 5  # avoid infinite or very long loops
 
             while True:
                 x, y = (
@@ -318,25 +294,22 @@ class SimpleSim(object):
                     random.randrange(0 + size // 2, self.env_size - size // 2),
                 )
 
-                # CHeck its within the curriculum zone
-                dS = math.sqrt((x - self.robot.x) ** 2 + (y - self.robot.y) ** 2)
-                if (dS >= self.min_target_dist) and (dS <= current_max_target_dist):
-                    # Check target is not inside wall
-                    valid = True
-                    for wall in self.walls:
-                        if (
-                            (x + (size / 2) > wall.xmin)
-                            and (y + (size / 2) > wall.ymin)
-                            and (x - (size / 2) < wall.xmax)
-                            and (y - (size / 2) < wall.ymax)
-                        ):
-                            # Inside wall
-                            valid = False
-                    if valid:
-                        # If target spawn wasnt inside and walls
-                        break
+                valid = True
+                for wall in self.walls:
+                    if (
+                        (x + (size / 2) > wall.xmin)
+                        and (y + (size / 2) > wall.ymin)
+                        and (x - (size / 2) < wall.xmax)
+                        and (y - (size / 2) < wall.ymax)
+                    ):
+                        # Inside wall
+                        valid = False
+                if valid:
+                    # If target spawn wasnt inside and walls
+                    break
 
-            self.targets.append(Target(rank, x, y, target_class_id))
+            targets.append(Target(rank, x, y, target_class_id))
+        return targets
 
     def can_see(self, target: Target):
         """
@@ -712,15 +685,21 @@ class SimpleSim(object):
         Returns:
             None
         """
+        # Reset and re-randomise environment conditions
+        self.count = 0
         self.gameover = False
-        self.budget = round(random.random() * self.starting_budget) # Randomise the budget between 0 and max of starting_budget
+        self.budget = (
+            random.random() * self.max_budget
+        )  # Randomise the budget between 0 and max of max_budget
+        self.num_targets = 1 * self.max_targets
+        # self.num_targets = round(random.random() * self.max_targets)
 
-        self.walls.clear()
-        self.spawn_walls(self.num_walls)
-        self.spawn_robot(self.robot.fov)
-        self.targets.clear()
-        self.spawn_targets(self.num_targets)
+        # Re-spawn entites
+        self.walls = self.spawn_walls(self.num_walls)
+        self.robot = self.spawn_robot(self.player_fov)
+        self.targets = self.spawn_targets(self.num_targets)
 
+        # Reset information gathering vectors
         self.current_confidences = np.zeros(
             (self.num_targets, self.num_classes), dtype=np.float32
         )
@@ -728,7 +707,13 @@ class SimpleSim(object):
             (self.num_targets, self.num_classes, 1), dtype=np.float32
         )
 
-        self.count = 0
+        # Re-setup confidence histograms
+        if self.render_mode == "human":
+            try:
+                self.plot.close()
+            except Exception:
+                pass
+            self.plot = Plot(self.num_targets, self.num_classes, self.class_names)
 
         self.render()
 
@@ -786,8 +771,13 @@ class SimpleSim(object):
         for class_id in range(0, self.num_classes):
             class_sprites.append(
                 pygame.transform.scale(
-                    pygame.image.load(sprites_dir + f"{self.class_names[class_id]}.png"),
-                    (target_size * self.display_scale, target_size * self.display_scale),
+                    pygame.image.load(
+                        sprites_dir + f"{self.class_names[class_id]}.png"
+                    ),
+                    (
+                        target_size * self.display_scale,
+                        target_size * self.display_scale,
+                    ),
                 )
             )
 
@@ -798,7 +788,6 @@ class SimpleSim(object):
         bold_font = pygame.font.SysFont(
             font_family, int(10 * self.display_scale), bold=True
         )
-        
 
         # --------------------------- Draw all the entities -------------------------- #
         # # Draw the background image
@@ -885,7 +874,9 @@ class SimpleSim(object):
             #     image = target150
 
             # Setup Render Surfs
-            rotated_target_surf = pygame.transform.rotate(class_sprites[target.class_id], target.angle - 90)
+            rotated_target_surf = pygame.transform.rotate(
+                class_sprites[target.class_id], target.angle - 90
+            )
             rotated_target_rect = rotated_target_surf.get_rect()
             rotated_target_rect.center = (
                 target.x * self.display_scale,
@@ -893,9 +884,12 @@ class SimpleSim(object):
             )
             canvas.blit(rotated_target_surf, rotated_target_rect)
             # Draw target centre
-            circle_width = 7*self.display_scale
+            circle_width = 7 * self.display_scale
             pygame.draw.circle(
-                canvas, (255, 255, 255), (target.x*self.display_scale, target.y*self.display_scale), circle_width
+                canvas,
+                (255, 255, 255),
+                (target.x * self.display_scale, target.y * self.display_scale),
+                circle_width,
             )
             # Draw target number
             target_text = bold_font.render(str(i), 2, (0, 0, 0))
@@ -1128,22 +1122,32 @@ class Plot(object):
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
 
+    def close(self):
+        # Closes the current plot fig
+        plt.close(self.fig)
+
     def rand_cmap(
         self,
         nlabels,
         type="bright",
         first_color_black=True,
         last_color_black=False,
-        verbose=False,
+        verbose=0,
     ):
         """
-        Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks
-        :param nlabels: Number of labels (size of colormap)
-        :param type: 'bright' for strong colors, 'soft' for pastel colors
-        :param first_color_black: Option to use first color as black, True or False
-        :param last_color_black: Option to use last color as black, True or False
-        :param verbose: Prints the number of labels and shows the colormap. True or False
-        :return: colormap for matplotlib
+        Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks.
+
+        Args:
+            nlabels [int]: Number of labels (size of colormap)
+            type [string]: 'bright' for strong colors, 'soft' for pastel colors
+            first_color_black [bool]: Option to use first color as black, True or False
+            last_color_black [bool]: Option to use last color as black, True or False
+            verbose [int]: Prints the number of labels and shows the colormap. True or False
+
+        Returns:
+            colormap for matplotlib
+
+        Author: Felipe Delestro Matos (https://github.com/delestro/rand_cmap)
         """
         from matplotlib.colors import LinearSegmentedColormap
         import colorsys
@@ -1153,7 +1157,7 @@ class Plot(object):
             print('Please choose "bright" or "soft" for type')
             return
 
-        if verbose:
+        if verbose > 0:
             print("Number of labels: " + str(nlabels))
 
         # Generate color map for bright colors, based on hsv
@@ -1207,7 +1211,7 @@ class Plot(object):
             )
 
         # Display colorbar
-        if verbose:
+        if verbose > 0:
             from matplotlib import colors, colorbar
             from matplotlib import pyplot as plt
 
@@ -1230,17 +1234,14 @@ class Plot(object):
         return random_colormap
 
 
-# ---------------------------------------------------------------------------- #
-#                                     MAIN                                     #
-# ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
     # Hyperparameters
-    STARTING_BUDGET = 2000
+    MAX_BUDGET = 2000
     NUM_TARGETS = 8
     PLAYER_FOV = 60
 
     game = SimpleSim(
-        starting_budget=STARTING_BUDGET,
+        max_budget=MAX_BUDGET,
         num_targets=NUM_TARGETS,
         player_fov=PLAYER_FOV,
         render_mode="human",
