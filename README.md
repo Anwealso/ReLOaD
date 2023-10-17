@@ -51,11 +51,11 @@ self.action_space = spaces.Box( # robot twist motion (v, w)
 
 The reward given at each timestep is a scaled version of the average information gain across the targets in the environment.
 
-$$reward = R_{s} = \frac{1}{M}\sum_{m=0}^{M-1}{{IG}_m}$$
+$$ reward = R_{s} = \frac{1}{M}\sum_{m=0}^{M-1}{IG_m} $$
 
 where: $M$ = number of targets.
 
-$$ {IG}_m = \frac{1}{T}\sum_{t=0}^{T-1}{\left(1-\sum_{n=0}^{N-1}{-p_n\log_{N}p_n}\right)} $$
+$$ IG_m = \frac{1}{T}\sum_{t=0}^{T-1}{\left(1-\sum_{n=0}^{N-1}{-p_n\log_{N}p_n}\right)} $$
 
 where: $N$ = number of classes, $T$ = number of timesteps so far, and $p_n$ is the probability of target $m$ being of class $n$ (as returned by the object detection algorithm at timestep $t$)
 
