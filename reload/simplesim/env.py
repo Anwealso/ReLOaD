@@ -928,7 +928,7 @@ class SimpleSim(object):
             )
 
         # Draw the onscreen menu text
-        play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
+        play_again_text = font.render("Press Tab to Play Again", 1, (0, 0, 0))
         if self.gameover:
             canvas.blit(
                 play_again_text,
@@ -938,7 +938,7 @@ class SimpleSim(object):
                 ),
             )
 
-        pause_text = font.render("Press P to Unpause", 1, (0, 255, 0))
+        pause_text = font.render("Press P to Unpause", 1, (0, 0, 0))
         if self.paused:
             canvas.blit(
                 pause_text,
@@ -980,7 +980,7 @@ class SimpleSim(object):
 
     def render_scoreboard(self, canvas, font):
         metric_count = 0
-        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
+        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 0, 0))
         canvas.blit(
             budget_text,
             (
@@ -997,7 +997,7 @@ class SimpleSim(object):
             metric_text = font.render(
                 f"{metric_name}: " + str(item),
                 1,
-                (0, 255, 0),
+                (0, 0, 0),
             )
             canvas.blit(
                 metric_text,

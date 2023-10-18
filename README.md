@@ -9,7 +9,7 @@ Bachleor of Engineering Honors Thesis
 ## Overview
 
 ### Aim
-The aim of the thesis project was to create an system that augments the abilities of an exitsing object detection algorithm with a reinforcement learning trained agent that can manoeuvre the camera view in order to improve the accuracy of object detection results.
+The aim of the thesis project was to create a system that augments the abilities of an exitsing object detection algorithm for use on a mobile robot by adding a reinforcement learning trained agent that can intelligently manoeuvre the robot in order to improve the accuracy of object detection results.
 
 ### Envirionment
 
