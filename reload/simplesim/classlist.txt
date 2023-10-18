@@ -1,0 +1,10 @@
+apple
+carrot
+cat
+dog
+person
+chair
+tv-monitor
+potted-plant
+book
+coffee-mug
