@@ -6,8 +6,6 @@ import time
 import random
 import gymnasium as gym
 from gymnasium import spaces
-from matplotlib import pyplot as plt
-from PIL import Image
 
 from stable_baselines3 import DQN, PPO, SAC, TD3
 from stable_baselines3.common.env_util import make_vec_env
@@ -87,13 +85,13 @@ class SimpleSimGym(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        # # ----------------------------------- AGENT ---------------------------------- #
-        # # Agent x,y,angle
-        # # agent_x_cart = self.game.robot.x
-        # # agent_y_cart = self.game.window_size - self.game.robot.x
-        # # agent_info = np.array(
-        # #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
-        # # ).astype(np.float32)
+        # ----------------------------------- AGENT ---------------------------------- #
+        # Agent x,y,angle
+        # agent_x_cart = self.game.robot.x
+        # agent_y_cart = self.game.window_size - self.game.robot.x
+        # agent_info = np.array(
+        #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
+        # ).astype(np.float32)
 
         # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)

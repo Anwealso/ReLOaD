@@ -192,24 +192,18 @@ class SimpleSim(object):
         self.display_env_size = self.env_size * self.display_scale
         self.display_player_size = self.player_size * self.display_scale
         self.display_target_size = self.target_size * self.display_scale
+        self.scoreboard_items = {}
 
-        self.targets = []
-        self.walls = []
-        # 1D array of confidences on each object at current timestep
-        self.current_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # 2D array of confidences on each object at each timestep
-        self.confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # 1D array of confidences on each object avg over all past timesteps
-        self.avg_confidences = np.zeros((self.num_targets, 1), dtype=np.float32)
-        # Note: Using avg might cause agent to simply find the best spot with
-        # the most objects in view and camp there to farm for max score
+        # Get class names
+        text_file = open("classlist.txt", "r")
+        self.class_names = [line.strip() for line in text_file.readlines()]
+        text_file.close()
+        self.class_names = self.class_names[
+            0 : self.num_classes
+        ]  # truncate to however many classes we have
 
-        self.curriculum = 1  # no limit unless this member variable is set manually
-        self.min_target_dist = 0  # was 80
-        self.num_walls = 0
-        # self.spawn_walls(self.num_walls)
-        self.spawn_robot(player_fov)
-        self.spawn_targets(self.num_targets)
+        # Reset game state to initial
+        self.reset()
 
     def spawn_walls(self, num_to_spawn):
         """
@@ -637,25 +631,6 @@ class SimpleSim(object):
                         break
             return action
 
-    def fully_explored(self, target_index):
-        """
-        Check if a target has been surveyed good-enough
-        """
-
-        confidence_threshold = 10
-        
-        if np.sum(self.confidences[target_index, :]) > confidence_threshold:
-            return True
-        else:
-            return False
-        
-    def all_fully_explored(self):
-        for target_index in range(0, len(self.targets)):
-            if not self.fully_explored(target_index):
-                return False
-        
-        return True
-
     def step(self, action):
         """
         Runs the game logic (controller)
@@ -748,16 +723,17 @@ class SimpleSim(object):
             if self.render_mode == "rgb_array":
                 return frame
 
-    def _render_frame(self, render_mode=None):
-        if render_mode == None:
-            render_mode = self.render_mode
+    def _render_frame(self):
         pygame.init()
-        if self.window is None and self.render_mode == "human":
-            pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
-            pygame.display.set_caption("ReLOaD Simulator")
-        if self.clock is None and self.render_mode == "human":
-            self.clock = pygame.time.Clock()
+        if self.render_mode == "human":
+            if self.window is None:
+                pygame.display.init()
+                self.window = pygame.display.set_mode(
+                    (self.display_env_size, self.display_env_size)
+                )
+                pygame.display.set_caption("ReLOaD Simulator")
+            if self.clock is None:
+                self.clock = pygame.time.Clock()
 
         # ------------------ Create the base canvas and load assets ------------------ #
         canvas = pygame.Surface((self.display_env_size, self.display_env_size))
@@ -888,21 +864,42 @@ class SimpleSim(object):
         # pygame.draw.circle(canvas, (0, 255, 0), (self.robot.x, self.robot.y), 5) # robot centre
 
         # Draw the targets
-        for target in self.targets:
+        for i, target in enumerate(self.targets):
             # Set the sprite and hitbox size
-            if target.rank == 1:
-                image = target50
-            elif target.rank == 2:
-                image = target100
-            else:
-                image = target150
+            # if target.rank == 1:
+            #     image = target50
+            # elif target.rank == 2:
+            #     image = target100
+            # else:
+            #     image = target150
 
             # Setup Render Surfs
-            rotated_target_surf = pygame.transform.rotate(image, target.angle - 90)
+            rotated_target_surf = pygame.transform.rotate(
+                class_sprites[target.class_id], target.angle - 90
+            )
             rotated_target_rect = rotated_target_surf.get_rect()
-            rotated_target_rect.center = (target.x, target.y)
+            rotated_target_rect.center = (
+                target.x * self.display_scale,
+                target.y * self.display_scale,
+            )
             canvas.blit(rotated_target_surf, rotated_target_rect)
-            # pygame.draw.circle(canvas, (0, 255, 0), (target.x, target.y), 5) # target centre
+            # Draw target centre
+            circle_width = 7 * self.display_scale
+            pygame.draw.circle(
+                canvas,
+                (255, 255, 255),
+                (target.x * self.display_scale, target.y * self.display_scale),
+                circle_width,
+            )
+            # Draw target number
+            target_text = bold_font.render(str(i), 2, (0, 0, 0))
+            canvas.blit(
+                target_text,
+                (
+                    target.x * self.display_scale - target_text.get_width() // 2,
+                    target.y * self.display_scale - target_text.get_width() // 2 - 3,
+                ),
+            )
 
         # Draw the walls
         wall: Wall
@@ -921,22 +918,23 @@ class SimpleSim(object):
 
         # Draw the robot's trail
         for point in self.robot.trail:
-            pygame.draw.circle(canvas, (255, 0, 0), point, 2)
+            x, y = point
+
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 0),
+                (x * self.display_scale, y * self.display_scale),
+                2 * self.display_scale,
+            )
 
         # Draw the onscreen menu text
-        # font = pygame.font.SysFont("arial", 30)
-        font = pygame.font.Font(None, 25)
-
-        budget_text = font.render("Budget: " + str(self.budget), 1, (0, 255, 0))
-        canvas.blit(budget_text, (25, 25))
-
         play_again_text = font.render("Press Tab to Play Again", 1, (0, 255, 0))
         if self.gameover:
             canvas.blit(
                 play_again_text,
                 (
-                    self.window_size // 2 - play_again_text.get_width() // 2,
-                    self.window_size // 2 - play_again_text.get_height() // 2,
+                    self.env_size // 2 - play_again_text.get_width() // 2,
+                    self.env_size // 2 - play_again_text.get_height() // 2,
                 ),
             )
 
@@ -945,16 +943,27 @@ class SimpleSim(object):
             canvas.blit(
                 pause_text,
                 (
-                    self.window_size // 2 - pause_text.get_width() // 2,
-                    self.window_size // 2 - pause_text.get_height() // 2,
+                    self.env_size // 2 - pause_text.get_width() // 2,
+                    self.env_size // 2 - pause_text.get_height() // 2,
                 ),
             )
 
         # Render the socreboard info
-        self.render_scoreboard(canvas)
+        self.render_scoreboard(canvas, font)
 
-        # --------------- Send the rendered view to the relevant viewer -------------- #
         if self.render_mode == "human":
+            # Render the matplotlib histograms
+            num_confidences = np.sum(self.confidences, axis=2)
+            observations = np.count_nonzero(self.confidences, axis=2)
+            all_time_avg = np.divide(
+                num_confidences,
+                observations,
+                where=(observations > 0),
+                out=np.full_like(num_confidences, 1 / self.num_classes),
+            )
+            self.plot.update(all_time_avg)
+
+            # --------------- Send the rendered view to the relevant viewer -------------- #
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
