@@ -27,6 +27,7 @@ class SimpleSimGym(gym.Env):
         Description,
             Initializes the openai-gym environment with it's features.
         """
+        max_targets=5
 
         # Init. Renders
         assert render_mode is None or render_mode in self.metadata["render_modes"]

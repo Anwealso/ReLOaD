@@ -736,6 +736,8 @@ class SimpleSim(object):
                 self.clock = pygame.time.Clock()
 
         # ------------------ Create the base canvas and load assets ------------------ #
+        SPRITE_SIZE_MULTIPLEIER = 1.2
+
         canvas = pygame.Surface((self.display_env_size, self.display_env_size))
 
         if os.path.dirname(__file__) != "":
@@ -749,7 +751,7 @@ class SimpleSim(object):
         # )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
-            (self.display_player_size, self.display_player_size),
+            (self.display_player_size*SPRITE_SIZE_MULTIPLEIER, self.display_player_size*SPRITE_SIZE_MULTIPLEIER),
         )
 
         target_size = 50
@@ -775,8 +777,8 @@ class SimpleSim(object):
                         sprites_dir + f"{self.class_names[class_id]}.png"
                     ),
                     (
-                        target_size * self.display_scale,
-                        target_size * self.display_scale,
+                        target_size * self.display_scale * SPRITE_SIZE_MULTIPLEIER,
+                        target_size * self.display_scale * SPRITE_SIZE_MULTIPLEIER,
                     ),
                 )
             )
@@ -784,9 +786,9 @@ class SimpleSim(object):
         fov_color = (0, 0, 255, 70)
         fov_line_length = int(500 * self.display_scale)
         fov_line_thickness = int(5 * self.display_scale)
-        font = pygame.font.SysFont(font_family, int(15 * self.display_scale))
+        font = pygame.font.SysFont(font_family, int(25 * self.display_scale))
         bold_font = pygame.font.SysFont(
-            font_family, int(10 * self.display_scale), bold=True
+            font_family, int(20 * self.display_scale), bold=True
         )
 
         # --------------------------- Draw all the entities -------------------------- #
@@ -884,7 +886,7 @@ class SimpleSim(object):
             )
             canvas.blit(rotated_target_surf, rotated_target_rect)
             # Draw target centre
-            circle_width = 7 * self.display_scale
+            circle_width = 8 * self.display_scale
             pygame.draw.circle(
                 canvas,
                 (255, 255, 255),
