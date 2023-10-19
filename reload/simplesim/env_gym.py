@@ -20,7 +20,7 @@ class SimpleSimGym(gym.Env):
         max_targets=8,
         num_classes=10,
         player_fov=60,
-        action_format="discrete",
+        action_format="continuous",
         render_mode=None,
     ):
         """
