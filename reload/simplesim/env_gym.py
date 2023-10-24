@@ -84,9 +84,7 @@ class SimpleSimGym(gym.Env):
 
         self.entropies = np.ones(shape=(max_targets,))
         # self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
-        self.best_reward = (
-            0  # keep track of the best reward in the current episode so far
-        )
+        self.best_reward = 0  # keep track of the best reward in the current episode so far
 
         self.window = None
         self.clock = None
@@ -372,7 +370,9 @@ class SimpleSimGym(gym.Env):
         Returns:
             Standard return format as specified by Gymnasium API
         """
-        self.game.reset()
+        self.game.reset() # reset the underlying gae state
+
+        self.best_reward = 0 # reset best reward for episode
 
         info = {}  # no extra info at this stage
         return self._get_obs(), info
