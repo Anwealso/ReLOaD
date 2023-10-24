@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
 # ---------------------------------------------------------------------------- #
-font_family = "Helvetica"
+font_family = "Ubuntu"
 
 # ---------------------------------------------------------------------------- #
 #                                    CLASSES                                   #
@@ -151,6 +151,7 @@ class SimpleSim(object):
         seed=None,
         render_mode=None,
         render_fps=None,
+        render_plots=True,
     ):
         """
         Initialises a SimpleSim instance
@@ -193,6 +194,7 @@ class SimpleSim(object):
         self.display_player_size = self.player_size * self.display_scale
         self.display_target_size = self.target_size * self.display_scale
         self.scoreboard_items = {}
+        self.render_plots = render_plots
 
         # Get class names
         text_file = open("classlist.txt", "r")
@@ -708,7 +710,7 @@ class SimpleSim(object):
         )
 
         # Re-setup confidence histograms
-        if self.render_mode == "human":
+        if self.render_mode == "human" and self.render_plots==True:
             try:
                 self.plot.close()
             except Exception:
@@ -954,16 +956,17 @@ class SimpleSim(object):
         self.render_scoreboard(canvas, font)
 
         if self.render_mode == "human":
-            # Render the matplotlib histograms
-            num_confidences = np.sum(self.confidences, axis=2)
-            observations = np.count_nonzero(self.confidences, axis=2)
-            all_time_avg = np.divide(
-                num_confidences,
-                observations,
-                where=(observations > 0),
-                out=np.full_like(num_confidences, 1 / self.num_classes),
-            )
-            self.plot.update(all_time_avg)
+            if self.render_plots==True:
+                # Render the matplotlib histograms
+                num_confidences = np.sum(self.confidences, axis=2)
+                observations = np.count_nonzero(self.confidences, axis=2)
+                all_time_avg = np.divide(
+                    num_confidences,
+                    observations,
+                    where=(observations > 0),
+                    out=np.full_like(num_confidences, 1 / self.num_classes),
+                )
+                self.plot.update(all_time_avg)
 
             # --------------- Send the rendered view to the relevant viewer -------------- #
             # The following line copies our drawings from `canvas` to the visible window

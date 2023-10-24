@@ -22,6 +22,7 @@ class SimpleSimGym(gym.Env):
         player_fov=60,
         action_format="continuous",
         render_mode=None,
+        render_plots=True,
     ):
         """
         Description,
@@ -42,6 +43,7 @@ class SimpleSimGym(gym.Env):
             action_format,
             render_mode=render_mode,
             render_fps=self.metadata["render_fps"],
+            render_plots=render_plots,
         )
 
         if action_format == "discrete":
