@@ -28,7 +28,7 @@ class SimpleSimGym(gym.Env):
         Description,
             Initializes the openai-gym environment with it's features.
         """
-        max_targets=5
+        max_targets = 5
 
         # Init. Renders
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -48,16 +48,17 @@ class SimpleSimGym(gym.Env):
 
         if action_format == "discrete":
             # Discrete action space
-            self.action_space = spaces.Discrete(5) # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
+            self.action_space = spaces.Discrete(
+                5
+            )  # Actions: 0, 1, 2, 3, 4 for do nothing, R, F, L, B
         elif action_format == "continuous":
             # Continuous action space
-            self.action_space = spaces.Box( # Actions: twist vector
+            self.action_space = spaces.Box(  # Actions: twist vector
                 low=-1,
                 high=1,
                 shape=(2,),
                 dtype=np.float32,
             )
-            
 
         max_dist = math.sqrt(2 * (self.game.env_size**2))
         # Observations (visible state):
@@ -82,25 +83,19 @@ class SimpleSimGym(gym.Env):
         )
 
         self.entropies = np.ones(shape=(max_targets,))
-        self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
+        # self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
+        self.best_reward = (
+            0  # keep track of the best reward in the current episode so far
+        )
 
         self.window = None
         self.clock = None
 
     def _get_obs(self):
-        # ----------------------------------- AGENT ---------------------------------- #
-        # Agent x,y,angle
-        # agent_x_cart = self.game.robot.x
-        # agent_y_cart = self.game.window_size - self.game.robot.x
-        # agent_info = np.array(
-        #     [agent_x_cart, agent_y_cart, self.game.robot.angle]
-        # ).astype(np.float32)
-
-        # ---------------------------------- TARGETS --------------------------------- #
         # Target relative positions (dx,dy)
         target_info = np.zeros(shape=(3, self.game.max_targets), dtype=np.float32)
         for i in range(0, self.game.max_targets):
-            # If this is a target
+            # If this target slot is in use for this episode
             if i < self.game.num_targets:
                 target = self.game.targets[i]
 
@@ -125,11 +120,9 @@ class SimpleSimGym(gym.Env):
                 target_info[1, i] = 0
                 target_info[2, i] = 0
 
-
         observation = spaces.utils.flatten(
             self.observation_space_unflattened,
             {
-                # "agent": agent_info,
                 "targets": target_info,
                 "environment": [self.game.budget, self.game.num_targets],
             },
@@ -146,60 +139,69 @@ class SimpleSimGym(gym.Env):
         reward = 0
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(method="absolute", verbose=0)
+        reward += self.get_entropy_reward(verbose=0)
 
         return reward
 
-    def entropy(self, probability):
+    def get_entropy_reward(self, method="monotonic", verbose=0):
         """
-        Calculates the entropy of a given probability distribution - can do one
-        or multiple timesteps at a time.
+        An entropy based reward for the agent. Reward can be conputed in one of
+        two ways:
+
+        - Absolute: Reward is recieved for the amount of entropy reduction
+            achieved over all of the targets so far (sum of 1 minus the current
+            entropy)
+        - Monotonic Hidden: Reward is equal to the maximum total IG state that
+            has been achieved in the episode so far (behind the scenes, though,
+            IG has a hidded state that can go up or down dependin on quality of
+            observations)
+        - Monotonic: Reward is equal to the maximum total IG state that
+            has been achieved in the episode so far (but this time there is no
+            hidden state of IG - this is the real state of IG and we make sure
+            IG only goes up by simply deleting observatinos that cause IG to go
+            down)
 
         Args:
-            probability: The (classes, observation) length distribution vector to calculate the entropy of
+            method [string]: Sets the reward computing metod - either
+                "absolute",  "monotonic_hidden" or "monotonic"
+
         Returns:
-            The entropy(ies) of the probability distribution
+            [int]: The reward for the agent
         """
+        if method not in ["absolute", "monotonic_hidden", "monotonic"]:
+            raise Exception
 
-        # Get the suprrise associated with each class in the pdf (use log base num_classes)
-        suprise = np.divide(
-            -np.log(
-                probability,
-                where=(probability > 0),
-                out=np.zeros_like(probability),
-            ),
-            np.log(
-                self.game.num_classes,
-            ),
-        )
+        entropy_reward = 0
+        for i in range(0, len(self.game.targets)):
+            # Get the new entropy (entropy at current timestep)
+            new_entropy = self.get_target_entropy(self.game.confidences[i, :, :])
 
-        # The entropy associated with the target (sum over the classes axis)
-        entropy = np.sum(np.multiply(probability, suprise), axis=0)
+            if method == "monotonic" and new_entropy > self.entropies[i]:
+                # If this new timestep's vector of observations made our
+                # entropy lower, include it, otherwise set this observation to
+                # zeros, and dont update the current entropy
+                self.game.confidences[i, :, -1] = 0
+            else:
+                self.entropies[i] = new_entropy
 
-        # Set the entropies for the timesteps where all class probabilities (target not in view) to 1
-        # entropy[np.where(np.count_nonzero(probability, axis=0)==0)] = 1
+        # Update variance in target entropies
+        self.variance = float(np.var(self.entropies))
 
-        return entropy
+        reward_multiplier = 10
 
-    def cross_entropy(self, probability, true_class_id):
-        """
-        Calculates the cross entropy (a.k.a. log loss) of a given probability distribution - can do one
-        or multiple timesteps at a time.
+        entropy_reward = self.game.max_targets - np.sum(self.entropies)
 
-        Args:
-            probability: The (classes, observation) length distribution vector to calculate the entropy of
-        Returns:
-            The cross-entropy(ies) of the probability distribution
-        """
+        if method == "monotonic_hidden":
+            self.best_reward = max(entropy_reward, self.best_reward)
+            entropy_reward = self.best_reward
 
-        # The cross entropy associated with the observation
-        cross_entropy = -np.log(
-            probability[true_class_id],
-            where=(probability > 0),
-            out=np.zeros_like(probability),
-        )
+        # Add a multiplier to ensure it is worth it for the robot to  seek more
+        # reward even though it entails more movement cost
+        entropy_reward = entropy_reward * reward_multiplier
 
-        return cross_entropy
+        # Normalise the reward against the number of targets
+        entropy_reward = entropy_reward / self.game.num_targets
+        return entropy_reward
 
     def get_target_entropy(
         self, target_confidence_history, method="avg_entropy", verbose=0
@@ -242,56 +244,57 @@ class SimpleSimGym(gym.Env):
 
         return entropy
 
-    def get_entropy_reward(self, method="absolute", verbose=0):
+    def entropy(self, probability):
         """
-        An entropy based reward for the agent. Reward can be conputed in one of
-        two ways:
-
-        - Absolute: Reward is recieved for the amount of entropy reduction
-            achieved over all of the targets so far (sum of 1 minus the current
-            entropy)
-        - Differential: Reward is recieved each time the agent reduces the
-            entropy of a target below its previously achieved minimum
+        Calculates the entropy of a given probability distribution - can do one
+        or multiple timesteps at a time.
 
         Args:
-            method [string]: Sets the reward computing metod - either
-                "differential" or "absolute"
-
+            probability: The (classes, observation) length distribution vector to calculate the entropy of
         Returns:
-            [int]: The reward for the agent
+            The entropy(ies) of the probability distribution
         """
-        entropy_reward = 0
-        for i in range(0, len(self.game.targets)):
-            new_entropy = self.get_target_entropy(
-                self.game.confidences[i, :, :]
-            )  # confidence distribution for target over all timesteps
-            self.entropies[i] = new_entropy
 
-            if method == "differential":
-                # Get entropy diff
-                entropy_change = new_entropy - self.min_entropies[i]
-                # If better than the previous best
-                if entropy_change < 0:
-                    entropy_reward += -entropy_change
-                    self.min_entropies[i] = new_entropy
+        # Get the suprrise associated with each class in the pdf (use log base num_classes)
+        suprise = np.divide(
+            -np.log(
+                probability,
+                where=(probability > 0),
+                out=np.zeros_like(probability),
+            ),
+            np.log(
+                self.game.num_classes,
+            ),
+        )
 
-        # Update variance in target entropies
-        self.variance = float(np.var(self.entropies))
+        # The entropy associated with the target (sum over the classes axis)
+        entropy = np.sum(np.multiply(probability, suprise), axis=0)
 
-        if method == "differential":
-            reward_multiplier = 1000
+        # Let entropies for the timesteps where target not in view (all class
+        # probabilities are zero) stay as zero (they will contribute 0 to
+        # the average entropy calculation later)
 
-        elif method == "absolute":
-            entropy_reward = self.game.max_targets - np.sum(self.entropies)
-            reward_multiplier = 10
+        return entropy
 
-        # Add a multiplier to ensure it is worth it for the robot to  seek more
-        # reward even though it entails more movement cost
-        entropy_reward = entropy_reward * reward_multiplier
+    def cross_entropy(self, probability, true_class_id):
+        """
+        Calculates the cross entropy (a.k.a. log loss) of a given probability distribution - can do one
+        or multiple timesteps at a time.
 
-        # Normalise the reward against the number of targets
-        entropy_reward = entropy_reward / self.game.num_targets
-        return entropy_reward
+        Args:
+            probability: The (classes, observation) length distribution vector to calculate the entropy of
+        Returns:
+            The cross-entropy(ies) of the probability distribution
+        """
+
+        # The cross entropy associated with the observation
+        cross_entropy = -np.log(
+            probability[true_class_id],
+            where=(probability > 0),
+            out=np.zeros_like(probability),
+        )
+
+        return cross_entropy
 
     def world_to_body_frame(self, x, y):
         """

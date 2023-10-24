@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
 # ---------------------------------------------------------------------------- #
-font_family = "Ubuntu"
+font_family = "Helvetica"
 
 # ---------------------------------------------------------------------------- #
 #                                    CLASSES                                   #
@@ -692,9 +692,9 @@ class SimpleSim(object):
         self.count = 0
         self.gameover = False
         # Randomise the budget between 0 and a max of max_budget
-        self.budget = 1 + round((self.max_budget-1) * random.random())
+        self.budget = 1 + round((self.max_budget - 1) * random.random())
         # Randomise the number of targets between 0 and a max of max_budget
-        self.num_targets = 1 + round((self.max_targets-1) * random.random())
+        self.num_targets = 1 + round((self.max_targets - 1) * random.random())
 
         # Re-spawn entites
         self.walls = self.spawn_walls(self.num_walls)
@@ -710,7 +710,7 @@ class SimpleSim(object):
         )
 
         # Re-setup confidence histograms
-        if self.render_mode == "human" and self.render_plots==True:
+        if self.render_mode == "human" and self.render_plots == True:
             try:
                 self.plot.close()
             except Exception:
@@ -753,7 +753,10 @@ class SimpleSim(object):
         # )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
-            (self.display_player_size*SPRITE_SIZE_MULTIPLEIER, self.display_player_size*SPRITE_SIZE_MULTIPLEIER),
+            (
+                self.display_player_size * SPRITE_SIZE_MULTIPLEIER,
+                self.display_player_size * SPRITE_SIZE_MULTIPLEIER,
+            ),
         )
 
         target_size = 50
@@ -956,15 +959,15 @@ class SimpleSim(object):
         self.render_scoreboard(canvas, font)
 
         if self.render_mode == "human":
-            if self.render_plots==True:
+            if self.render_plots == True:
                 # Render the matplotlib histograms
-                num_confidences = np.sum(self.confidences, axis=2)
-                observations = np.count_nonzero(self.confidences, axis=2)
+                confidences_sum = np.sum(self.confidences, axis=2)
+                num_observations = np.count_nonzero(self.confidences, axis=2)
                 all_time_avg = np.divide(
-                    num_confidences,
-                    observations,
-                    where=(observations > 0),
-                    out=np.full_like(num_confidences, 1 / self.num_classes),
+                    confidences_sum,
+                    num_observations,
+                    where=(num_observations > 0),
+                    out=np.full_like(confidences_sum, 1 / self.num_classes),
                 )
                 self.plot.update(all_time_avg)
 
