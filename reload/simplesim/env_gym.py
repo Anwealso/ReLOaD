@@ -83,7 +83,6 @@ class SimpleSimGym(gym.Env):
         )
 
         self.entropies = np.ones(shape=(max_targets,))
-        # self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
         self.best_reward = 0  # keep track of the best reward in the current episode so far
 
         self.window = None
@@ -372,6 +371,7 @@ class SimpleSimGym(gym.Env):
         """
         self.game.reset() # reset the underlying gae state
 
+        self.entropies = np.ones(shape=(self.game.max_targets,))
         self.best_reward = 0 # reset best reward for episode
 
         info = {}  # no extra info at this stage
