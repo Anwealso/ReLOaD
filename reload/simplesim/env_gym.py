@@ -135,8 +135,51 @@ class SimpleSimGym(gym.Env):
         """
         reward = 0
 
+        # # Apply reward based on observation entropy
+        # reward += self.get_entropy_reward(verbose=0)
+
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(verbose=0)
+        reward += self.get_confidence_reward(verbose=0)
+
+        return reward
+
+    def get_confidence_reward(self, verbose=0):
+        """
+        An confidence based reward where the agent gets reward in 
+        proportion to the sum of true-class confidence across all targets at 
+        each timestep.
+
+        Essentially every time the agent observesa target, it gets a reward.
+        This is working on the assumption that all information is good 
+        information.
+
+        Returns:
+            [int]: The reward for the agent
+        """
+
+        reward = 0
+        for target_num in range(0, len(self.game.targets)):
+            # Get the new entropy (jusat for display)
+            self.entropies[target_num] = self.get_target_entropy(self.game.confidences[target_num, :, :])
+
+            # Get the sum of all past confidences on the true class
+            class_id = self.game.targets[target_num].class_id
+            true_confidence_sum = np.sum(self.game.confidences[target_num, class_id, :])
+
+            # Add a diminishing returns to the confidence sum and scale the 
+            # sum to between 0 and 1
+            scaled_confidence_sum = 1 - math.exp(-true_confidence_sum / 5)
+
+            reward += scaled_confidence_sum
+
+        # Update variance in target entropies
+        self.variance = float(np.var(self.entropies))
+
+        # Normalise the max step total reward to 1
+        reward = reward / self.game.num_targets
+        # Normalise the max step total reward to 10
+        reward_multiplier = 10
+        reward = reward * reward_multiplier
 
         return reward
 
