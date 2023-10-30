@@ -175,10 +175,12 @@ class SimpleSimGym(gym.Env):
         # Update variance in target entropies
         self.variance = float(np.var(self.entropies))
 
-        # Normalise the max step total reward to 1
+        # Normalise against the number of targets
         reward = reward / self.game.num_targets
-        # Normalise the max step total reward to 10
-        reward_multiplier = 10
+        # Normalise against the episode length
+        reward = reward / self.game.starting_budget
+        # Normalise the maxt total episode reward to 2000
+        reward_multiplier = 2000
         reward = reward * reward_multiplier
 
         return reward

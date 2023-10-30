@@ -692,7 +692,8 @@ class SimpleSim(object):
         self.count = 0
         self.gameover = False
         # Randomise the budget between 0 and a max of max_budget
-        self.budget = 1 + round((self.max_budget - 1) * random.random())
+        self.starting_budget = 1 + round((self.max_budget - 1) * random.random())
+        self.budget = self.starting_budget
         # Randomise the number of targets between 0 and a max of max_budget
         self.num_targets = 1 + round((self.max_targets - 1) * random.random())
 
