@@ -283,12 +283,15 @@ class SimpleSimGym(gym.Env):
             entropy_reward = self.game.max_targets - np.sum(self.entropies)
             reward_multiplier = 10
 
-        # Add a multiplier to ensure it is worth it for the robot to  seek more
-        # reward even though it entails more movement cost
-        entropy_reward = entropy_reward * reward_multiplier
-
-        # Normalise the reward against the number of targets
+        # Normalise the reward against the number of targets (to 0-1)
         entropy_reward = entropy_reward / self.game.num_targets
+
+        # Normalise against the length of the episode
+        entropy_reward = entropy_reward / self.game.starting_budget
+
+        # Scale back up to that ep max reward is 2000
+        entropy_reward = entropy_reward * 2000
+
         return entropy_reward
 
     def world_to_body_frame(self, x, y):
