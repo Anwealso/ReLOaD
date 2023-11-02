@@ -240,8 +240,8 @@ class SimpleSimGym(gym.Env):
         # reward even though it entails more movement cost
         entropy_reward = entropy_reward * reward_multiplier
 
-        # # Normalise the reward against the number of targets
-        # entropy_reward = entropy_reward / self.game.num_targets
+        # Normalise the reward against the number of targets
+        entropy_reward = entropy_reward / self.game.num_targets
 
         return entropy_reward
 
