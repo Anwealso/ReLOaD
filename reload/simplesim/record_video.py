@@ -59,16 +59,19 @@ MAX_BUDGET = 400
 MAX_TARGETS = 5
 NUM_CLASSES = 10
 PLAYER_FOV = 30
-ACTION_FORMAT = "continuous"
+ACTION_FORMAT = "discrete"
 
 
 # ------------------------------ Load Model(s) ------------------------------- #
 # Load the model (SAC)
 # last_sac = SAC.load("saved_models/MlpPolicy_SAC_step6000000.zip")
-best_sac = SAC.load("saved_models/best_sac.zip")
+best_sac = SAC.load("best_sac.zip")
+best_ppo = PPO.load("best_ppo.zip")
+best_dqn = DQN.load("best_dqn.zip")
 
-models = {#"last_sac": last_sac,
-          "best_sac": best_sac}
+models = {#"best_sac": best_sac,
+        #"best_ppo": best_ppo,
+        "best_dqn": best_dqn}
 
 
 # ------------------------------ Record Video(s) ----------------------------- #

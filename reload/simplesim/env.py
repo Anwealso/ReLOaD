@@ -151,7 +151,6 @@ class SimpleSim(object):
         seed=None,
         render_mode=None,
         render_fps=None,
-        render_plots=True,
     ):
         """
         Initialises a SimpleSim instance
@@ -194,7 +193,6 @@ class SimpleSim(object):
         self.display_player_size = self.player_size * self.display_scale
         self.display_target_size = self.target_size * self.display_scale
         self.scoreboard_items = {}
-        self.render_plots = render_plots
 
         # Get class names
         text_file = open("classlist.txt", "r")
@@ -692,10 +690,9 @@ class SimpleSim(object):
         self.count = 0
         self.gameover = False
         # Randomise the budget between 0 and a max of max_budget
-        self.starting_budget = 1 + round((self.max_budget - 1) * random.random())
-        self.budget = self.starting_budget
+        self.budget = 1 + round((self.max_budget-1) * random.random())
         # Randomise the number of targets between 0 and a max of max_budget
-        self.num_targets = 1 + round((self.max_targets - 1) * random.random())
+        self.num_targets = 1 + round((self.max_targets-1) * random.random())
 
         # Re-spawn entites
         self.walls = self.spawn_walls(self.num_walls)
@@ -711,7 +708,7 @@ class SimpleSim(object):
         )
 
         # Re-setup confidence histograms
-        if self.render_mode == "human" and self.render_plots == True:
+        if self.render_mode == "human":
             try:
                 self.plot.close()
             except Exception:
@@ -754,10 +751,7 @@ class SimpleSim(object):
         # )
         player_robot = pygame.transform.scale(
             pygame.image.load(sprites_dir + "robot.png"),
-            (
-                self.display_player_size * SPRITE_SIZE_MULTIPLEIER,
-                self.display_player_size * SPRITE_SIZE_MULTIPLEIER,
-            ),
+            (self.display_player_size*SPRITE_SIZE_MULTIPLEIER, self.display_player_size*SPRITE_SIZE_MULTIPLEIER),
         )
 
         target_size = 50
@@ -960,17 +954,16 @@ class SimpleSim(object):
         self.render_scoreboard(canvas, font)
 
         if self.render_mode == "human":
-            if self.render_plots == True:
-                # Render the matplotlib histograms
-                confidences_sum = np.sum(self.confidences, axis=2)
-                num_observations = np.count_nonzero(self.confidences, axis=2)
-                all_time_avg = np.divide(
-                    confidences_sum,
-                    num_observations,
-                    where=(num_observations > 0),
-                    out=np.full_like(confidences_sum, 1 / self.num_classes),
-                )
-                self.plot.update(all_time_avg)
+            # Render the matplotlib histograms
+            num_confidences = np.sum(self.confidences, axis=2)
+            observations = np.count_nonzero(self.confidences, axis=2)
+            all_time_avg = np.divide(
+                num_confidences,
+                observations,
+                where=(observations > 0),
+                out=np.full_like(num_confidences, 1 / self.num_classes),
+            )
+            self.plot.update(all_time_avg)
 
             # --------------- Send the rendered view to the relevant viewer -------------- #
             # The following line copies our drawings from `canvas` to the visible window
