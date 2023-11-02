@@ -177,8 +177,10 @@ class SimpleSimGym(gym.Env):
 
         # Normalise against the number of targets
         reward = reward / self.game.num_targets
-        # Normalise against the episode length
-        reward = reward / self.game.starting_budget
+        
+        # # Normalise against the episode length
+        # reward = reward / self.game.starting_budget
+        
         # Normalise the maxt total episode reward to 2000
         reward_multiplier = 2000
         reward = reward * reward_multiplier

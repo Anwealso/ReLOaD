@@ -35,6 +35,9 @@ model_sac = SAC.load("saved_models/last_sac_4M.zip")
 # Load the model (PPO)
 model_ppo = PPO.load("saved_models/last_ppo_4M.zip")
 
+# For a random policy, simply do:
+# env.action_space.sample()
+
 
 # --------------------------- Evaluate Performance --------------------------- #
 # Wrap the env for the model
