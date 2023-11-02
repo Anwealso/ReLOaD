@@ -135,11 +135,8 @@ class SimpleSimGym(gym.Env):
         """
         reward = 0
 
-        # # Apply reward based on observation entropy
-        # reward += self.get_entropy_reward(verbose=0)
-
         # Apply reward based on observation entropy
-        reward += self.get_confidence_reward(verbose=0)
+        reward += self.get_entropy_reward(verbose=0)
 
         return reward
 
@@ -175,8 +172,8 @@ class SimpleSimGym(gym.Env):
         # Update variance in target entropies
         self.variance = float(np.var(self.entropies))
 
-        # Normalise against the number of targets
-        reward = reward / self.game.num_targets
+        # # Normalise against the number of targets
+        # reward = reward / self.game.num_targets
         
         # # Normalise against the episode length
         # reward = reward / self.game.starting_budget
@@ -243,8 +240,9 @@ class SimpleSimGym(gym.Env):
         # reward even though it entails more movement cost
         entropy_reward = entropy_reward * reward_multiplier
 
-        # Normalise the reward against the number of targets
-        entropy_reward = entropy_reward / self.game.num_targets
+        # # Normalise the reward against the number of targets
+        # entropy_reward = entropy_reward / self.game.num_targets
+
         return entropy_reward
 
     def get_target_entropy(
