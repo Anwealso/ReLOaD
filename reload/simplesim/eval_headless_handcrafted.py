@@ -1,6 +1,8 @@
 # eval_headless_naive.py
 # 
-# A version of eval_headless but for benchmarking handcrafted policies (like the handcrafted naïve policy)
+# A version of eval_headless but for benchmarking handcrafted policies that 
+# need to have the actions drawn one by one (like the handcrafted naïve policy 
+# or a random policy sampling the action space)
 
 # Library Imports
 from env import SimpleSim, NaivePolicy
@@ -61,10 +63,14 @@ for i in range(num_episodes):
 
     ep_reward = 0
 
-    naive_policy = NaivePolicy(env.game)
+    # naive_policy = NaivePolicy(env.game)
     
     while not (terminated or truncated):
-        action = naive_policy.get_action(env.game.robot)
+        # For naive p[olicy]
+        # action = naive_policy.get_action(env.game.robot)
+        # For a random policy, simply do:
+        action = env.action_space.sample()
+
         obs, reward, terminated, truncated, info = env.step(action)
 
         j += 1
@@ -81,7 +87,7 @@ print(f"\nAverage Ep Reward: {avg_ep_reward}")
 
 
 """
-Results Recieved:
+EVALUATION RESULTS FOR THE NAIVE POLICY
 
 Environment seed: 273
 Episode 0, reward=1019.8476615087156
@@ -186,4 +192,112 @@ Episode 98, reward=601.4980199873378
 Episode 99, reward=111.29830628665253
 
 Average Ep Reward: 781.2071242661768
+"""
+
+"""
+EVALUATION RESULTS FOR THE RANDOM POLICY
+
+Environment seed: 55
+Episode 0, reward=25.087394799293264
+Episode 1, reward=895.8529594470796
+Episode 2, reward=186.6187355476714
+Episode 3, reward=215.19813401380307
+Episode 4, reward=197.07130657869683
+Episode 5, reward=546.7985730192962
+Episode 6, reward=63.40614903742045
+Episode 7, reward=65.7137817830023
+Episode 8, reward=165.24619105368743
+Episode 9, reward=171.10841041327043
+Episode 10, reward=320.69112075054
+Episode 11, reward=195.3975755673339
+Episode 12, reward=642.281111266699
+Episode 13, reward=453.051218997126
+Episode 14, reward=208.7667989136342
+Episode 15, reward=443.01652609241313
+Episode 16, reward=792.7172959136919
+Episode 17, reward=137.29842627399694
+Episode 18, reward=345.1231598152675
+Episode 19, reward=172.2877881404157
+Episode 20, reward=360.18763931947035
+Episode 21, reward=183.47374521407457
+Episode 22, reward=296.4768663062954
+Episode 23, reward=654.9939115425015
+Episode 24, reward=189.19827164256208
+Episode 25, reward=41.31197255551563
+Episode 26, reward=0.0
+Episode 27, reward=17.763904631137848
+Episode 28, reward=0.0
+Episode 29, reward=249.71679310740942
+Episode 30, reward=710.7886226290724
+Episode 31, reward=341.85097887766125
+Episode 32, reward=347.75798064958633
+Episode 33, reward=137.86530405279592
+Episode 34, reward=32.37093697653876
+Episode 35, reward=118.80383028302808
+Episode 36, reward=160.50682280417044
+Episode 37, reward=59.800523233019696
+Episode 38, reward=423.68385423886014
+Episode 39, reward=323.45570670800436
+Episode 40, reward=502.4120150884652
+Episode 41, reward=0.0
+Episode 42, reward=103.43343761076962
+Episode 43, reward=163.87628531319257
+Episode 44, reward=0.0
+Episode 45, reward=478.43574662727036
+Episode 46, reward=212.97919037098364
+Episode 47, reward=454.2078856427565
+Episode 48, reward=183.79501778139706
+Episode 49, reward=310.00069567658676
+Episode 50, reward=74.17723872900407
+Episode 51, reward=5.508764763673146
+Episode 52, reward=351.08433097366725
+Episode 53, reward=322.92756263491486
+Episode 54, reward=243.25562767468801
+Episode 55, reward=77.61652051834837
+Episode 56, reward=429.8858119101611
+Episode 57, reward=92.55926533423704
+Episode 58, reward=376.643728084929
+Episode 59, reward=211.64334582404715
+Episode 60, reward=796.2347528038482
+Episode 61, reward=83.32017454025801
+Episode 62, reward=0.8664213120937347
+Episode 63, reward=2.2334437370300257
+Episode 64, reward=570.2610120628088
+Episode 65, reward=389.32514893055134
+Episode 66, reward=582.8467552387044
+Episode 67, reward=10.200169086456299
+Episode 68, reward=1035.4909674147727
+Episode 69, reward=229.75215769389007
+Episode 70, reward=384.30294611433817
+Episode 71, reward=822.71614873936
+Episode 72, reward=57.83918543940499
+Episode 73, reward=18.177373468875885
+Episode 74, reward=0.0
+Episode 75, reward=775.1938651837025
+Episode 76, reward=108.97120712368665
+Episode 77, reward=0.0
+Episode 78, reward=115.38453023096586
+Episode 79, reward=176.12318328732516
+Episode 80, reward=247.261125284614
+Episode 81, reward=81.65469236119716
+Episode 82, reward=0.0
+Episode 83, reward=131.60895684333076
+Episode 84, reward=737.1170367155818
+Episode 85, reward=332.8439429116028
+Episode 86, reward=2072.7999694341684
+Episode 87, reward=389.2582100714032
+Episode 88, reward=198.85502969556384
+Episode 89, reward=0.0
+Episode 90, reward=0.0
+Episode 91, reward=265.3172424375178
+Episode 92, reward=38.19144278764725
+Episode 93, reward=0.0
+Episode 94, reward=456.61285428485763
+Episode 95, reward=533.9292906558726
+Episode 96, reward=141.32994949315918
+Episode 97, reward=0.0
+Episode 98, reward=0.0
+Episode 99, reward=195.03659017190833
+
+Average Ep Reward: 274.6823856831163
 """
