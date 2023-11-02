@@ -1,5 +1,5 @@
 # Library Imports
-from env import SimpleSim
+from env import SimpleSim, NaivePolicy
 import math
 import numpy as np
 import time
@@ -432,7 +432,7 @@ class SimpleSimGym(gym.Env):
         return self.game.render()
 
 
-if __name__ == "__main__":
+def main():
     # ------------------------------ Hyperparameters ----------------------------- #
     # Env
     MAX_BUDGET = 500
@@ -507,3 +507,60 @@ if __name__ == "__main__":
 
         print(f"Total Ep Reward: {ep_reward}")
         quit()
+
+
+def run_naive_policy():
+    # ------------------------------ Hyperparameters ----------------------------- #
+    # Env
+    MAX_BUDGET = 500
+    MAX_TARGETS = 5
+    NUM_CLASSES = 10
+    PLAYER_FOV = 30
+    ACTION_FORMAT = "continuous"
+
+    # -------------------------------- Environment ------------------------------- #
+    # Instantiate two environments: one for training and one for evaluation.
+    env = SimpleSimGym(
+        max_budget=MAX_BUDGET,
+        max_targets=MAX_TARGETS,
+        num_classes=NUM_CLASSES,
+        player_fov=PLAYER_FOV,
+        action_format=ACTION_FORMAT,
+        render_mode="human",
+    )
+    obs = env.reset()
+
+    # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
+
+    # --------------------------------- RUN EVAL --------------------------------- #
+    num_episodes = 10
+    obs = env.reset()
+
+    for i in range(num_episodes):
+        terminated = False
+        truncated = False
+        ep_reward = 0
+        found = False
+        j = 0
+
+        naive_policy = NaivePolicy(env.game)
+        
+        while not (terminated or truncated):
+            action = naive_policy.get_action(env.game.robot)
+            obs, reward, terminated, truncated, info = env.step(action)
+
+            j += 1
+            ep_reward += reward
+
+            if terminated or truncated:
+                obs, info = env.reset()
+
+            # time.sleep(0.01)
+
+        print(f"Total Ep Reward: {ep_reward}")
+        quit()
+
+
+if __name__ == "__main__":
+    # main()
+    run_naive_policy()

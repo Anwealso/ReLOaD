@@ -18,6 +18,7 @@ import numpy as np
 import os
 import sys
 import matplotlib.pyplot as plt
+import time
 
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
@@ -27,83 +28,6 @@ font_family = "Helvetica"
 # ---------------------------------------------------------------------------- #
 #                                    CLASSES                                   #
 # ---------------------------------------------------------------------------- #
-
-
-
-class NaivePolicy(object):
-    def __init__(
-        self, env
-    ):
-        self.targets = env.targets
-        self.unvisited = env.targets
-        self.current_target = None
-        self.time_per_target = env.budget
-        self.time_on_target = 0 # the time spent observing the current target
-
-    def get_action(self, robot):
-        robot_x = robot.x
-        robot_y = robot.y
-        robot_theta = robot.angle
-
-        # Check if we should swap targets
-        if self.time_on_target > self.time_per_target or self.current_target == None:
-            # Switch targets
-
-            # Remove the current target from the unvisited list
-            if self.current_target:
-                self.unvisited.remove(self.current_target)
-
-            # Get the next closest target in the unvisited list
-            closest_dist = sys.maxint
-            for target in self.unvisited:
-                dist = self.get_distance((target.x,target.y), (robot_x,robot_y))
-                if dist < closest_dist:
-                    self.current_target = target
-
-        # Now check what our movement actio should be
-        if not self.angle_diff((target.x,target.y), (robot_x,robot_y)) == 0:
-            # If we are not facing towards the target already, turn towards the target
-            angle_to_target = self.angle_diff((target.x,target.y), (robot_x,robot_y))
-            angle_diff = angle_to_target - robot_theta
-            turn_rate_continuous = 20
-            if angle_diff < 0:
-                # Turn right
-                action = (0, min(1, angle_diff/turn_rate_continuous))
-            else:
-                # Turn left
-                action = (0, max(-1, angle_diff/turn_rate_continuous))
-
-        else:
-            # If we are facing towards the target
-            if self.get_distance((target.x,target.y), (robot_x,robot_y)) > 20:
-                # If we are not near the target, drive towards it at full speed
-                action = (min(1, angle_diff/turn_rate_continuous), 0)
-            else:
-                # Stay here and observe (no action)
-                action = (0, 0)
-
-        return action
-    
-    def angle_between(self, robot_pos, target_pos):
-        """
-        Gets the heading angle from the robot to the target
-        """
-        (robot_x, robot_y) = robot_pos
-        (target_x, target_y) = target_pos
-
-        dx = target_x - robot_x
-        dy = target_y - robot_y
-        
-        degrees = np.angle(dx + (dy * 1j), deg=True)
-        return degrees
-
-    def get_distance(self, point_1, point_2):
-        """
-        Gets the cartesian distance between two points
-        """
-        return math.sqrt((point_1[0] - point_2[0])**2 + (point_1[1] - point_2[1])**2)
-
-
 
 class Wall(object):
     """
@@ -1318,6 +1242,115 @@ class Plot(object):
             )
 
         return random_colormap
+
+
+class NaivePolicy(object):
+    def __init__(
+        self, game
+    ):
+        self.targets: list = list(game.targets)
+        self.unvisited: list = list(game.targets)
+        self.current_target: Target = None
+        self.time_per_target: int = game.budget // game.num_targets
+        self.time_on_target: int = 0 # the time spent observing the current target
+
+    def get_action(self, robot):
+        robot_x = robot.x
+        robot_y = robot.y
+        robot_theta = robot.angle
+        
+        turn_rate_continuous = 20
+        move_rate_continuous = 20
+
+        print(f"time_on_target = {self.time_on_target} / {self.time_per_target}")
+
+        # Check if we should swap targets
+        if self.time_on_target > self.time_per_target or self.current_target == None:
+            # Switch targets
+            # Remove the current target from the unvisited list
+            if self.current_target:
+                self.unvisited.remove(self.current_target)
+
+            # Get the next closest target in the unvisited list
+            closest_dist = sys.maxsize
+            target_index = -1
+            for i, target in enumerate(self.unvisited):
+                dist = self.get_distance((target.x,target.y), (robot_x,robot_y))
+                if dist < closest_dist:
+                    closest_dist = dist
+                    self.current_target = target
+                    target_index = i
+                print(f"Target {i} dist = {dist}")
+
+            print(f"Swapping to target {target_index}")
+            self.time_on_target = 1
+
+        # Now check what our movement action should be
+        angle_to_target = self.get_angle_between((self.current_target.x,self.current_target.y), (robot_x,robot_y))
+        if angle_to_target < 0:
+            angle_to_target = 360 + angle_to_target
+        # Now angle_to_target is between 0-360
+        angle_diff = angle_to_target - robot_theta
+        if angle_diff > 180:
+            angle_diff = -360 + angle_diff
+        if angle_diff < -180:
+            angle_diff = 360 + angle_diff
+
+        print(f"angle_to_target: {angle_to_target}, robot_theta: {robot_theta}, angle_diff: {angle_diff}")
+            
+        if angle_diff != 0:
+            # If we are not facing towards the target already, turn towards the target
+            if angle_diff > 0:
+                # Turn right
+                action = (0, min(1, angle_diff/turn_rate_continuous))
+            else:
+                # Turn left
+                action = (0, max(-1, angle_diff/turn_rate_continuous))
+
+        else:
+            # If we are facing towards the target
+            distance = self.get_distance((self.current_target.x,self.current_target.y), (robot_x,robot_y))
+            print(f"distance: {distance}")
+            if distance > 20:
+                # If we are not near the target, drive towards it at full speed
+                action = (min(1, distance/move_rate_continuous), 0)
+            else:
+                # Stay here and observe (no action)
+                action = (0, 0)
+
+        self.time_on_target += 1
+
+        print(action, "\n")
+
+        # while True:
+        # time.sleep(1)
+        #     pass
+
+        return action
+    
+    def get_angle_between(self, robot_pos, target_pos):
+        """
+        Gets the heading angle from the robot to the target
+        """
+        (robot_x, robot_y) = robot_pos
+        (target_x, target_y) = target_pos
+
+        dx = - (target_x - robot_x)
+        dy = target_y - robot_y
+
+        degrees = np.angle(dx + (dy * 1j), deg=True)
+        
+        print(dx, dy, degrees)
+
+        return degrees
+
+    def get_distance(self, point_1, point_2):
+        """
+        Gets the cartesian distance between two points
+        """
+        return math.sqrt((point_1[0] - point_2[0])**2 + (point_1[1] - point_2[1])**2)
+
+
 
 
 if __name__ == "__main__":
