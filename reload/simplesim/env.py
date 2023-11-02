@@ -167,9 +167,11 @@ class SimpleSim(object):
             None
         """
         # Seed the RNGs
-        if seed:
-            np.random.seed(seed=seed)
-            random.seed(seed)
+        if not seed:
+            seed = random.randint(0, 1000)
+        print(f"Environment seed: {seed}")
+        np.random.seed(seed=seed)
+        random.seed(seed)
 
         # Game state info
         self.env_size = 500  # number of coords size of the env
@@ -1262,8 +1264,6 @@ class NaivePolicy(object):
         turn_rate_continuous = 20
         move_rate_continuous = 20
 
-        print(f"time_on_target = {self.time_on_target} / {self.time_per_target}")
-
         # Check if we should swap targets
         if self.time_on_target > self.time_per_target or self.current_target == None:
             # Switch targets
@@ -1273,31 +1273,25 @@ class NaivePolicy(object):
 
             # Get the next closest target in the unvisited list
             closest_dist = sys.maxsize
-            target_index = -1
-            for i, target in enumerate(self.unvisited):
+            for target in self.unvisited:
                 dist = self.get_distance((target.x,target.y), (robot_x,robot_y))
                 if dist < closest_dist:
                     closest_dist = dist
                     self.current_target = target
-                    target_index = i
-                print(f"Target {i} dist = {dist}")
-
-            print(f"Swapping to target {target_index}")
             self.time_on_target = 1
 
         # Now check what our movement action should be
         angle_to_target = self.get_angle_between((self.current_target.x,self.current_target.y), (robot_x,robot_y))
+        
+        # Get the diff the robot needs to turn to get to the target 
         if angle_to_target < 0:
             angle_to_target = 360 + angle_to_target
-        # Now angle_to_target is between 0-360
         angle_diff = angle_to_target - robot_theta
         if angle_diff > 180:
             angle_diff = -360 + angle_diff
         if angle_diff < -180:
             angle_diff = 360 + angle_diff
 
-        print(f"angle_to_target: {angle_to_target}, robot_theta: {robot_theta}, angle_diff: {angle_diff}")
-            
         if angle_diff != 0:
             # If we are not facing towards the target already, turn towards the target
             if angle_diff > 0:
@@ -1310,7 +1304,6 @@ class NaivePolicy(object):
         else:
             # If we are facing towards the target
             distance = self.get_distance((self.current_target.x,self.current_target.y), (robot_x,robot_y))
-            print(f"distance: {distance}")
             if distance > 20:
                 # If we are not near the target, drive towards it at full speed
                 action = (min(1, distance/move_rate_continuous), 0)
@@ -1319,12 +1312,6 @@ class NaivePolicy(object):
                 action = (0, 0)
 
         self.time_on_target += 1
-
-        print(action, "\n")
-
-        # while True:
-        # time.sleep(1)
-        #     pass
 
         return action
     
