@@ -44,6 +44,7 @@ class SimpleSimGym(gym.Env):
             render_mode=render_mode,
             render_fps=self.metadata["render_fps"],
             render_plots=render_plots,
+            # seed=55,
         )
 
         if action_format == "discrete":
@@ -83,6 +84,10 @@ class SimpleSimGym(gym.Env):
         )
 
         self.entropies = np.ones(shape=(max_targets,))
+        
+        # For differential reward (oldstyle monotonic) modes:
+        self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
+        # For monotonic reward modes:
         self.best_reward = 0  # keep track of the best reward in the current episode so far
 
         self.window = None
@@ -181,10 +186,157 @@ class SimpleSimGym(gym.Env):
         # Normalise the maxt total episode reward to 2000
         reward_multiplier = 2000
         reward = reward * reward_multiplier
-
         return reward
 
-    def get_entropy_reward(self, method="monotonic", verbose=0):
+    def entropy(self, probability):
+        """
+        Calculates the entropy of a given probability distribution - can do one
+        or multiple timesteps at a time.
+
+        Args:
+            probability: The (classes, observation) length distribution vector to calculate the entropy of
+        Returns:
+            The entropy(ies) of the probability distribution
+        """
+
+        # Get the suprrise associated with each class in the pdf (use log base num_classes)
+        suprise = np.divide(
+            -np.log(
+                probability,
+                where=(probability > 0),
+                out=np.zeros_like(probability),
+            ),
+            np.log(
+                self.game.num_classes,
+            ),
+        )
+
+        # The entropy associated with the target (sum over the classes axis)
+        entropy = np.sum(np.multiply(probability, suprise), axis=0)
+
+        # Let entropies for the timesteps where target not in view (all class
+        # probabilities are zero) stay as zero (they will contribute 0 to
+        # the average entropy calculation later)
+
+        return entropy
+
+    def cross_entropy(self, probability, true_class_id):
+        """
+        Calculates the cross entropy (a.k.a. log loss) of a given probability distribution - can do one
+        or multiple timesteps at a time.
+
+        Args:
+            probability: The (classes, observation) length distribution vector to calculate the entropy of
+        Returns:
+            The cross-entropy(ies) of the probability distribution
+        """
+
+        # The cross entropy associated with the observation
+        cross_entropy = -np.log(
+            probability[true_class_id],
+            where=(probability > 0),
+            out=np.zeros_like(probability),
+        )
+
+        return cross_entropy
+
+
+
+    def get_target_entropy(
+        self, target_confidence_history, method="avg_entropy", verbose=0
+    ):
+        """
+        Get the current entropy on a target, given an array of its observation
+        confidence history.
+
+        - avg_entropy: Calculates the average of the entropies observed at each
+            time step
+        - entropy_of_average: Calculates the entropy of the average probability
+            distribution across all time steps
+
+        Args:
+            target_confidence_history [np.array]: A 2D array of the confidences
+                observed on the target over all time (dims:
+                (num_classes, num_timesteps))
+            method [string]: The method of entropy computing to use - either
+                "avg_entropy" or "entropy_of_average",
+        Returns:
+            The entropy of the target (dims: (num_timesteps,))
+        """
+        num_observations = np.count_nonzero(target_confidence_history[0, :])
+        if num_observations == 0:
+            return 1
+
+        if method == "avg_entropy":
+            # METHOD 1 - AVERAGE ENTROPY
+            # Get the entropies of the data at each timestep
+            entropy = self.entropy(target_confidence_history)
+            # Get the average of the entropies across all timesteps where target was in view
+            entropy = np.divide(np.sum(entropy), num_observations)
+
+        elif method == "entropy_of_average":
+            # METHOD 2 - ENTROPY OF THE AVERAGE PROBABILITY
+            # Get the average probability distribution for this target over time
+            avg_probability = np.average(target_confidence_history, axis=1)
+            # Get the entropy of the average probability distribution
+            entropy = self.entropy(avg_probability)
+
+        return entropy
+
+    def get_entropy_reward(self, method="absolute", verbose=0):
+        """
+        An entropy based reward for the agent. Reward can be conputed in one of
+        two ways:
+
+        - Absolute: Reward is recieved for the amount of entropy reduction
+            achieved over all of the targets so far (sum of 1 minus the current
+            entropy)
+        - Differential: Reward is recieved each time the agent reduces the
+            entropy of a target below its previously achieved minimum
+
+        Args:
+            method [string]: Sets the reward computing metod - either
+                "differential" or "absolute"
+
+        Returns:
+            [int]: The reward for the agent
+        """
+        entropy_reward = 0
+        for i in range(0, len(self.game.targets)):
+            new_entropy = self.get_target_entropy(
+                self.game.confidences[i, :, :]
+            )  # confidence distribution for target over all timesteps
+            self.entropies[i] = new_entropy
+
+            if method == "differential":
+                # Get entropy diff
+                entropy_change = new_entropy - self.min_entropies[i]
+                # If better than the previous best
+                if entropy_change < 0:
+                    entropy_reward += -entropy_change
+                    self.min_entropies[i] = new_entropy
+
+        # Update variance in target entropies
+        self.variance = float(np.var(self.entropies))
+
+        if method == "differential":
+            reward_multiplier = 1000
+
+        elif method == "absolute":
+            entropy_reward = self.game.max_targets - np.sum(self.entropies)
+            reward_multiplier = 10
+
+        # Add a multiplier to ensure it is worth it for the robot to  seek more
+        # reward even though it entails more movement cost
+        entropy_reward = entropy_reward * reward_multiplier
+
+        # Normalise the reward against the number of targets
+        entropy_reward = entropy_reward / self.game.num_targets
+        return entropy_reward
+
+    
+
+    def get_monotonic_entropy_reward(self, method="monotonic", verbose=0):
         """
         An entropy based reward for the agent. Reward can be conputed in one of
         two ways:
@@ -245,98 +397,6 @@ class SimpleSimGym(gym.Env):
 
         return entropy_reward
 
-    def get_target_entropy(
-        self, target_confidence_history, method="avg_entropy", verbose=0
-    ):
-        """
-        Get the current entropy on a target, given an array of its observation
-        confidence history.
-
-        - avg_entropy: Calculates the average of the entropies observed at each
-            time step
-        - entropy_of_average: Calculates the entropy of the average probability
-            distribution across all time steps
-
-        Args:
-            target_confidence_history [np.array]: A 2D array of the confidences
-                observed on the target over all time (dims:
-                (num_classes, num_timesteps))
-            method [string]: The method of entropy computing to use - either
-                "avg_entropy" or "entropy_of_average",
-        Returns:
-            The entropy of the target (dims: (num_timesteps,))
-        """
-        num_observations = np.count_nonzero(target_confidence_history[0, :])
-        if num_observations == 0:
-            return 1
-
-        if method == "avg_entropy":
-            # METHOD 1 - AVERAGE ENTROPY
-            # Get the entropies of the data at each timestep
-            entropy = self.entropy(target_confidence_history)
-            # Get the average of the entropies across all timesteps where target was in view
-            entropy = np.divide(np.sum(entropy), num_observations)
-
-        elif method == "entropy_of_average":
-            # METHOD 2 - ENTROPY OF THE AVERAGE PROBABILITY
-            # Get the average probability distribution for this target over time
-            avg_probability = np.average(target_confidence_history, axis=1)
-            # Get the entropy of the average probability distribution
-            entropy = self.entropy(avg_probability)
-
-        return entropy
-
-    def entropy(self, probability):
-        """
-        Calculates the entropy of a given probability distribution - can do one
-        or multiple timesteps at a time.
-
-        Args:
-            probability: The (classes, observation) length distribution vector to calculate the entropy of
-        Returns:
-            The entropy(ies) of the probability distribution
-        """
-
-        # Get the suprrise associated with each class in the pdf (use log base num_classes)
-        suprise = np.divide(
-            -np.log(
-                probability,
-                where=(probability > 0),
-                out=np.zeros_like(probability),
-            ),
-            np.log(
-                self.game.num_classes,
-            ),
-        )
-
-        # The entropy associated with the target (sum over the classes axis)
-        entropy = np.sum(np.multiply(probability, suprise), axis=0)
-
-        # Let entropies for the timesteps where target not in view (all class
-        # probabilities are zero) stay as zero (they will contribute 0 to
-        # the average entropy calculation later)
-
-        return entropy
-
-    def cross_entropy(self, probability, true_class_id):
-        """
-        Calculates the cross entropy (a.k.a. log loss) of a given probability distribution - can do one
-        or multiple timesteps at a time.
-
-        Args:
-            probability: The (classes, observation) length distribution vector to calculate the entropy of
-        Returns:
-            The cross-entropy(ies) of the probability distribution
-        """
-
-        # The cross entropy associated with the observation
-        cross_entropy = -np.log(
-            probability[true_class_id],
-            where=(probability > 0),
-            out=np.zeros_like(probability),
-        )
-
-        return cross_entropy
 
     def world_to_body_frame(self, x, y):
         """
@@ -417,6 +477,7 @@ class SimpleSimGym(gym.Env):
         self.game.reset() # reset the underlying gae state
 
         self.entropies = np.ones(shape=(self.game.max_targets,))
+        self.min_entropies = np.ones(shape=(self.game.max_targets,))  # the max ever entropies
         self.best_reward = 0 # reset best reward for episode
 
         info = {}  # no extra info at this stage
