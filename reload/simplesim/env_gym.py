@@ -286,8 +286,8 @@ class SimpleSimGym(gym.Env):
         # Normalise the reward against the number of targets (to 0-1)
         entropy_reward = entropy_reward / self.game.num_targets
 
-        # Normalise against the length of the episode
-        entropy_reward = entropy_reward / self.game.starting_budget
+        # # Normalise against the length of the episode
+        # entropy_reward = entropy_reward / self.game.starting_budget
 
         # Scale back up to that ep max reward is 2000
         entropy_reward = entropy_reward * 2000
