@@ -18,7 +18,6 @@ import numpy as np
 import os
 import sys
 import matplotlib.pyplot as plt
-import time
 
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
@@ -764,18 +763,6 @@ class SimpleSim(object):
         )
 
         target_size = 50
-        # target50 = pygame.transform.scale(
-        #     pygame.image.load(sprites_dir + "apple.png"),
-        #     (target_size * self.disply_scale, target_size * self.disply_scale),
-        # )
-        # target100 = pygame.transform.scale(
-        #     pygame.image.load(sprites_dir + "apple.png"),
-        #     (target_size * self.disply_scale, target_size * self.disply_scale),
-        # )
-        # target150 = pygame.transform.scale(
-        #     pygame.image.load(sprites_dir + "apple.png"),
-        #     (target_size * self.disply_scale, target_size * self.disply_scale),
-        # )
 
         # Load class sprites
         class_sprites = []
@@ -1327,8 +1314,6 @@ class NaivePolicy(object):
 
         degrees = np.angle(dx + (dy * 1j), deg=True)
         
-        print(dx, dy, degrees)
-
         return degrees
 
     def get_distance(self, point_1, point_2):
