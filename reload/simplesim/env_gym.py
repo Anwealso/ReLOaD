@@ -23,6 +23,7 @@ class SimpleSimGym(gym.Env):
         action_format="continuous",
         render_mode=None,
         render_plots=True,
+        seed=None,
     ):
         """
         Description,
@@ -44,7 +45,7 @@ class SimpleSimGym(gym.Env):
             render_mode=render_mode,
             render_fps=self.metadata["render_fps"],
             render_plots=render_plots,
-            # seed=55,
+            seed=seed,
         )
 
         if action_format == "discrete":
@@ -589,7 +590,6 @@ def run_naive_policy():
         action_format=ACTION_FORMAT,
         render_mode="human",
     )
-    obs = env.reset()
 
     # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
 
