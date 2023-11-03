@@ -1251,6 +1251,10 @@ class NaivePolicy(object):
         turn_rate_continuous = 20
         move_rate_continuous = 20
 
+        if len(self.unvisited) == 0:
+            # If we run out of targets before time's up, just stay still
+            return (0,0)
+
         # Check if we should swap targets
         if self.time_on_target > self.time_per_target or self.current_target == None:
             # Switch targets
@@ -1266,6 +1270,7 @@ class NaivePolicy(object):
                     closest_dist = dist
                     self.current_target = target
             self.time_on_target = 1
+
 
         # Now check what our movement action should be
         angle_to_target = self.get_angle_between((self.current_target.x,self.current_target.y), (robot_x,robot_y))
