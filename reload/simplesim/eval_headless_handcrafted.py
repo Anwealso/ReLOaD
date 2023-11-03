@@ -43,6 +43,7 @@ env = SimpleSimGym(
     player_fov=PLAYER_FOV,
     action_format=ACTION_FORMAT,
     render_mode=None,
+    # seed=808,
 )
 obs = env.reset()
 
@@ -63,13 +64,13 @@ for i in range(num_episodes):
 
     ep_reward = 0
 
-    # naive_policy = NaivePolicy(env.game)
+    naive_policy = NaivePolicy(env.game)
     
     while not (terminated or truncated):
-        # For naive p[olicy]
-        # action = naive_policy.get_action(env.game.robot)
-        # For a random policy, simply do:
-        action = env.action_space.sample()
+        # For naive policy
+        action = naive_policy.get_action(env.game.robot)
+        # # For a random policy, simply do:
+        # action = env.action_space.sample()
 
         obs, reward, terminated, truncated, info = env.step(action)
 
@@ -79,7 +80,7 @@ for i in range(num_episodes):
         if terminated or truncated:
             obs, info = env.reset()
 
-    print(f"Episode {i}, reward={ep_reward}")
+    # print(f"Episode {i}, reward={ep_reward}")
     ep_rewards.append(ep_reward)
 
 avg_ep_reward = np.average(ep_rewards)

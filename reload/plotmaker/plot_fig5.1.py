@@ -44,7 +44,7 @@ series4 = ax.plot(
     max_reward
 )
 
-plt.legend(['SAC', 'Naive Policy', 'Random Policy', 'Avg. Max. Available'], loc ="lower right") 
+plt.legend(['SAC', 'Hand-crafted Policy', 'Random Policy', 'Avg. Max. Available'], loc ="lower right") 
 
 # Add labels and a title.
 ax.set_xlabel(

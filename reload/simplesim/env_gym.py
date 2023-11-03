@@ -89,7 +89,7 @@ class SimpleSimGym(gym.Env):
         # For differential reward (oldstyle monotonic) modes:
         self.min_entropies = np.ones(shape=(max_targets,))  # the max ever entropies
         # For monotonic reward modes:
-        self.best_reward = 0  # keep track of the best reward in the current episode so far
+        # self.best_reward = 0  # keep track of the best reward in the current episode so far
 
         self.window = None
         self.clock = None
@@ -142,7 +142,7 @@ class SimpleSimGym(gym.Env):
         reward = 0
 
         # Apply reward based on observation entropy
-        reward += self.get_entropy_reward(verbose=0)
+        reward += self.get_entropy_reward(method="absolute",verbose=0)
 
         return reward
 
@@ -568,7 +568,7 @@ def main():
             # time.sleep(0.01)
 
         print(f"Total Ep Reward: {ep_reward}")
-        quit()
+        # quit()
 
 
 def run_naive_policy():
@@ -619,7 +619,7 @@ def run_naive_policy():
             # time.sleep(0.01)
 
         print(f"Total Ep Reward: {ep_reward}")
-        quit()
+        # quit()
 
 
 if __name__ == "__main__":
