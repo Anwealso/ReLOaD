@@ -504,7 +504,7 @@ def main():
     ACTION_FORMAT = "continuous"
 
     # Whether to play it interactively or let the agent drive
-    INTERACTIVE = True
+    INTERACTIVE = False
 
     # -------------------------------- Environment ------------------------------- #
     # Instantiate two environments: one for training and one for evaluation.
@@ -523,6 +523,7 @@ def main():
         config = {"policy": "MlpPolicy", "logdir": "logs/", "savedir": "saved_models/"}
         # Load the best model
         model = SAC.load(f"{config['savedir']}/best_sac.zip")
+        # model = SAC.load(f"{config['savedir']}/MlpPolicy_SAC_step4000000.zip")
         # Wrap the env for the model
         env = make_vec_env(
             SimpleSimGym,
@@ -535,6 +536,7 @@ def main():
                 player_fov=PLAYER_FOV,
                 action_format=ACTION_FORMAT,
                 render_mode="human",
+                seed=574,
             ),
         )
 
@@ -589,6 +591,7 @@ def run_naive_policy():
         player_fov=PLAYER_FOV,
         action_format=ACTION_FORMAT,
         render_mode="human",
+        # seed=574,
     )
 
     # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
@@ -623,5 +626,5 @@ def run_naive_policy():
 
 
 if __name__ == "__main__":
-    # main()
-    run_naive_policy()
+    main()
+    # run_naive_policy()
