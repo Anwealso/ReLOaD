@@ -692,15 +692,17 @@ class SimpleSim(object):
         """
         Saves images of the current environment and histograms to file
         """
+        current_time = time.time()
+
         print("Saving images...")
         # Save env image
         frame = self._render_frame("rgb_array")
         env_image = Image.fromarray(frame)
         print(f"out/{time.time()}_environment.png")
-        env_image.save(f"out/{time.time()}_environment.png")
+        env_image.save(f"out/{current_time}_environment.png")
 
         # Save histogram image
-        plt.savefig(f"out/{time.time()}_histograms.png")
+        plt.savefig(f"out/{current_time}_histograms.png")
 
 
     def reset(self):
@@ -712,10 +714,10 @@ class SimpleSim(object):
         Returns:
             None
         """
-        if self.gameover == True:
-            # Before we reset, save an image of the final environment and histograms
-            self.save_images()
-            time.sleep(1)
+        # if self.gameover == True:
+        #     # Before we reset, save an image of the final environment and histograms
+        #     self.save_images()
+        #     time.sleep(1)
 
         # Reset and re-randomise environment conditions
         self.count = 0
@@ -724,7 +726,8 @@ class SimpleSim(object):
         self.starting_budget = 1 + round((self.max_budget - 1) * random.random())
         self.budget = self.starting_budget
         # Randomise the number of targets between 0 and a max of max_budget
-        self.num_targets = 1 + round((self.max_targets - 1) * random.random())
+        # self.num_targets = 1 + round((self.max_targets - 1) * random.random())
+        self.num_targets = 1
         
         # Re-spawn entites
         self.walls = self.spawn_walls(self.num_walls)

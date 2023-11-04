@@ -17,7 +17,7 @@ class SimpleSimGym(gym.Env):
     def __init__(
         self,
         max_budget=2000,
-        max_targets=8,
+        max_targets=5,
         num_classes=10,
         player_fov=60,
         action_format="continuous",
@@ -29,7 +29,6 @@ class SimpleSimGym(gym.Env):
         Description,
             Initializes the openai-gym environment with it's features.
         """
-        max_targets = 5
 
         # Init. Renders
         assert render_mode is None or render_mode in self.metadata["render_modes"]
