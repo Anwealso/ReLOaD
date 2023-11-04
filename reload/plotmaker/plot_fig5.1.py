@@ -11,18 +11,18 @@ ax = fig.add_axes([0.1, 0.1, 0.8, 0.8]) # main axes
 
 # --------------------------------- LOAD DATA -------------------------------- #
 # Series 1
-sac_results = np.loadtxt('sac_training_reward3.csv', delimiter=',', skiprows=1)
+sac_results = np.loadtxt('run-SAC_2-tag-rollout_ep_rew_mean.csv', delimiter=',', skiprows=1)
 reward_sac = sac_results[:, 2]
 step = sac_results[:, 1]
 
 # Series 2
-naive_reward = np.full_like(step, 781)
+naive_reward = np.full_like(step, 906.98)
 
 # Series 3
-random_reward = np.full_like(step, 275)
+random_reward = np.full_like(step, 580.21)
 
 # Series 4
-max_reward = np.full_like(step, 2000)
+max_reward = np.full_like(step, 1656.6)
 
 
 # --------------------------------- PLOT DATA -------------------------------- #
@@ -54,7 +54,7 @@ ax.set_ylabel(
     "Episode Average Reward", color="#333333"
 )
 ax.set_title(
-    f"Model Average Reward over Training", color="#333333"
+    f"Model Average Reward over Training vs Baselines", color="#333333"
 )
 
 

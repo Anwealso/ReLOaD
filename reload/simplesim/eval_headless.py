@@ -24,7 +24,7 @@ PLAYER_FOV = 30
 ACTION_FORMAT = "continuous"
 
 # Eval
-num_episodes = 500
+num_episodes = 1000
 RENDER_PLOTS = True
 
 
@@ -68,7 +68,9 @@ for key in models.keys():
     eval_env.reset()
     # Test average reward over multiple episodes
     mean_reward, std_reward = evaluate_policy(models[key], eval_env, n_eval_episodes=100)
-    print(f"\n===== ep_avg_reward:{mean_reward:.2f} +/- {std_reward:.2f} =====")
-    print(f"MODEL TYPE: {key}")
-    print(f"estim_max_reward:{((MAX_BUDGET/2) * 10):.2f}")
-    print(f"step_avg_reward:{(mean_reward/(MAX_BUDGET/2)):.2f}\n")
+    
+    print(f"\nPOLICY: {key}")
+    print(f"Average Ep Reward: {mean_reward:.2f}, Std Deviation: {std_reward:.2f}")
+    # print(f"\n===== ep_avg_reward:{mean_reward:.2f} +/- {std_reward:.2f} =====")
+    # print(f"estim_max_reward:{((MAX_BUDGET/2) * 10):.2f}")
+    # print(f"step_avg_reward:{(mean_reward/(MAX_BUDGET/2)):.2f}\n")

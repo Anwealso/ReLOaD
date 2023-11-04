@@ -13,3 +13,5 @@ reload/objectdetection/runs/
 out/
 logs/
 videos/
+*.png
+*.csv

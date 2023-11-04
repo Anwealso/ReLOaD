@@ -64,10 +64,10 @@ ACTION_FORMAT = "continuous"
 
 # ------------------------------ Load Model(s) ------------------------------- #
 # Load the model (SAC)
-# last_sac = SAC.load("saved_models/MlpPolicy_SAC_step6000000.zip")
+last_sac = SAC.load("saved_models/MlpPolicy_SAC_step4000000.zip")
 best_sac = SAC.load("saved_models/best_sac.zip")
 
-models = {#"last_sac": last_sac,
+models = {"last_sac": last_sac,
           "best_sac": best_sac}
 
 

@@ -50,41 +50,47 @@ obs = env.reset()
 # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
 
 # --------------------------------- RUN EVAL --------------------------------- #
-num_episodes = 500 # number of episodes to eval over
+num_episodes = 1000 # number of episodes to eval over
 obs = env.reset()
 
 ep_rewards = []
 
-for i in range(num_episodes):
-    terminated = False
-    truncated = False
-    ep_reward = 0
-    found = False
-    j = 0
+for mode in ["naive", "random"]:
+    for i in range(num_episodes):
+        terminated = False
+        truncated = False
+        ep_reward = 0
+        found = False
+        j = 0
 
-    ep_reward = 0
+        ep_reward = 0
 
-    naive_policy = NaivePolicy(env.game)
-    
-    while not (terminated or truncated):
-        # For naive policy
-        action = naive_policy.get_action(env.game.robot)
-        # # For a random policy, simply do:
-        # action = env.action_space.sample()
+        naive_policy = NaivePolicy(env.game)
+        
+        while not (terminated or truncated):
+            if mode == "naive":
+                # For naive policy
+                action = naive_policy.get_action(env.game.robot)
+            if mode == "random":
+                # For a random policy, simply do:
+                action = env.action_space.sample()
 
-        obs, reward, terminated, truncated, info = env.step(action)
+            obs, reward, terminated, truncated, info = env.step(action)
 
-        j += 1
-        ep_reward += reward
+            j += 1
+            ep_reward += reward
 
-        if terminated or truncated:
-            obs, info = env.reset()
+            if terminated or truncated:
+                obs, info = env.reset()
 
-    # print(f"Episode {i}, reward={ep_reward}")
-    ep_rewards.append(ep_reward)
+        # print(f"Episode {i}, reward={ep_reward}")
+        ep_rewards.append(ep_reward)
 
-avg_ep_reward = np.average(ep_rewards)
-print(f"\nAverage Ep Reward: {avg_ep_reward}")
+    std_dev = math.sqrt(np.var(ep_rewards))
+    avg_ep_reward = np.average(ep_rewards)
+
+    print(f"\nPOLICY: {mode}")
+    print(f"Average Ep Reward: {avg_ep_reward:.2f}, Std Deviation: {std_dev:.2f}")
 
 
 """

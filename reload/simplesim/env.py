@@ -18,6 +18,8 @@ import numpy as np
 import os
 import sys
 import matplotlib.pyplot as plt
+from PIL import Image
+import time
 
 # ---------------------------------------------------------------------------- #
 #                                  GLOBAL VARS                                 #
@@ -205,6 +207,11 @@ class SimpleSim(object):
         self.class_names = self.class_names[
             0 : self.num_classes
         ]  # truncate to however many classes we have
+
+
+        # Reset and re-randomise environment conditions
+        self.count = 0
+        self.gameover = False
 
         # Reset game state to initial
         self.reset()
@@ -513,7 +520,7 @@ class SimpleSim(object):
     def set_scoreboard(self, scoreboard_items):
         self.scoreboard_items = scoreboard_items
         if self.render_mode == "human":
-            self._render_frame()
+            self._render_frame(self.render_mode)
 
     def handle_boundary_collisions(self):
         """
@@ -679,7 +686,22 @@ class SimpleSim(object):
                         self.paused = not self.paused
                         break
 
-            self._render_frame()
+            self._render_frame(self.render_mode)
+
+    def save_images(self):
+        """
+        Saves images of the current environment and histograms to file
+        """
+        print("Saving images...")
+        # Save env image
+        frame = self._render_frame("rgb_array")
+        env_image = Image.fromarray(frame)
+        print(f"out/{time.time()}_environment.png")
+        env_image.save(f"out/{time.time()}_environment.png")
+
+        # Save histogram image
+        plt.savefig(f"out/{time.time()}_histograms.png")
+
 
     def reset(self):
         """
@@ -690,6 +712,11 @@ class SimpleSim(object):
         Returns:
             None
         """
+        if self.gameover == True:
+            # Before we reset, save an image of the final environment and histograms
+            self.save_images()
+            time.sleep(1)
+
         # Reset and re-randomise environment conditions
         self.count = 0
         self.gameover = False
@@ -724,13 +751,13 @@ class SimpleSim(object):
 
     def render(self):
         if self.render_mode != None:
-            frame = self._render_frame()
+            frame = self._render_frame(self.render_mode)
             if self.render_mode == "rgb_array":
                 return frame
 
-    def _render_frame(self):
+    def _render_frame(self, render_mode):
         pygame.init()
-        if self.render_mode == "human":
+        if render_mode == "human":
             if self.window is None:
                 pygame.display.init()
                 self.window = pygame.display.set_mode(
@@ -782,7 +809,7 @@ class SimpleSim(object):
         fov_color = (0, 0, 255, 70)
         fov_line_length = int(500 * self.display_scale)
         fov_line_thickness = int(5 * self.display_scale)
-        font = pygame.font.SysFont(font_family, int(25 * self.display_scale))
+        font = pygame.font.SysFont(font_family, int(15 * self.display_scale))
         bold_font = pygame.font.SysFont(
             font_family, int(20 * self.display_scale), bold=True
         )
@@ -926,15 +953,15 @@ class SimpleSim(object):
             )
 
         # Draw the onscreen menu text
-        play_again_text = font.render("Press Tab to Play Again", 1, (0, 0, 0))
-        if self.gameover:
-            canvas.blit(
-                play_again_text,
-                (
-                    self.env_size // 2 - play_again_text.get_width() // 2,
-                    self.env_size // 2 - play_again_text.get_height() // 2,
-                ),
-            )
+        # play_again_text = font.render("Press Tab to Play Again", 1, (0, 0, 0))
+        # if self.gameover:
+        #     canvas.blit(
+        #         play_again_text,
+        #         (
+        #             self.env_size // 2 - play_again_text.get_width() // 2,
+        #             self.env_size // 2 - play_again_text.get_height() // 2,
+        #         ),
+        #     )
 
         pause_text = font.render("Press P to Unpause", 1, (0, 0, 0))
         if self.paused:
@@ -949,7 +976,7 @@ class SimpleSim(object):
         # Render the socreboard info
         self.render_scoreboard(canvas, font)
 
-        if self.render_mode == "human":
+        if render_mode == "human":
             if self.render_plots == True:
                 # Render the matplotlib histograms
                 confidences_sum = np.sum(self.confidences, axis=2)

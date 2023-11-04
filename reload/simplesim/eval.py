@@ -17,7 +17,7 @@ from env_gym import SimpleSimGym
 
 # ------------------------------ Hyperparameters ----------------------------- #
 # Env
-MAX_BUDGET = 50
+MAX_BUDGET = 400
 MAX_TARGETS = 5
 NUM_CLASSES = 10
 PLAYER_FOV = 30
@@ -30,17 +30,14 @@ RENDER_PLOTS = True
 
 # -------------------------------- Load Model -------------------------------- #
 # Load the model (SAC)
-# model_sac = SAC.load("saved_models/last_sac_4M.zip")
-
-# Best model teraied at v30
+# Last model
 model_sac = SAC.load("saved_models/MlpPolicy_SAC_step4000000.zip")
-
-# Load the model (PPO)
-# model_ppo = PPO.load("saved_models/last_ppo_4M.zip")
+# Best model
+best_sac = SAC.load("saved_models/best_sac.zip")
 
 
 # --------------------------- Run Interactive Eval --------------------------- #
-model = model_sac
+model = best_sac
 
 # Wrap the env for the model
 env = make_vec_env(
@@ -79,7 +76,7 @@ for i in range(num_episodes):
 
         if terminated or truncated:
             print(f"Total Ep Reward: {ep_reward}")
-            print(f"step_avg_reward: {(ep_reward/MAX_BUDGET):.2f}\n")
+            print(f"step_avg_reward:{(ep_reward/MAX_BUDGET):.2f}\n")
             obs, info = env.reset()
             break
 

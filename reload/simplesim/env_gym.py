@@ -475,7 +475,7 @@ class SimpleSimGym(gym.Env):
         Returns:
             Standard return format as specified by Gymnasium API
         """
-        self.game.reset() # reset the underlying gae state
+        self.game.reset() # reset the underlying game state
 
         self.entropies = np.ones(shape=(self.game.max_targets,))
         self.min_entropies = np.ones(shape=(self.game.max_targets,))  # the max ever entropies
