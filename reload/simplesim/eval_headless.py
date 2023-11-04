@@ -24,7 +24,7 @@ PLAYER_FOV = 30
 ACTION_FORMAT = "continuous"
 
 # Eval
-num_episodes = 10
+num_episodes = 500
 RENDER_PLOTS = True
 
 

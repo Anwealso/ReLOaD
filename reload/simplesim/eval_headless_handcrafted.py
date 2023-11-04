@@ -50,7 +50,7 @@ obs = env.reset()
 # --------------------------- LOAD MODEL IF DESIRED -------------------------- #
 
 # --------------------------------- RUN EVAL --------------------------------- #
-num_episodes = 100 # number of episodes to eval over
+num_episodes = 500 # number of episodes to eval over
 obs = env.reset()
 
 ep_rewards = []
