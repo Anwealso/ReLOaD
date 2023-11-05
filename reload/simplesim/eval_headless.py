@@ -30,8 +30,8 @@ RENDER_PLOTS = True
 
 # -------------------------------- Load Model -------------------------------- #
 # Load the model (SAC)
-model_sac = SAC.load("saved_models/MlpPolicy_SAC_step4000000.zip")
 best_sac = SAC.load("saved_models/best_sac.zip")
+model_sac = SAC.load("saved_models/MlpPolicy_SAC_step4000000.zip")
 
 
 # --------------------------- Evaluate Performance --------------------------- #
@@ -52,18 +52,18 @@ eval_env = make_vec_env(
 )
 
 # Check performance of best vs last model
-models = {"model_sac": model_sac,
-        "best_sac": best_sac}
+models = {#"model_sac": model_sac,
+          "best_sac": best_sac}
 
 print("Evaluating Models (Headless)...")
-for key in ["best_sac"]:
+for key in models.keys():
     # Reset the eval env
     eval_env.reset()
     # Test average reward over multiple episodes
     mean_reward, std_reward = evaluate_policy(models[key], eval_env, n_eval_episodes=num_episodes)
     
     print(f"\nPOLICY: {key}")
-    print(f"Average Ep Reward: {mean_reward:.2f} , Std Deviation: {std_reward:.2f}")
+    print(f"Average Ep Reward: {mean_reward:.2f}, Std Deviation: {std_reward:.2f}")
     # print(f"\n===== ep_avg_reward:{mean_reward:.2f} +/- {std_reward:.2f} =====")
     # print(f"estim_max_reward:{((MAX_BUDGET/2) * 10):.2f}")
     # print(f"step_avg_reward:{(mean_reward/(MAX_BUDGET/2)):.2f}\n")

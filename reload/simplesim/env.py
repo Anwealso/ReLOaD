@@ -688,17 +688,48 @@ class SimpleSim(object):
 
             self._render_frame(self.render_mode)
 
+    def save_obs_distribution(self):
+        """
+        Saves the distribution of observations across all of the targets
+        """
+        # print(np.shape(self.confidences), self.confidences)
+
+        # over all timesteps, per class and target
+        num_observations = np.count_nonzero(self.confidences, axis=2)
+        # print(np.shape(num_observations), num_observations)
+        
+        # over all timesteps and classes, per target
+        num_observations = num_observations[:, 0]
+        # print(np.shape(num_observations), num_observations)
+        
+        out_file = open("obs_dist.csv", "a")  # append mode
+        
+        total_num_obs = np.sum(num_observations)
+        for target_num_obs in num_observations:
+            if total_num_obs == 0:
+                continue
+
+            outstr = f"{self.num_targets}, {self.starting_budget}, {target_num_obs}, {target_num_obs/self.starting_budget}, {total_num_obs}, {target_num_obs/total_num_obs}"
+            out_file.write(outstr+"\n")
+
+        # print(data)
+        # print(outstr)
+
+        out_file.close()
+
+        # quit()
+
     def save_images(self):
         """
         Saves images of the current environment and histograms to file
         """
         current_time = time.time()
 
-        print("Saving images...")
+        # print("Saving images...")
         # Save env image
         frame = self._render_frame("rgb_array")
         env_image = Image.fromarray(frame)
-        print(f"out/{time.time()}_environment.png")
+        # print(f"out/{time.time()}_environment.png")
         env_image.save(f"out/{current_time}_environment.png")
 
         # Save histogram image
@@ -715,9 +746,10 @@ class SimpleSim(object):
             None
         """
         # if self.gameover == True:
-        #     # Before we reset, save an image of the final environment and histograms
-        #     self.save_images()
-        #     time.sleep(1)
+            # Before we reset, save an image of the final environment and histograms
+            # self.save_images()
+            # Before we reset, save the obs distribution
+            # self.save_obs_distribution()
 
         # Reset and re-randomise environment conditions
         self.count = 0
@@ -726,8 +758,8 @@ class SimpleSim(object):
         self.starting_budget = 1 + round((self.max_budget - 1) * random.random())
         self.budget = self.starting_budget
         # Randomise the number of targets between 0 and a max of max_budget
-        # self.num_targets = 1 + round((self.max_targets - 1) * random.random())
-        self.num_targets = 1
+        self.num_targets = 1 + round((self.max_targets - 1) * random.random())
+        # self.num_targets = 5
         
         # Re-spawn entites
         self.walls = self.spawn_walls(self.num_walls)

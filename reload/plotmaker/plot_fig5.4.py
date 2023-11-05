@@ -39,7 +39,7 @@ series1 = ax[0].errorbar(
     marker='o',
     capsize=5,
 )
-ax[0].legend(['SAC'], loc ="upper right") 
+ax[0].legend(['ReLOaD'], loc ="upper right") 
 
 series2 = ax[1].errorbar(
     x,
@@ -88,4 +88,4 @@ for axis in ax:
 
 
 # ----------------------------------- SAVE ----------------------------------- #
-plt.savefig("fig_5.X.png")
+plt.savefig("fig_5.4.png")

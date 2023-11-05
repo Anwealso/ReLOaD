@@ -34,12 +34,6 @@ num_episodes = 10
 RENDER_PLOTS = True
 
 
-
-# --------------------------------- RUN EVAL --------------------------------- #
-num_episodes = 1000 # number of episodes to eval over
-ep_rewards = []
-mode = "naive"
-
 # -------------------------------- Environment ------------------------------- #
 # Instantiate two environments: one for training and one for evaluation.
 env = SimpleSimGym(
@@ -53,37 +47,47 @@ env = SimpleSimGym(
 )
 obs = env.reset()
 
-for i in range(num_episodes):
-    terminated = False
-    truncated = False
-    ep_reward = 0
-    found = False
-    j = 0
+# --------------------------- LOAD MODEL IF DESIRED -------------------------- #
 
-    ep_reward = 0
+# --------------------------------- RUN EVAL --------------------------------- #
+num_episodes = 1000 # number of episodes to eval over
+obs = env.reset()
 
-    naive_policy = NaivePolicy(env.game)
-    
-    while not (terminated or truncated):
-        if mode == "naive":
-            # For naive policy
-            action = naive_policy.get_action(env.game.robot)
-        # if mode == "random":
-        #     # For a random policy, simply do:
-        #     action = env.action_space.sample()
+ep_rewards = []
 
-        obs, reward, terminated, truncated, info = env.step(action)
+for mode in ["naive"]:
+    for i in range(num_episodes):
+        terminated = False
+        truncated = False
+        ep_reward = 0
+        found = False
+        j = 0
 
-        j += 1
-        ep_reward += reward
+        ep_reward = 0
 
-        if terminated or truncated:
-            obs, info = env.reset()
+        naive_policy = NaivePolicy(env.game)
+        
+        while not (terminated or truncated):
+            if mode == "naive":
+                # For naive policy
+                action = naive_policy.get_action(env.game.robot)
+            # if mode == "random":
+            #     # For a random policy, simply do:
+            #     action = env.action_space.sample()
 
-    ep_rewards.append(ep_reward)
+            obs, reward, terminated, truncated, info = env.step(action)
 
-std_dev = math.sqrt(np.var(ep_rewards))
-avg_ep_reward = np.average(ep_rewards)
+            j += 1
+            ep_reward += reward
 
-print(f"\nNUM_TARGTES: {mode}")
-print(f"Average Ep Reward: {avg_ep_reward:.2f} , Std Deviation: {std_dev:.2f}")
+            if terminated or truncated:
+                obs, info = env.reset()
+
+        # print(f"Episode {i}, reward={ep_reward}")
+        ep_rewards.append(ep_reward)
+
+    std_dev = math.sqrt(np.var(ep_rewards))
+    avg_ep_reward = np.average(ep_rewards)
+
+    print(f"\nPOLICY: {mode}")
+    print(f"Average Ep Reward: {avg_ep_reward:.2f}, Std Deviation: {std_dev:.2f}")
