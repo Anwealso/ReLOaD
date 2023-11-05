@@ -308,30 +308,21 @@ class SimpleSimGym(gym.Env):
             )  # confidence distribution for target over all timesteps
             self.entropies[i] = new_entropy
 
-            if method == "differential":
-                # Get entropy diff
-                entropy_change = new_entropy - self.min_entropies[i]
-                # If better than the previous best
-                if entropy_change < 0:
-                    entropy_reward += -entropy_change
-                    self.min_entropies[i] = new_entropy
-
         # Update variance in target entropies
         self.variance = float(np.var(self.entropies))
 
-        if method == "differential":
-            reward_multiplier = 1000
-
-        elif method == "absolute":
+        if method == "absolute":
             entropy_reward = self.game.max_targets - np.sum(self.entropies)
-            reward_multiplier = 10
-
-        # Add a multiplier to ensure it is worth it for the robot to  seek more
-        # reward even though it entails more movement cost
-        entropy_reward = entropy_reward * reward_multiplier
 
         # Normalise the reward against the number of targets
+        # (Reward is now average information gain per target)
         entropy_reward = entropy_reward / self.game.num_targets
+        
+        # Normalise the reward against the episode length
+        entropy_reward = entropy_reward / self.game.starting_budget
+        # Normalise total episode reward to 2k
+        entropy_reward = entropy_reward * 2000
+
         return entropy_reward
 
     
