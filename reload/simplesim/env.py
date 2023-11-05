@@ -730,10 +730,10 @@ class SimpleSim(object):
         frame = self._render_frame("rgb_array")
         env_image = Image.fromarray(frame)
         # print(f"out/{time.time()}_environment.png")
-        env_image.save(f"out/{current_time}_environment.png")
+        env_image.save(f"out/{current_time}_environment.pdf")
 
         # Save histogram image
-        plt.savefig(f"out/{current_time}_histograms.png")
+        plt.savefig(f"out/{current_time}_histograms.pdf")
 
 
     def reset(self):

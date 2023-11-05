@@ -37,7 +37,8 @@ series1 = ax[0].errorbar(
     reward_sac,
     std_dev_sac,
     marker='o',
-    capsize=5,
+    markersize=8,
+    capsize=4,
 )
 ax[0].legend(['ReLOaD'], loc ="upper right") 
 
@@ -46,7 +47,8 @@ series2 = ax[1].errorbar(
     reward_hc,
     std_dev_hc,
     marker='o',
-    capsize=5,
+    markersize=8,
+    capsize=4,
     color="orange",
     ecolor="orange",
 )
@@ -88,4 +90,4 @@ for axis in ax:
 
 
 # ----------------------------------- SAVE ----------------------------------- #
-plt.savefig("fig_5.4.png")
+plt.savefig("fig_5.4.pdf")

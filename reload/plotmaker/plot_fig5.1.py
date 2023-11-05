@@ -1,3 +1,7 @@
+"""
+This figure shows the training reward of our model
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -11,40 +15,52 @@ ax = fig.add_axes([0.1, 0.1, 0.8, 0.8]) # main axes
 
 # --------------------------------- LOAD DATA -------------------------------- #
 # Series 1
-sac_results = np.loadtxt('run-SAC_2-tag-rollout_ep_rew_mean.csv', delimiter=',', skiprows=1)
-reward_sac = sac_results[:, 2]
-step = sac_results[:, 1]
+run1_results = np.loadtxt('run-SAC_2-tag-rollout_ep_rew_mean.csv', delimiter=',', skiprows=1)
+run1_reward = run1_results[:, 2]
+step1 = run1_results[:, 1]
 
 # Series 2
-naive_reward = np.full_like(step, 906.98)
+run2_results = np.loadtxt('run-SAC_3-tag-rollout_ep_rew_mean.csv', delimiter=',', skiprows=1)
+run2_reward = run2_results[:, 2]
+step2 = run2_results[:, 1]
 
 # Series 3
-random_reward = np.full_like(step, 580.21)
+run3_results = np.loadtxt('run-SAC_4-tag-rollout_ep_rew_mean.csv', delimiter=',', skiprows=1)
+run3_reward = run3_results[:, 2]
+step3 = run3_results[:, 1]
 
 # Series 4
-max_reward = np.full_like(step, 1656.6)
+max_reward = np.full_like(step3, 1656.6)
 
 
 # --------------------------------- PLOT DATA -------------------------------- #
 # Make plots
 series1 = ax.plot(
-    step,
-    reward_sac
+    step1,
+    run1_reward,
+    linewidth=1,
+    color=(30/255,119/255,180/255,1)
 )
 series2 = ax.plot(
-    step,
-    naive_reward
+    step2,
+    run2_reward,
+    linewidth=1,
+    color=(30/255,60/255,180/255,1)
 )
 series3 = ax.plot(
-    step,
-    random_reward
+    step3,
+    run3_reward,
+    linewidth=1,
+    color=(30/255,180/255,153/255,1)
+
 )
 series4 = ax.plot(
-    step,
-    max_reward
+    step3,
+    max_reward,
+    c="C3"
 )
 
-plt.legend(['ReLOaD (SAC)', 'Hand-crafted Policy', 'Random Policy', 'Avg. Max. Available'], loc ="lower right") 
+plt.legend(['Run 1', 'Run 2', 'Run 3', 'Avg. Max. Available'], loc ="lower right") 
 
 # Add labels and a title.
 ax.set_xlabel(
@@ -54,13 +70,14 @@ ax.set_ylabel(
     "Episode Average Reward", color="#333333"
 )
 ax.set_title(
-    f"Model Average Reward over Training vs Baselines", color="#333333"
+    f"ReLOaD Average Reward over Training", color="#333333"
 )
 
 
 # -------------------------------- FORMATTING -------------------------------- #
 # Axis formatting.
 ax.set_ylim(0, 2100)
+ax.set_xlim(0, 6_000_000)
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.spines["left"].set_visible(False)
@@ -74,4 +91,4 @@ ax.xaxis.grid(False)
 
 
 # ----------------------------------- SAVE ----------------------------------- #
-plt.savefig("fig_5.1.png")
+plt.savefig("fig_5.1.pdf")
