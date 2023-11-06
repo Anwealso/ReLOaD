@@ -1,3 +1,9 @@
+# simplesim/eval_headless.py
+#
+# Evaluates RL model policies in an interactive fashion so that the user can view the environment as the agent solves the problem
+#
+# Alex Nichoson
+
 # Library Imports
 from env import SimpleSim
 import math

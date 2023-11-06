@@ -1,3 +1,9 @@
+# simplesim/eval_headless.py
+#
+# Evaluates RL model policies in a headless fashion (no view of the environment is shown, only the final numerical results are returned)
+#
+# Alex Nichoson
+
 # Library Imports
 from env import SimpleSim
 import math

@@ -109,8 +109,7 @@ class SimpleSimGym(gym.Env):
                 robot_y_cart = self.game.env_size - self.game.robot.y
                 dx = target_x_cart - robot_x_cart
                 dy = target_y_cart - robot_y_cart
-                # (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
-                # this time just use absolute distances
+                (dx, dy) = self.world_to_body_frame(dx, dy)  # convert to body frame
                 target_info[0, i] = dx
                 target_info[1, i] = dy
 

@@ -1,8 +1,10 @@
-# eval_headless_naive.py
+# simplesim/eval_headless_naive.py
 # 
 # A version of eval_headless but for benchmarking handcrafted policies that 
 # need to have the actions drawn one by one (like the handcrafted naïve policy 
 # or a random policy sampling the action space)
+#
+# Alex Nichoson
 
 # Library Imports
 from env import SimpleSim, NaivePolicy

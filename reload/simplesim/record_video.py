@@ -1,3 +1,9 @@
+# simplesim/record_video.py
+#
+# Used to record videos of trained policies
+#
+# Alex Nichoson
+
 # Library Imports
 from env import SimpleSim
 import math
@@ -64,11 +70,26 @@ ACTION_FORMAT = "continuous"
 
 # ------------------------------ Load Model(s) ------------------------------- #
 # Load the model (SAC)
-last_sac = SAC.load("saved_models/MlpPolicy_SAC_step4000000.zip")
-best_sac = SAC.load("saved_models/best_sac.zip")
+sac_1 = SAC.load("saved_models/video_sac_0.4M.zip")
+sac_2 = SAC.load("saved_models/video_sac_0.8M.zip")
+sac_3 = SAC.load("saved_models/video_sac_1.6M.zip")
+sac_4 = SAC.load("saved_models/video_sac_2.8M.zip")
+sac_5 = SAC.load("saved_models/video_sac_4M.zip")
+best_sac = SAC.load("saved_models/video_best_sac.zip")
+best_ppo = PPO.load("saved_models/video_best_ppo.zip")
+models = {"best_sac": best_sac,
+          "best_ppo": best_ppo,
+          "sac_0.4M": sac_1,
+          "sac_0.8M": sac_2,
+          "sac_1.6M": sac_3,
+          "sac_2.8M": sac_4,
+          "sac_4M": sac_5,
+          }
 
-models = {"last_sac": last_sac,
-          "best_sac": best_sac}
+
+# best_dqn = DQN.load("saved_models/video_best_dqn.zip")
+# models = {"best_dqn": best_dqn,
+#           }
 
 
 # ------------------------------ Record Video(s) ----------------------------- #
@@ -95,4 +116,4 @@ for key in models.keys():
     # Reset the eval env
     eval_env.reset()
     # Record a video of the trained policy
-    record_video(eval_env, models[key], video_length=500*3, prefix=f"{key.replace('_', '-')}-simplesim")
+    record_video(eval_env, models[key], video_length=500*4, prefix=f"{key.replace('_', '-')}-simplesim")

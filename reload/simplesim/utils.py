@@ -1,3 +1,11 @@
+# simplesim/utils.py
+#
+# Assorted utility funcitons that are used in the training notebook, but were 
+# taken out of the notebook to increase conciseness nd readability.
+#
+# Alex Nichoson
+# 02/11/2023
+
 import os
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
@@ -21,7 +29,6 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
     """
 
     def __init__(self, check_freq, log_dir, save_dir, model_name, verbose=1):
-    # def __init__(self, check_freq, log_dir, save_dir, filename, verbose=1):
         super().__init__(verbose)
         self.check_freq = check_freq
         self.log_dir = log_dir + model_name
