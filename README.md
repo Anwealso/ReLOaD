@@ -1,4 +1,4 @@
-# ReLOaD: Reinforcement Learning for Object Detection
+# ReLOaD: Reinforcement Learning for Active Object Detection
 
 Alex Nicholson, The University of Queensland, 2023
 
