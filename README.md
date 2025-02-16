@@ -1,10 +1,8 @@
-# ReLOaD: Reinforcement Learning for Object Detection
+# ReLOaD: Reinforcement Learning for Active Object Detection
 
 Alex Nicholson, The University of Queensland, 2023
 
-Bachleor of Engineering Honors Thesis
-
----
+Bachleor of Engineering (Mechatronics) Honors Thesis
 
 <p align="center">
   <img src="poster_image.png" style="width:80%"/>
