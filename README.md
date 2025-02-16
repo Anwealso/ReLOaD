@@ -5,7 +5,7 @@ Alex Nicholson, The University of Queensland, 2023
 Bachleor of Engineering (Mechatronics) Honors Thesis
 
 <p align="center">
-  <img src="poster_image.png" style="width:80%"/>
+  <img src="poster_image.jpg" style="width:80%"/>
 </p>
 
 [Read my full thesis here.](<ReLOaD - Reinforcement Learning for Active Object Detection Thesis [Accepted].pdf>)
@@ -22,7 +22,7 @@ In order to train this behaviour, the agent is trained in a custom simulator to 
 The entire simulator environment was built in python using Pygame for rendering and the interface built purely using the Gymnasium API. 
 
 <p align="center">
-  <img src="demo_image.png" style="width:50%"/>
+  <img src="demo_image.jpg" style="width:50%"/>
 </p>
 
 The formal problem definition MDP as implemented in the Gymnasoum environment is as follows:
