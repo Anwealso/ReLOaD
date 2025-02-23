@@ -19,13 +19,13 @@ The aim of the thesis project was to create a system that augments the abilities
 
 In order to train this behaviour, the agent is trained in a custom simulator to control the movement of a non-holonomic mobile robot to explore its environment with the goal of accurately identifying a set of known-position target objects randomly scattered around the environment. The robots goal is given a certain time budget to explore the environmen and its goal is to collect as much information as possible by taking as many high-quality observations of the targets as possible. Essentially the agent tries to plan the most 'informative' path through the environment.
 
-The entire simulator environment was built in python using Pygame for rendering and the interface built purely using the Gymnasium API. 
+The entire simulator environment was built in python using Pygame for rendering, and the simulator was interfaced with the RL models using the Gymnasium API. 
 
 <p align="center">
   <img src="demo_image.jpg" style="width:50%"/>
 </p>
 
-The formal problem definition MDP as implemented in the Gymnasoum environment is as follows:
+The formal problem definition MDP as implemented in the Gymnasium environment is as follows:
 - State Space:
 ```python
 self.observation_space = spaces.utils.flatten_space(
@@ -68,16 +68,6 @@ where: $M$ = number of targets.
 $$ IG_m = \frac{1}{T}\sum_{t=0}^{T-1}{\left(1-\sum_{n=0}^{N-1}{-p_n\log_{N}p_n}\right)} $$
 
 where: $N$ = number of classes, $T$ = number of timesteps so far, and $p_n$ is the probability of target $m$ being of class $n$ (as returned by the object detection algorithm at timestep $t$)
-
-### Method
-
-The model selected 
-
-### Results
-- Environment image...
-- Confidence histograms...
-- Training plots...
-
 
 ## Installation / Setup
 
